@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "event_id": "event-004",
+  "project_id": "project-demo-001",
+  "sequence": 4,
+  "stage": "auto_edit",
+  "status": "running",
+  "summary": "Adding purposeful zooms.",
+  "detail_available": true,
+  "progress_fraction": 0.62,
+  "at": "2026-09-04T12:20:30Z"
+}

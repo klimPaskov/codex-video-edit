@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "action_id": "codex-action-001",
+  "project_id": "project-demo-001",
+  "thread_id": "thread_demo_001",
+  "turn_id": "turn_demo_001",
+  "model": "runtime-discovered-codex-model",
+  "instruction": "Tighten this section and keep the command explanation.",
+  "status": "complete",
+  "started_at": "2026-09-04T12:30:00Z",
+  "ended_at": "2026-09-04T12:30:12Z",
+  "skill_names": [
+    "timeline-editor",
+    "magic-edit"
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "kind": "status",
+      "at": "2026-09-04T12:30:01Z",
+      "summary": "Reviewing the selected section."
+    },
+    {
+      "sequence": 1,
+      "kind": "draft_changed",
+      "at": "2026-09-04T12:30:10Z",
+      "summary": "Applied two draft edits."
+    }
+  ],
+  "transactions": [
+    {
+      "transaction_id": "tx-codex-001",
+      "tool_name": "timeline.apply_operations",
+      "status": "applied",
+      "operation_ids": [
+        "op-cut-001"
+      ],
+      "error_code": null
+    }
+  ]
+}

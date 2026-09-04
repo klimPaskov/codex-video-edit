@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "tools": [
+    {
+      "name": "project.get_summary",
+      "mode": "read",
+      "description": "Read a compact project summary.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "project_read",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "timeline.get_summary",
+      "mode": "read",
+      "description": "Read bounded timeline state.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "project_read",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "timeline.apply_operations",
+      "mode": "mutation",
+      "description": "Apply one atomic batch of non-destructive operations.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "analysis.run_magic_wand",
+      "mode": "analysis",
+      "description": "Run selected Magic Wand automation classes.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "export.prepare",
+      "mode": "export_prepare",
+      "description": "Validate and stage export settings without confirming export.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "export_staging",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    }
+  ]
+}

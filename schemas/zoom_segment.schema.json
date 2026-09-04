@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Purposeful zoom segment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "zoom_id",
+    "start_us",
+    "end_us",
+    "target",
+    "scale",
+    "easing",
+    "origin",
+    "purpose"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "zoom_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "start_us": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "end_us": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "scale": {
+      "type": "number",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "easing": {
+      "enum": [
+        "ease_in_out",
+        "ease_out",
+        "linear",
+        "spring_soft"
+      ]
+    },
+    "origin": {
+      "enum": [
+        "automatic",
+        "manual",
+        "codex"
+      ]
+    },
+    "purpose": {
+      "enum": [
+        "click_target",
+        "typed_field",
+        "menu",
+        "dialog",
+        "detail",
+        "manual_focus"
+      ]
+    },
+    "confidence": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+      }
+    },
+    "manual_override": {
+      "type": "boolean"
+    }
+  }
+}

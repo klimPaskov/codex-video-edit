@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "asset_id": "asset-broll-001",
+  "kind": "video",
+  "path": "assets/broll/keyboard-closeup.mp4",
+  "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "description": "Close-up of hands typing on a keyboard.",
+  "tags": [
+    "typing",
+    "keyboard",
+    "computer"
+  ],
+  "provenance": {
+    "source": "User library",
+    "license": "Owned by user",
+    "license_url": null,
+    "allowed_use": "All project exports",
+    "attribution": null,
+    "verified_by_user": true
+  },
+  "media": {
+    "duration_us": 8500000,
+    "width": 3840,
+    "height": 2160,
+    "has_audio": false
+  },
+  "usage_count": 0
+}

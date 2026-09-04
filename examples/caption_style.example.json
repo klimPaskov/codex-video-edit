@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "style_id": "caption-clean-001",
+  "font": {
+    "family": "Inter",
+    "source": "bundled",
+    "asset_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "weight": 600
+  },
+  "font_size_px": 48,
+  "position": "bottom",
+  "safe_margin": {
+    "horizontal_fraction": 0.06,
+    "vertical_fraction": 0.08
+  },
+  "max_lines": 2,
+  "max_chars_per_line": 38,
+  "active_word_highlight": true,
+  "background": "blurred_box",
+  "text_color": "#FFFFFF",
+  "highlight_color": "#8B7CFF"
+}

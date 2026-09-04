@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "timeline_id": "timeline-rev-001",
+  "project_id": "project-demo-001",
+  "revision_id": "rev-001",
+  "duration_us": 60100000,
+  "frame_rate": {
+    "numerator": 60,
+    "denominator": 1
+  },
+  "canvas": {
+    "width": 2560,
+    "height": 1440,
+    "aspect_ratio": "16:9"
+  },
+  "tracks": [
+    {
+      "track_id": "track-main",
+      "kind": "main_video",
+      "order": 0,
+      "visible": true,
+      "locked": false
+    },
+    {
+      "track_id": "track-audio",
+      "kind": "audio",
+      "order": 1,
+      "visible": true,
+      "locked": false
+    },
+    {
+      "track_id": "track-effects",
+      "kind": "effects",
+      "order": 2,
+      "visible": true,
+      "locked": false
+    }
+  ],
+  "clips": [
+    {
+      "clip_id": "clip-screen-001",
+      "track_id": "track-main",
+      "source_id": "source-screen-001",
+      "source_start_us": 0,
+      "source_end_us": 62000000,
+      "timeline_start_us": 0,
+      "timeline_end_us": 60100000,
+      "enabled": true,
+      "transform": {
+        "x": 0,
+        "y": 0,
+        "scale": 1,
+        "rotation_deg": 0,
+        "opacity": 1
+      }
+    }
+  ],
+  "operation_ids": [
+    "op-cut-001"
+  ],
+  "zoom_ids": [
+    "zoom-001"
+  ],
+  "speed_ids": [
+    "speed-001"
+  ],
+  "caption_style_id": "caption-clean-001",
+  "created_at": "2026-09-04T12:21:00Z"
+}

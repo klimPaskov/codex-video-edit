@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "recording_id": "recording-001",
+  "project_id": "project-demo-001",
+  "scene_id": "scene-01",
+  "take_number": 2,
+  "status": "complete",
+  "started_at": "2026-09-04T12:10:00Z",
+  "ended_at": "2026-09-04T12:11:02Z",
+  "monotonic_origin_ns": 9087000000,
+  "sources": [
+    {
+      "source_id": "source-screen-001",
+      "role": "screen",
+      "device_label": "Display 1",
+      "started_offset_us": 0,
+      "duration_us": 62000000,
+      "status": "complete",
+      "sync_error_us": 0,
+      "required": true
+    },
+    {
+      "source_id": "source-mic-001",
+      "role": "microphone",
+      "device_label": "Virtual Microphone",
+      "started_offset_us": 12000,
+      "duration_us": 61988000,
+      "status": "complete",
+      "sync_error_us": 12000,
+      "required": true
+    }
+  ],
+  "consent": {
+    "screen": true,
+    "microphone": true,
+    "system_audio": false,
+    "camera": false,
+    "cursor_telemetry": true,
+    "keystroke_capture": false
+  },
+  "teleprompter": {
+    "enabled": true,
+    "script_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "scroll_mode": "manual"
+  }
+}

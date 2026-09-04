@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Caption style",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "style_id",
+    "font",
+    "font_size_px",
+    "position",
+    "safe_margin",
+    "max_lines",
+    "max_chars_per_line",
+    "active_word_highlight"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "style_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "font": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "source"
+      ],
+      "properties": {
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "enum": [
+            "system",
+            "bundled",
+            "project_asset"
+          ]
+        },
+        "asset_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "weight": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 900,
+          "multipleOf": 100
+        }
+      }
+    },
+    "font_size_px": {
+      "type": "number",
+      "minimum": 12,
+      "maximum": 160
+    },
+    "position": {
+      "enum": [
+        "bottom",
+        "lower_middle",
+        "middle",
+        "top"
+      ]
+    },
+    "safe_margin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "horizontal_fraction",
+        "vertical_fraction"
+      ],
+      "properties": {
+        "horizontal_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.25
+        },
+        "vertical_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.25
+        }
+      }
+    },
+    "max_lines": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "max_chars_per_line": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 80
+    },
+    "active_word_highlight": {
+      "type": "boolean"
+    },
+    "background": {
+      "enum": [
+        "none",
+        "shadow",
+        "solid",
+        "blurred_box"
+      ]
+    },
+    "text_color": {
+      "type": "string",
+      "pattern": "^#[A-Fa-f0-9]{6}$"
+    },
+    "highlight_color": {
+      "type": "string",
+      "pattern": "^#[A-Fa-f0-9]{6}$"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "codex-video-edit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run check:contracts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint packages tests --no-warn-ignored",
+    "format:check": "prettier --check package.json tsconfig.json eslint.config.js \"packages/**/*.ts\" \"tests/**/*.ts\"",
+    "format": "prettier --write package.json tsconfig.json eslint.config.js \"packages/**/*.ts\" \"tests/**/*.ts\"",
+    "test": "python -m unittest discover -s tests/foundation -p test_*.py && node --test tests/media/*.test.ts",
+    "check:contracts": "python scripts/validate_package.py && python scripts/validate_delivery.py",
+    "check:publication": "python scripts/audit_publication.py",
+    "phase:write": "python scripts/write_phase_result.py",
+    "check:protocol": "python scripts/verify_codex_protocol.py"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "eslint": "10.10.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Speed and pacing segment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "speed_id",
+    "start_us",
+    "end_us",
+    "rate",
+    "audio_mode",
+    "reason",
+    "origin"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "speed_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "start_us": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "end_us": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rate": {
+      "type": "number",
+      "minimum": 0.25,
+      "maximum": 8
+    },
+    "audio_mode": {
+      "enum": [
+        "pitch_preserve",
+        "keep_original",
+        "mute",
+        "room_tone"
+      ]
+    },
+    "reason": {
+      "enum": [
+        "typing",
+        "loading",
+        "waiting",
+        "repetition_preview",
+        "manual"
+      ]
+    },
+    "origin": {
+      "enum": [
+        "automatic",
+        "manual",
+        "codex"
+      ]
+    },
+    "explicit_user_request": {
+      "type": "boolean"
+    },
+    "speech_detected": {
+      "type": "boolean"
+    },
+    "confidence": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

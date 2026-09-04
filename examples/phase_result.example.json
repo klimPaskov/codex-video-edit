@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "phase_id": "P1",
+  "status": "complete",
+  "started_at": "2026-09-04T09:00:00Z",
+  "ended_at": "2026-09-04T11:00:00Z",
+  "task_ids": [
+    "P1-01",
+    "P1-02",
+    "P1-03",
+    "P1-04",
+    "P1-05",
+    "P1-06"
+  ],
+  "summary": "Implemented and inspected the secure native shell.",
+  "checks": [
+    {
+      "name": "Electron launch",
+      "status": "pass",
+      "command_or_method": "Playwright Electron test",
+      "evidence": [
+        "evidence/P1/home.png"
+      ]
+    },
+    {
+      "name": "Visible inspection",
+      "status": "pass",
+      "command_or_method": "Astra computer-use pass",
+      "evidence": [
+        "evidence/P1/native-review.md"
+      ]
+    }
+  ],
+  "artifacts": [
+    "evidence/P1/home.png"
+  ],
+  "native_test": {
+    "launched": true,
+    "playwright": true,
+    "computer_use": true,
+    "screenshot_paths": [
+      "evidence/P1/home.png"
+    ],
+    "recording_paths": []
+  },
+  "known_limits": [],
+  "spec_sync": {
+    "changed": ["Illustrative fixture only; not acceptance evidence"],
+    "unchanged": ["Product contracts"]
+  },
+  "code_revision": "0123456789abcdef0123456789abcdef01234567"
+}

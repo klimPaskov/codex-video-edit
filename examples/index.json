@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "pairs": [
+    {
+      "schema": "schemas/activity_event.schema.json",
+      "example": "examples/activity_event.example.json"
+    },
+    {
+      "schema": "schemas/broll_asset.schema.json",
+      "example": "examples/broll_asset.example.json"
+    },
+    {
+      "schema": "schemas/caption_style.schema.json",
+      "example": "examples/caption_style.example.json"
+    },
+    {
+      "schema": "schemas/codex_action.schema.json",
+      "example": "examples/codex_action.example.json"
+    },
+    {
+      "schema": "schemas/edit_operation.schema.json",
+      "example": "examples/edit_operation.example.json"
+    },
+    {
+      "schema": "schemas/export_manifest.schema.json",
+      "example": "examples/export_manifest.example.json"
+    },
+    {
+      "schema": "schemas/magic_wand_plan.schema.json",
+      "example": "examples/magic_wand_plan.example.json"
+    },
+    {
+      "schema": "schemas/phase_result.schema.json",
+      "example": "examples/phase_result.example.json"
+    },
+    {
+      "schema": "schemas/project.schema.json",
+      "example": "examples/project.example.json"
+    },
+    {
+      "schema": "schemas/qa_report.schema.json",
+      "example": "examples/qa_report.example.json"
+    },
+    {
+      "schema": "schemas/recording_session.schema.json",
+      "example": "examples/recording_session.example.json"
+    },
+    {
+      "schema": "schemas/reference_manifest.schema.json",
+      "example": "examples/reference_manifest.example.json"
+    },
+    {
+      "schema": "schemas/revision.schema.json",
+      "example": "examples/revision.example.json"
+    },
+    {
+      "schema": "schemas/screen_manifest.schema.json",
+      "example": "examples/screen_manifest.example.json"
+    },
+    {
+      "schema": "schemas/skill_manifest.schema.json",
+      "example": "examples/skill_manifest.example.json"
+    },
+    {
+      "schema": "schemas/source.schema.json",
+      "example": "examples/source.example.json"
+    },
+    {
+      "schema": "schemas/speed_segment.schema.json",
+      "example": "examples/speed_segment.example.json"
+    },
+    {
+      "schema": "schemas/subagent_routing.schema.json",
+      "example": "examples/subagent_routing.example.json"
+    },
+    {
+      "schema": "schemas/timeline.schema.json",
+      "example": "examples/timeline.example.json"
+    },
+    {
+      "schema": "schemas/tool_manifest.schema.json",
+      "example": "examples/tool_manifest.example.json"
+    },
+    {
+      "schema": "schemas/transcript.schema.json",
+      "example": "examples/transcript.example.json"
+    },
+    {
+      "schema": "schemas/ui_state.schema.json",
+      "example": "examples/ui_state.example.json"
+    },
+    {
+      "schema": "schemas/zoom_segment.schema.json",
+      "example": "examples/zoom_segment.example.json"
+    },
+    {
+      "schema": "schemas/export_manifest.schema.json",
+      "example": "examples/export_share.example.json"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "skills": [
+    {
+      "name": "orchestrate-implementation",
+      "path": "skills/orchestrate-implementation/SKILL.md",
+      "description": "Select and complete the first dependency-safe phase.",
+      "phases": [
+        "P0",
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ]
+    },
+    {
+      "name": "research-product",
+      "path": "skills/research-product/SKILL.md",
+      "description": "Research current product and technical contracts.",
+      "phases": [
+        "P0"
+      ]
+    }
+  ]
+}

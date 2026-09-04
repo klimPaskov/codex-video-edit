@@ -1,0 +1,515 @@
+{
+  "schema_version": "1.0",
+  "tools": [
+    {
+      "name": "project.get_summary",
+      "mode": "read",
+      "description": "Read a compact project summary.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "project_read",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "timeline.get_summary",
+      "mode": "read",
+      "description": "Read bounded timeline state.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "project_read",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "timeline.get_selection",
+      "mode": "read",
+      "description": "Read the current editor selection and nearby evidence.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "project_read",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "transcript.get_range",
+      "mode": "read",
+      "description": "Read a bounded transcript range.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "project_read",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "media.get_frames",
+      "mode": "read",
+      "description": "Render bounded preview frames or a contact sheet.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "bounded_media",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "assets.search_local",
+      "mode": "read",
+      "description": "Search licence-indexed local assets.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "local_assets",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "qa.get_findings",
+      "mode": "read",
+      "description": "Read current QA findings.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "project_read",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "timeline.apply_operations",
+      "mode": "mutation",
+      "description": "Apply one atomic batch of non-destructive operations.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "cut.split",
+      "mode": "mutation",
+      "description": "Split a supported clip at a mapped time.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "cut.delete_range",
+      "mode": "mutation",
+      "description": "Create a non-destructive ripple delete.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "cut.restore_range",
+      "mode": "mutation",
+      "description": "Restore source material where unambiguous.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "cut.trim_edge",
+      "mode": "mutation",
+      "description": "Move a clip boundary with validation and snapping.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "zoom.add",
+      "mode": "mutation",
+      "description": "Add a purposeful zoom.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "zoom.update",
+      "mode": "mutation",
+      "description": "Update zoom timing, target, scale, or easing.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "zoom.remove",
+      "mode": "mutation",
+      "description": "Remove a zoom operation.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "speed.add",
+      "mode": "mutation",
+      "description": "Add a bounded speed segment with explicit audio behavior.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "speed.update",
+      "mode": "mutation",
+      "description": "Update a speed segment.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "speed.remove",
+      "mode": "mutation",
+      "description": "Remove a speed segment.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "captions.configure",
+      "mode": "mutation",
+      "description": "Apply caption style settings.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "captions.correct",
+      "mode": "mutation",
+      "description": "Correct bounded caption text.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "layout.set",
+      "mode": "mutation",
+      "description": "Apply a supported screen and camera layout.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "broll.add",
+      "mode": "mutation",
+      "description": "Place a current licence-verified local asset.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "broll.update",
+      "mode": "mutation",
+      "description": "Update a B-roll placement.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "broll.remove",
+      "mode": "mutation",
+      "description": "Remove a B-roll placement.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "audio.configure",
+      "mode": "mutation",
+      "description": "Apply bounded cleanup, gain, fades, music, or ducking.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "cursor.configure",
+      "mode": "mutation",
+      "description": "Apply pointer and click presentation settings.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "analysis.run_magic_wand",
+      "mode": "analysis",
+      "description": "Run selected Magic Wand automation classes.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "analysis.find_zoom_targets",
+      "mode": "analysis",
+      "description": "Find evidence-backed zoom targets.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "bounded_media",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "analysis.find_speed_ranges",
+      "mode": "analysis",
+      "description": "Find safe pacing ranges.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "bounded_media",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "preview.render_range",
+      "mode": "render",
+      "description": "Render a bounded review preview.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "bounded_media",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "preview.render_project",
+      "mode": "render",
+      "description": "Render a project preview.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "bounded_media",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "qa.run_range",
+      "mode": "qa",
+      "description": "Run checks for a bounded range.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "bounded_media",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "qa.run_project",
+      "mode": "qa",
+      "description": "Run complete current-revision QA.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "project_read",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
+      "name": "export.prepare",
+      "mode": "export_prepare",
+      "description": "Validate and stage export settings without confirming export.",
+      "undoable": false,
+      "user_confirmation": "none",
+      "allowed_scope": "export_staging",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    }
+  ]
+}

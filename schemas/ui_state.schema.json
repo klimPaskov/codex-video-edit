@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Step-based native application UI state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "screen",
+    "step",
+    "primary_action",
+    "open_panel",
+    "busy",
+    "diagnostics_visible"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "required": ["codex"],
+        "properties": {
+          "codex": {
+            "required": ["drawer_open"],
+            "properties": { "drawer_open": { "const": true } }
+          }
+        }
+      },
+      "then": { "properties": { "open_panel": { "const": null } } }
+    }
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "project_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "screen": {
+      "enum": [
+        "onboarding",
+        "home",
+        "capture_setup",
+        "recording",
+        "import_processing",
+        "auto_edit",
+        "editor",
+        "compare",
+        "qa",
+        "export",
+        "export_complete",
+        "settings"
+      ]
+    },
+    "step": {
+      "enum": [
+        "onboarding",
+        "home",
+        "record_import",
+        "auto_edit",
+        "edit",
+        "review",
+        "export",
+        "complete"
+      ]
+    },
+    "primary_action": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 120
+    },
+    "open_panel": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 120
+    },
+    "busy": {
+      "type": "boolean"
+    },
+    "diagnostics_visible": {
+      "type": "boolean"
+    },
+    "selection": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "none",
+            "clip",
+            "range",
+            "zoom",
+            "speed",
+            "caption",
+            "broll",
+            "audio"
+          ]
+        },
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start_us": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "end_us": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "codex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "model",
+        "drawer_open",
+        "turn_status"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "const": "Codex"
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "drawer_open": {
+          "type": "boolean"
+        },
+        "turn_status": {
+          "enum": [
+            "idle",
+            "running",
+            "awaiting_approval",
+            "error"
+          ]
+        }
+      }
+    }
+  }
+}

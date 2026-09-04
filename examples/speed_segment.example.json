@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "speed_id": "speed-001",
+  "start_us": 22000000,
+  "end_us": 30000000,
+  "rate": 2.5,
+  "audio_mode": "pitch_preserve",
+  "reason": "typing",
+  "origin": "codex",
+  "explicit_user_request": true,
+  "speech_detected": false,
+  "confidence": 0.94
+}

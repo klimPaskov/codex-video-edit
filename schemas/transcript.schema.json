@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Word-timed transcript",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transcript_id",
+    "project_id",
+    "source_id",
+    "duration_us",
+    "language",
+    "model",
+    "segments"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "transcript_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "source_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "duration_us": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "language": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 35
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "name",
+        "version"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "const": "local"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "device": {
+          "type": "string"
+        }
+      }
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "segment_id",
+          "start_us",
+          "end_us",
+          "text",
+          "words"
+        ],
+        "properties": {
+          "segment_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+          },
+          "start_us": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "end_us": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "text": {
+            "type": "string"
+          },
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "word_id",
+                "text",
+                "start_us",
+                "end_us"
+              ],
+              "properties": {
+                "word_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "start_us": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "end_us": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "confidence": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "speaker": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "maxLength": 80
+                },
+                "flags": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "uncertain",
+                      "number",
+                      "name",
+                      "negation",
+                      "protected",
+                      "overlap"
+                    ]
+                  },
+                  "uniqueItems": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

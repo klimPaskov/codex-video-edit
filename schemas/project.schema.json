@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "codex-video-edit project",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project_id",
+    "name",
+    "created_at",
+    "updated_at",
+    "workflow_step",
+    "current_revision_id",
+    "source_ids",
+    "storage"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "updated_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "workflow_step": {
+      "enum": [
+        "home",
+        "record_import",
+        "auto_edit",
+        "review",
+        "qa",
+        "export",
+        "complete"
+      ]
+    },
+    "current_revision_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "source_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+      },
+      "uniqueItems": true
+    },
+    "codex_thread_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_root",
+        "autosave_enabled",
+        "source_policy"
+      ],
+      "properties": {
+        "project_root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "autosave_enabled": {
+          "type": "boolean"
+        },
+        "source_policy": {
+          "enum": [
+            "managed_copy",
+            "reference"
+          ]
+        }
+      }
+    },
+    "ui_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "active_screen": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "active_panel": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 80
+        },
+        "codex_drawer_open": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

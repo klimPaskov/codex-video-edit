@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Subagent routing manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "routes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "need",
+          "subagent",
+          "path",
+          "skills",
+          "phases",
+          "return_fields"
+        ],
+        "properties": {
+          "need": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subagent": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]+$"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]+$"
+            },
+            "minItems": 1
+          },
+          "phases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^P(?:10|[0-9])$"
+            },
+            "minItems": 1
+          },
+          "return_fields": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        }
+      }
+    }
+  }
+}

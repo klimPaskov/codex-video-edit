@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "phase_id": "P0",
+  "status": "partial",
+  "started_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "ended_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "task_ids": [
+    "P0-01"
+  ],
+  "summary": "Replace with evidence-based summary.",
+  "checks": [
+    {
+      "name": "check name",
+      "status": "not_run",
+      "command_or_method": "command or inspection method",
+      "evidence": []
+    }
+  ],
+  "artifacts": [],
+  "native_test": {
+    "launched": false,
+    "playwright": false,
+    "computer_use": false,
+    "screenshot_paths": [],
+    "recording_paths": []
+  },
+  "known_limits": [],
+  "code_revision": null,
+  "spec_sync": {
+    "changed": ["Replace with changed contracts and paths"],
+    "unchanged": ["Replace with intentionally unchanged contracts"]
+  }
+}

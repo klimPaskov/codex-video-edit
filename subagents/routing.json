@@ -1,0 +1,271 @@
+{
+  "schema_version": "1.0",
+  "routes": [
+    {
+      "need": "Current product and technical research",
+      "subagent": "researcher",
+      "path": "subagents/researcher.md",
+      "skills": [
+        "research-product"
+      ],
+      "phases": [
+        "P0"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Flow, hierarchy, and simple native screens",
+      "subagent": "ux-designer",
+      "path": "subagents/ux-designer.md",
+      "skills": [
+        "simple-desktop-ui",
+        "reference-fidelity"
+      ],
+      "phases": [
+        "P1",
+        "P6"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Electron process and typed IPC design",
+      "subagent": "desktop-architect",
+      "path": "subagents/desktop-architect.md",
+      "skills": [
+        "native-electron"
+      ],
+      "phases": [
+        "P1"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Codex protocol, auth, threads, models, skills, and tools",
+      "subagent": "codex-bridge-engineer",
+      "path": "subagents/codex-bridge-engineer.md",
+      "skills": [
+        "codex-app-server"
+      ],
+      "phases": [
+        "P2"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Screen, audio, camera, scene, and take capture",
+      "subagent": "recording-engineer",
+      "path": "subagents/recording-engineer.md",
+      "skills": [
+        "recording-capture"
+      ],
+      "phases": [
+        "P4"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "FFmpeg, transcription, rendering, and media QA",
+      "subagent": "media-engineer",
+      "path": "subagents/media-engineer.md",
+      "skills": [
+        "media-engine",
+        "lossless-media"
+      ],
+      "phases": [
+        "P0",
+        "P3",
+        "P4",
+        "P5",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Timeline interactions, commands, and history",
+      "subagent": "editor-engineer",
+      "path": "subagents/editor-engineer.md",
+      "skills": [
+        "timeline-editor"
+      ],
+      "phases": [
+        "P3",
+        "P6",
+        "P7"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Magic Wand, automatic zooms, speed, and B-roll plans",
+      "subagent": "automation-editor",
+      "path": "subagents/automation-editor.md",
+      "skills": [
+        "magic-edit",
+        "automatic-zoom"
+      ],
+      "phases": [
+        "P5",
+        "P7",
+        "P8",
+        "P10"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Native Playwright and computer-use validation",
+      "subagent": "native-qa",
+      "path": "subagents/native-qa.md",
+      "skills": [
+        "native-app-testing",
+        "reference-fidelity"
+      ],
+      "phases": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Threat model, permissions, and privacy",
+      "subagent": "security-reviewer",
+      "path": "subagents/security-reviewer.md",
+      "skills": [
+        "security-privacy"
+      ],
+      "phases": [
+        "P1",
+        "P2",
+        "P4",
+        "P9"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Installer and release",
+      "subagent": "release-engineer",
+      "path": "subagents/release-engineer.md",
+      "skills": [
+        "release-packaging",
+        "open-source-development"
+      ],
+      "phases": [
+        "P0",
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Cross-file specification synchronization",
+      "subagent": "spec-maintainer",
+      "path": "subagents/spec-maintainer.md",
+      "skills": [
+        "spec-sync"
+      ],
+      "phases": [
+        "P0",
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    }
+  ]
+}

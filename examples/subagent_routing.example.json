@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "routes": [
+    {
+      "need": "Current product and technical research",
+      "subagent": "researcher",
+      "path": "subagents/researcher.md",
+      "skills": [
+        "research-product"
+      ],
+      "phases": [
+        "P0"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    },
+    {
+      "need": "Flow, hierarchy, and simple native screens",
+      "subagent": "ux-designer",
+      "path": "subagents/ux-designer.md",
+      "skills": [
+        "simple-desktop-ui"
+      ],
+      "phases": [
+        "P1",
+        "P6"
+      ],
+      "return_fields": [
+        "findings",
+        "files",
+        "tests",
+        "evidence",
+        "risks"
+      ]
+    }
+  ]
+}

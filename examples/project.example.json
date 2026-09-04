@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "project_id": "project-demo-001",
+  "name": "Product tutorial",
+  "created_at": "2026-09-04T12:00:00Z",
+  "updated_at": "2026-09-04T12:05:00Z",
+  "workflow_step": "auto_edit",
+  "current_revision_id": "rev-001",
+  "source_ids": [
+    "source-screen-001",
+    "source-mic-001"
+  ],
+  "codex_thread_id": "thread_demo_001",
+  "storage": {
+    "project_root": "C:/Users/demo/Videos/codex-video-edit/Product tutorial",
+    "autosave_enabled": true,
+    "source_policy": "managed_copy"
+  },
+  "ui_state": {
+    "active_screen": "auto-edit",
+    "active_panel": "magic-wand",
+    "codex_drawer_open": false
+  }
+}

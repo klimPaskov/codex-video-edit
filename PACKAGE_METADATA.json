@@ -1,0 +1,40 @@
+{
+  "package_name": "codex-video-edit",
+  "package_version": "1.2.0",
+  "created_at": "2026-09-04",
+  "status": "implementation-ready specifications and references, application not implemented",
+  "working_product_name": "codex-video-edit",
+  "target": "Windows-first standalone Electron desktop application",
+  "implementation_agent": "GPT-6 Astra in an isolated computer-use environment",
+  "ai_provider_scope": "Real Codex only for the first release",
+  "goal_prompt_characters": 3912,
+  "task_count": 73,
+  "phase_count": 11,
+  "screen_count": 13,
+  "guarded_codex_tool_count": 34,
+  "skill_count": 19,
+  "subagent_count": 12,
+  "schema_example_pair_count": 24,
+  "adr_count": 11,
+  "reference_screenshots_included": true,
+  "example_video_included": false,
+  "notes": [
+    "This is the working root for implementation, not a finished application.",
+    "All twenty native-app reference files are original full-page images from the conversation.",
+    "Lossless-first, simplified UI, live Codex, and public development requirements are applied.",
+    "No native app, real Codex, capture hardware, or GitHub publication tests were run by this packaging task."
+  ],
+  "package_file_count": 258,
+  "numbered_spec_count": 46,
+  "prompt_count": 9,
+  "template_count": 10,
+  "updated_at": "2026-09-05T00:00:00Z",
+  "reference_image_count": 20,
+  "contact_sheets_included": false,
+  "reference_sets": {
+    "current": 10,
+    "previous": 10
+  },
+  "repository_status": "not created or verified by this packaging task",
+  "schema_count": 23
+}

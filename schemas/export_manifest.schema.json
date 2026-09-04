@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Verified export manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "export_id",
+    "project_id",
+    "revision_id",
+    "created_at",
+    "output",
+    "profile",
+    "source_hashes",
+    "qa_report_sha256",
+    "decode_verified",
+    "quality_policy",
+    "lossless_verification"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "export_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "revision_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "size_bytes",
+        "duration_us"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duration_us": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "container",
+        "video_codec",
+        "audio_codec",
+        "width",
+        "height",
+        "frame_rate",
+        "video_pixel_format",
+        "audio_sample_format"
+      ],
+      "properties": {
+        "container": {
+          "enum": [
+            "mkv",
+            "mp4"
+          ]
+        },
+        "video_codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audio_codec": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "frame_rate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "numerator",
+            "denominator"
+          ],
+          "properties": {
+            "numerator": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "denominator": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "caption_sidecar": {
+          "type": "boolean"
+        },
+        "video_pixel_format": {
+          "type": "string",
+          "minLength": 1
+        },
+        "audio_sample_format": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "source_hashes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "timeline_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "qa_report_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "decode_verified": {
+      "type": "boolean"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "quality_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "user_selected_lower_quality",
+        "uses_preview_source"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "lossless_master",
+            "compressed_share"
+          ]
+        },
+        "user_selected_lower_quality": {
+          "type": "boolean"
+        },
+        "uses_preview_source": {
+          "const": false
+        }
+      }
+    },
+    "lossless_verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "video_samples_equal",
+        "audio_samples_equal",
+        "reference_boundary"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "video_samples_equal": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "audio_samples_equal": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "reference_boundary": {
+          "enum": [
+            "canonical_render",
+            "not_applicable"
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "quality_policy": {
+            "properties": {
+              "mode": {
+                "const": "lossless_master"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "profile": {
+            "properties": {
+              "container": {
+                "const": "mkv"
+              },
+              "video_codec": {
+                "const": "ffv1"
+              },
+              "audio_codec": {
+                "enum": [
+                  "pcm_s16le",
+                  "pcm_s24le",
+                  "pcm_s32le",
+                  "pcm_f32le",
+                  "pcm_f64le",
+                  null,
+                  "flac"
+                ]
+              }
+            }
+          },
+          "quality_policy": {
+            "properties": {
+              "user_selected_lower_quality": {
+                "const": false
+              }
+            }
+          },
+          "lossless_verification": {
+            "properties": {
+              "required": {
+                "const": true
+              },
+              "video_samples_equal": {
+                "const": true
+              },
+              "reference_boundary": {
+                "const": "canonical_render"
+              }
+            }
+          },
+          "decode_verified": {
+            "const": true
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "quality_policy": {
+            "properties": {
+              "user_selected_lower_quality": {
+                "const": true
+              }
+            }
+          },
+          "lossless_verification": {
+            "properties": {
+              "required": {
+                "const": false
+              },
+              "reference_boundary": {
+                "const": "not_applicable"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "quality_policy": {
+            "properties": {
+              "mode": {
+                "const": "lossless_master"
+              }
+            }
+          },
+          "profile": {
+            "properties": {
+              "audio_codec": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "lossless_verification": {
+            "properties": {
+              "audio_samples_equal": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "profile": {
+            "properties": {
+              "audio_codec": {
+                "const": "flac"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "profile": {
+            "properties": {
+              "audio_sample_format": {
+                "enum": [
+                  "s16",
+                  "s32"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

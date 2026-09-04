@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Recording session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "recording_id",
+    "project_id",
+    "status",
+    "started_at",
+    "monotonic_origin_ns",
+    "sources",
+    "consent"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "recording_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "scene_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "take_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "configured",
+        "countdown",
+        "recording",
+        "paused",
+        "processing",
+        "complete",
+        "failed",
+        "recovered"
+      ]
+    },
+    "started_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "ended_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "monotonic_origin_ns": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "role",
+          "device_label",
+          "started_offset_us",
+          "duration_us",
+          "status"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+          },
+          "role": {
+            "enum": [
+              "screen",
+              "camera",
+              "microphone",
+              "system_audio"
+            ]
+          },
+          "device_label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250
+          },
+          "started_offset_us": {
+            "type": "integer"
+          },
+          "duration_us": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "recording",
+              "paused",
+              "complete",
+              "failed",
+              "recovered"
+            ]
+          },
+          "sync_error_us": {
+            "type": "integer"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 4
+    },
+    "consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screen",
+        "microphone",
+        "system_audio",
+        "camera",
+        "cursor_telemetry",
+        "keystroke_capture"
+      ],
+      "properties": {
+        "screen": {
+          "type": "boolean"
+        },
+        "microphone": {
+          "type": "boolean"
+        },
+        "system_audio": {
+          "type": "boolean"
+        },
+        "camera": {
+          "type": "boolean"
+        },
+        "cursor_telemetry": {
+          "type": "boolean"
+        },
+        "keystroke_capture": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "teleprompter": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "script_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "scroll_mode": {
+          "enum": [
+            "manual",
+            "timed",
+            "voice_follow"
+          ]
+        }
+      }
+    }
+  }
+}

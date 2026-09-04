@@ -1,0 +1,478 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-09-05T00:00:00Z",
+  "references": [
+    {
+      "reference_id": "current-01-home",
+      "path": "references/screenshots/current/01-home.png",
+      "screen_ids": [
+        "S02"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "b80b86edcef049ddf938611f727b1fa268a0bb802416b68f378ecff6bff668a0",
+      "useful_traits": [
+        "Record/import choices and recent projects",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "current-02-record-setup",
+      "path": "references/screenshots/current/02-record-setup.png",
+      "screen_ids": [
+        "S03"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "a7edbcaec731d306457ad56a13a041305a3f7fe96a83a63e2f10bc7f1a69e94c",
+      "useful_traits": [
+        "Capture source and optional device controls",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "current-03-recording",
+      "path": "references/screenshots/current/03-recording.png",
+      "screen_ids": [
+        "S04",
+        "S05"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "2291d5c3934f15324e2473d62e5e45753071b7151f4c8d6fe91c11b19b5c2546",
+      "useful_traits": [
+        "Live preview, scenes, timer, pause and stop",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "current-04-auto-edit-options",
+      "path": "references/screenshots/current/04-auto-edit-options.png",
+      "screen_ids": [
+        "S06",
+        "S07"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "580522f029c119f3d71fdc114de9af736b1b6b298dc83d0d5a34eafe1b3f22f2",
+      "useful_traits": [
+        "Imported media and Magic Wand options",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "current-05-auto-edit-progress",
+      "path": "references/screenshots/current/05-auto-edit-progress.png",
+      "screen_ids": [
+        "S06",
+        "S07"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "7602bcc3364330801d39060213080c6e820253da63a414c1060b68b65cc2cbec",
+      "useful_traits": [
+        "Bounded progress and cancellation",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "current-06-transcript-editor",
+      "path": "references/screenshots/current/06-transcript-editor.png",
+      "screen_ids": [
+        "S08"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "608ff3f997452d235c1d20617c17477ea5d64edd40a8051f43c9411aec49b845",
+      "useful_traits": [
+        "Transcript-linked cuts and shared timeline",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "current-07-zoom-speed-editor",
+      "path": "references/screenshots/current/07-zoom-speed-editor.png",
+      "screen_ids": [
+        "S08"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "1fad3fcb727698627192971afbef59116129624c151a8f669ac44a6ee78f11eb",
+      "useful_traits": [
+        "Direct zoom target and speed range controls",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "current-08-caption-layout-broll",
+      "path": "references/screenshots/current/08-caption-layout-broll.png",
+      "screen_ids": [
+        "S08"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "138701a48d94dd1be4546fb17e8b0f3105153e03fded2925ba998a83622d43e2",
+      "useful_traits": [
+        "Caption, camera, cursor and B-roll treatment",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "current-09-review",
+      "path": "references/screenshots/current/09-review.png",
+      "screen_ids": [
+        "S08",
+        "S09",
+        "S10"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "113bf229dcdd919231bb4d694e5b41aadc496e1805709a1003b0e7ae1a809d4f",
+      "useful_traits": [
+        "Full video review with segment feedback",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "current-10-export",
+      "path": "references/screenshots/current/10-export.png",
+      "screen_ids": [
+        "S11",
+        "S12"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "27c65cce968f086a99aadde3ae2135584bc0f33e8b8e24dff25863864ffbd57f",
+      "useful_traits": [
+        "Export and completion component placement",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    },
+    {
+      "reference_id": "previous-01-home",
+      "path": "references/screenshots/previous/01-home.png",
+      "screen_ids": [
+        "S02"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "04f34f31d7b70b8f1b2b6029750cc1ef3254eb14a0f57c805bdeb1800a8ec22f",
+      "useful_traits": [
+        "Earlier home and recent-project arrangement",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    },
+    {
+      "reference_id": "previous-02-record-setup",
+      "path": "references/screenshots/previous/02-record-setup.png",
+      "screen_ids": [
+        "S03"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "c17fa74716f34b62ec8232abf6c208daa900a90634c8fa6e6f2dfc7507e9c461",
+      "useful_traits": [
+        "Earlier capture setup controls",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    },
+    {
+      "reference_id": "previous-03-recording",
+      "path": "references/screenshots/previous/03-recording.png",
+      "screen_ids": [
+        "S04",
+        "S05"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "6f5b9a748f22c57a350b10885d56faf118a94c86ae9427fbaa10ab27440e3b3e",
+      "useful_traits": [
+        "Earlier recording and scene controls",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    },
+    {
+      "reference_id": "previous-04-auto-edit-options",
+      "path": "references/screenshots/previous/04-auto-edit-options.png",
+      "screen_ids": [
+        "S06",
+        "S07"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "e9f4cac5c1041ceb8ec162b06c2de604bb8f7edd3410ed2b3d3f114acfe8b86e",
+      "useful_traits": [
+        "Earlier Magic Wand setup",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    },
+    {
+      "reference_id": "previous-05-auto-edit-progress",
+      "path": "references/screenshots/previous/05-auto-edit-progress.png",
+      "screen_ids": [
+        "S06",
+        "S07"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "3d6fc3b58fb60f43f851ed623472caf2f4ed56a44f724c0dfd578a563c60d73e",
+      "useful_traits": [
+        "Earlier automation progress",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    },
+    {
+      "reference_id": "previous-06-transcript-editor",
+      "path": "references/screenshots/previous/06-transcript-editor.png",
+      "screen_ids": [
+        "S08"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "4887cd2c4007672f6b7c953faceb84d72a903cde5cd9494010c337c826b6e4e9",
+      "useful_traits": [
+        "Earlier transcript and cut state",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    },
+    {
+      "reference_id": "previous-07-zoom-speed-editor",
+      "path": "references/screenshots/previous/07-zoom-speed-editor.png",
+      "screen_ids": [
+        "S08"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "0edfac4899d2e88266f6de1db31a6db26e43faae86885c1ae42455e93fc44da9",
+      "useful_traits": [
+        "Earlier manual range editing",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    },
+    {
+      "reference_id": "previous-08-caption-layout-broll",
+      "path": "references/screenshots/previous/08-caption-layout-broll.png",
+      "screen_ids": [
+        "S08"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "94ad704aa93107af5a9c6f448cb17f8366d0ca51df0f2703f2f7cffda3045d26",
+      "useful_traits": [
+        "Earlier captions, B-roll and layout controls",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    },
+    {
+      "reference_id": "previous-09-review",
+      "path": "references/screenshots/previous/09-review.png",
+      "screen_ids": [
+        "S08",
+        "S09",
+        "S10"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "b9b159bb50713761ceaf822e3d4c243716e6ed2c9e5996ed64b819db58e4c1c0",
+      "useful_traits": [
+        "Earlier review with segment comments",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    },
+    {
+      "reference_id": "previous-10-export",
+      "path": "references/screenshots/previous/10-export.png",
+      "screen_ids": [
+        "S11",
+        "S12"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "bc5fe1bfceab959e9b818416799bf98480d470eba485e58ca9d2adc0618dec42",
+      "useful_traits": [
+        "Earlier export controls and completion placement",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Earlier alternative only. Current images and current specifications take priority."
+    }
+  ]
+}

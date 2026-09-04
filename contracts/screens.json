@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0",
+  "screens": [
+    {
+      "screen_id": "S01",
+      "name": "Onboarding",
+      "step": "onboarding",
+      "primary_action": "Continue",
+      "panel_policy": "one_context_panel",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P1",
+        "P2"
+      ],
+      "reference_required": false
+    },
+    {
+      "screen_id": "S02",
+      "name": "Home",
+      "step": "home",
+      "primary_action": "New recording",
+      "panel_policy": "none",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P1",
+        "P3"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S03",
+      "name": "Capture setup",
+      "step": "record_import",
+      "primary_action": "Start recording",
+      "panel_policy": "one_context_panel",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P4"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S04",
+      "name": "Recording",
+      "step": "record_import",
+      "primary_action": "Stop recording",
+      "panel_policy": "none",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P4"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S05",
+      "name": "Take review",
+      "step": "record_import",
+      "primary_action": "Confirm take",
+      "panel_policy": "one_context_panel",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P4"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S06",
+      "name": "Import and processing",
+      "step": "record_import",
+      "primary_action": "Cancel safely",
+      "panel_policy": "progress_only",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P3",
+        "P5"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S07",
+      "name": "Auto Edit",
+      "step": "auto_edit",
+      "primary_action": "Run Magic Wand",
+      "panel_policy": "one_context_panel",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P5",
+        "P7",
+        "P8"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S08",
+      "name": "Editor",
+      "step": "edit",
+      "primary_action": "Review draft",
+      "panel_policy": "one_context_panel",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P6",
+        "P7",
+        "P8"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S09",
+      "name": "Revision compare",
+      "step": "review",
+      "primary_action": "Keep current",
+      "panel_policy": "one_context_panel",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P6"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S10",
+      "name": "Review and quality summary",
+      "step": "review",
+      "primary_action": "Continue to Export",
+      "panel_policy": "one_context_panel",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P9"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S11",
+      "name": "Export",
+      "step": "export",
+      "primary_action": "Export video",
+      "panel_policy": "one_context_panel",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P9"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S12",
+      "name": "Export complete",
+      "step": "complete",
+      "primary_action": "Open video",
+      "panel_policy": "none",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P9"
+      ],
+      "reference_required": true
+    },
+    {
+      "screen_id": "S13",
+      "name": "Settings",
+      "step": "settings",
+      "primary_action": "Save settings",
+      "panel_policy": "settings_section",
+      "spec": "docs/05_SCREEN_SPECS.md",
+      "task_phases": [
+        "P1",
+        "P2",
+        "P4",
+        "P9"
+      ],
+      "reference_required": false
+    }
+  ]
+}

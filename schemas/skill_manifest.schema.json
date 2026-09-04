@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Implementation skill manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "skills"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "path",
+          "description",
+          "phases"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]+$"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "phases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^P(?:10|[0-9])$"
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  }
+}

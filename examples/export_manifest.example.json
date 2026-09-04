@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "export_id": "export-001",
+  "project_id": "project-demo-001",
+  "revision_id": "rev-001",
+  "created_at": "2026-09-04T13:00:00Z",
+  "output": {
+    "path": "exports/product-tutorial-master.mkv",
+    "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "size_bytes": 48000000,
+    "duration_us": 60100000
+  },
+  "profile": {
+    "container": "mkv",
+    "video_codec": "ffv1",
+    "audio_codec": "pcm_f32le",
+    "width": 2560,
+    "height": 1440,
+    "frame_rate": {
+      "numerator": 60,
+      "denominator": 1
+    },
+    "caption_sidecar": true,
+    "video_pixel_format": "gbrp",
+    "audio_sample_format": "flt"
+  },
+  "source_hashes": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "1111111111111111111111111111111111111111111111111111111111111111"
+  ],
+  "timeline_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "qa_report_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+  "decode_verified": true,
+  "warnings": [],
+  "quality_policy": {
+    "mode": "lossless_master",
+    "user_selected_lower_quality": false,
+    "uses_preview_source": false
+  },
+  "lossless_verification": {
+    "required": true,
+    "video_samples_equal": true,
+    "audio_samples_equal": true,
+    "reference_boundary": "canonical_render"
+  }
+}

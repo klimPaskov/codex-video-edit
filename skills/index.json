@@ -1,0 +1,221 @@
+{
+  "schema_version": "1.0",
+  "skills": [
+    {
+      "name": "orchestrate-implementation",
+      "path": "skills/orchestrate-implementation/SKILL.md",
+      "description": "Select and complete the first dependency-safe phase.",
+      "phases": [
+        "P0",
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ]
+    },
+    {
+      "name": "research-product",
+      "path": "skills/research-product/SKILL.md",
+      "description": "Research current product and technical contracts.",
+      "phases": [
+        "P0"
+      ]
+    },
+    {
+      "name": "native-electron",
+      "path": "skills/native-electron/SKILL.md",
+      "description": "Build and secure the Electron desktop shell.",
+      "phases": [
+        "P1"
+      ]
+    },
+    {
+      "name": "simple-desktop-ui",
+      "path": "skills/simple-desktop-ui/SKILL.md",
+      "description": "Implement the step-based quiet desktop interface.",
+      "phases": [
+        "P1",
+        "P6"
+      ]
+    },
+    {
+      "name": "codex-app-server",
+      "path": "skills/codex-app-server/SKILL.md",
+      "description": "Integrate real Codex app-server threads, events, auth, and tools.",
+      "phases": [
+        "P2",
+        "P5",
+        "P6",
+        "P10"
+      ]
+    },
+    {
+      "name": "recording-capture",
+      "path": "skills/recording-capture/SKILL.md",
+      "description": "Implement synchronized screen, audio, camera, scene, and take recording.",
+      "phases": [
+        "P4"
+      ]
+    },
+    {
+      "name": "media-engine",
+      "path": "skills/media-engine/SKILL.md",
+      "description": "Implement deterministic media probing, proxies, rendering, and QA.",
+      "phases": [
+        "P0",
+        "P3",
+        "P4",
+        "P5",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ]
+    },
+    {
+      "name": "timeline-editor",
+      "path": "skills/timeline-editor/SKILL.md",
+      "description": "Implement non-destructive timeline operations and history.",
+      "phases": [
+        "P3",
+        "P6",
+        "P7"
+      ]
+    },
+    {
+      "name": "magic-edit",
+      "path": "skills/magic-edit/SKILL.md",
+      "description": "Implement Magic Wand candidate policy and live draft edits.",
+      "phases": [
+        "P5",
+        "P10"
+      ]
+    },
+    {
+      "name": "automatic-zoom",
+      "path": "skills/automatic-zoom/SKILL.md",
+      "description": "Implement target-based automatic and manual zooms.",
+      "phases": [
+        "P7"
+      ]
+    },
+    {
+      "name": "broll-layout",
+      "path": "skills/broll-layout/SKILL.md",
+      "description": "Implement local B-roll, camera layouts, and visual elements.",
+      "phases": [
+        "P8"
+      ]
+    },
+    {
+      "name": "audio-caption",
+      "path": "skills/audio-caption/SKILL.md",
+      "description": "Implement captions, audio cleanup, loudness, music, and sidecars.",
+      "phases": [
+        "P8"
+      ]
+    },
+    {
+      "name": "native-app-testing",
+      "path": "skills/native-app-testing/SKILL.md",
+      "description": "Launch and test the real Electron app in the isolated environment.",
+      "phases": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ]
+    },
+    {
+      "name": "security-privacy",
+      "path": "skills/security-privacy/SKILL.md",
+      "description": "Review Electron privilege, capture permissions, Codex context, and local data.",
+      "phases": [
+        "P1",
+        "P2",
+        "P4",
+        "P9"
+      ]
+    },
+    {
+      "name": "release-packaging",
+      "path": "skills/release-packaging/SKILL.md",
+      "description": "Build and verify the Windows installer and release.",
+      "phases": [
+        "P9"
+      ]
+    },
+    {
+      "name": "spec-sync",
+      "path": "skills/spec-sync/SKILL.md",
+      "description": "Keep every affected contract and reference synchronized.",
+      "phases": [
+        "P0",
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ]
+    },
+    {
+      "name": "lossless-media",
+      "path": "skills/lossless-media/SKILL.md",
+      "description": "Preserve capture and render samples and verify lossless boundaries.",
+      "phases": [
+        "P0",
+        "P3",
+        "P4",
+        "P8",
+        "P9",
+        "P10"
+      ]
+    },
+    {
+      "name": "reference-fidelity",
+      "path": "skills/reference-fidelity/SKILL.md",
+      "description": "Implement simple native screens from individual references and correction notes.",
+      "phases": [
+        "P1",
+        "P6",
+        "P8",
+        "P9"
+      ]
+    },
+    {
+      "name": "open-source-development",
+      "path": "skills/open-source-development/SKILL.md",
+      "description": "Publish safe working slices to the public project throughout development.",
+      "phases": [
+        "P0",
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5",
+        "P6",
+        "P7",
+        "P8",
+        "P9",
+        "P10"
+      ]
+    }
+  ]
+}

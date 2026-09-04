@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "zoom_id": "zoom-001",
+  "start_us": 12000000,
+  "end_us": 15500000,
+  "target": {
+    "x": 0.62,
+    "y": 0.18,
+    "width": 0.24,
+    "height": 0.18
+  },
+  "scale": 1.8,
+  "easing": "ease_in_out",
+  "origin": "automatic",
+  "purpose": "click_target",
+  "confidence": 0.93,
+  "evidence_ids": [
+    "click-004",
+    "frame-region-008"
+  ],
+  "manual_override": false
+}

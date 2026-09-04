@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "qa_id": "qa-export-001",
+  "project_id": "project-demo-001",
+  "revision_id": "rev-001",
+  "scope": "export",
+  "status": "warning",
+  "created_at": "2026-09-04T12:45:00Z",
+  "checks": [
+    {
+      "check_id": "check-decode",
+      "category": "decode",
+      "status": "pass",
+      "summary": "The full file decoded successfully.",
+      "blocking": true,
+      "start_us": null,
+      "end_us": null,
+      "evidence_paths": [
+        "evidence/full-decode.json"
+      ],
+      "repair_hint": null
+    },
+    {
+      "check_id": "check-zoom-001",
+      "category": "zoom",
+      "status": "warning",
+      "summary": "One zoom may start slightly early.",
+      "blocking": false,
+      "start_us": 12000000,
+      "end_us": 15500000,
+      "evidence_paths": [
+        "evidence/zoom-001.mp4"
+      ],
+      "repair_hint": "Review the zoom boundary in the editor."
+    }
+  ],
+  "required_watchthrough_complete": true,
+  "reviewer": "operator"
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-09-05T00:00:00Z",
+  "references": [
+    {
+      "reference_id": "current-01-home",
+      "path": "references/screenshots/current/01-home.png",
+      "screen_ids": [
+        "S02"
+      ],
+      "source": "ImageGen output from this conversation, one full native-app screen per image",
+      "owner": "User-provided design reference. No third-party asset clearance implied.",
+      "added_at": "2026-09-05T00:00:00Z",
+      "sha256": "b80b86edcef049ddf938611f727b1fa268a0bb802416b68f378ecff6bff668a0",
+      "useful_traits": [
+        "Record/import choices and recent projects",
+        "Dark surfaces and violet interaction accent"
+      ],
+      "do_not_copy": [
+        "Debug readiness badges or status footers",
+        "Oversized or repeated page headings and obvious descriptions",
+        "Every panel opened at once",
+        "Sample conversation claims and incorrect state values",
+        "Incorrect lossless codec labels or old product names"
+      ],
+      "notes": "1672 x 941. Unmodified original image. Primary visual direction, subject to IMPLEMENTATION_NOTES.md."
+    }
+  ]
+}

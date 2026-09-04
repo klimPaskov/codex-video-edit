@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Non-destructive edit operation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "operation_id",
+    "project_id",
+    "revision_id",
+    "operation_type",
+    "origin",
+    "status",
+    "created_at",
+    "reason",
+    "before",
+    "after",
+    "undo"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "operation_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "revision_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "operation_type": {
+      "enum": [
+        "split",
+        "trim",
+        "ripple_delete",
+        "restore",
+        "move",
+        "reorder",
+        "transcript_cut",
+        "zoom_add",
+        "zoom_update",
+        "zoom_remove",
+        "speed_add",
+        "speed_update",
+        "speed_remove",
+        "caption_update",
+        "broll_add",
+        "broll_update",
+        "broll_remove",
+        "layout_update",
+        "audio_update",
+        "cursor_update"
+      ]
+    },
+    "origin": {
+      "enum": [
+        "manual",
+        "magic_wand",
+        "codex",
+        "import",
+        "recovery"
+      ]
+    },
+    "status": {
+      "enum": [
+        "proposed",
+        "applied",
+        "undone",
+        "rejected",
+        "failed"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "range": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "start_us",
+        "end_us"
+      ],
+      "properties": {
+        "start_us": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_us": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "confidence": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "evidence_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+      },
+      "uniqueItems": true
+    },
+    "before": {
+      "type": "object"
+    },
+    "after": {
+      "type": "object"
+    },
+    "undo": {
+      "type": "object"
+    },
+    "transaction_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "project_id": "project-demo-001",
+  "screen": "editor",
+  "step": "edit",
+  "primary_action": "Review draft",
+  "open_panel": "zoom-inspector",
+  "busy": false,
+  "diagnostics_visible": false,
+  "selection": {
+    "kind": "zoom",
+    "id": "zoom-001",
+    "start_us": 12000000,
+    "end_us": 15500000
+  },
+  "codex": {
+    "provider": "Codex",
+    "model": "runtime-discovered-codex-model",
+    "drawer_open": false,
+    "turn_status": "idle"
+  }
+}

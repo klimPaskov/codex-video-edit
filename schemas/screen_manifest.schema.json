@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Native screen manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "screens"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "screens": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "screen_id",
+          "name",
+          "step",
+          "primary_action",
+          "panel_policy",
+          "spec"
+        ],
+        "properties": {
+          "screen_id": {
+            "type": "string",
+            "pattern": "^S\\d{2}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "step": {
+            "enum": [
+              "onboarding",
+              "home",
+              "record_import",
+              "auto_edit",
+              "edit",
+              "review",
+              "export",
+              "complete",
+              "settings"
+            ]
+          },
+          "primary_action": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "panel_policy": {
+            "enum": [
+              "none",
+              "one_context_panel",
+              "progress_only",
+              "settings_section"
+            ]
+          },
+          "spec": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_phases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^P(?:10|[0-9])$"
+            },
+            "uniqueItems": true
+          },
+          "reference_required": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

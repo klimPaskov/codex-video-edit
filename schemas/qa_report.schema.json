@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Project or export QA report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "qa_id",
+    "project_id",
+    "revision_id",
+    "scope",
+    "status",
+    "created_at",
+    "checks"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "qa_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "revision_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "scope": {
+      "enum": [
+        "preview",
+        "segment",
+        "project",
+        "export",
+        "native_ui"
+      ]
+    },
+    "status": {
+      "enum": [
+        "pass",
+        "warning",
+        "fail",
+        "blocked"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "check_id",
+          "category",
+          "status",
+          "summary",
+          "blocking"
+        ],
+        "properties": {
+          "check_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+          },
+          "category": {
+            "enum": [
+              "decode",
+              "timing",
+              "av_sync",
+              "audio",
+              "captions",
+              "zoom",
+              "speed",
+              "framing",
+              "cursor",
+              "asset",
+              "license",
+              "black_frame",
+              "freeze_frame",
+              "ui",
+              "privacy",
+              "accessibility"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "warning",
+              "fail",
+              "blocked",
+              "not_run"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "start_us": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "end_us": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "evidence_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "repair_hint": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "required_watchthrough_complete": {
+      "type": "boolean"
+    },
+    "reviewer": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 200
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "transcript_id": "transcript-001",
+  "project_id": "project-demo-001",
+  "source_id": "source-mic-001",
+  "duration_us": 62000000,
+  "language": "en",
+  "model": {
+    "provider": "local",
+    "name": "whisper-small",
+    "version": "1",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "device": "cpu"
+  },
+  "segments": [
+    {
+      "segment_id": "seg-001",
+      "start_us": 500000,
+      "end_us": 2300000,
+      "text": "Open the settings page.",
+      "words": [
+        {
+          "word_id": "word-001",
+          "text": "Open",
+          "start_us": 500000,
+          "end_us": 900000,
+          "confidence": 0.98,
+          "speaker": "speaker-1",
+          "flags": []
+        },
+        {
+          "word_id": "word-002",
+          "text": "the",
+          "start_us": 920000,
+          "end_us": 1100000,
+          "confidence": 0.99,
+          "speaker": "speaker-1",
+          "flags": []
+        },
+        {
+          "word_id": "word-003",
+          "text": "settings",
+          "start_us": 1120000,
+          "end_us": 1800000,
+          "confidence": 0.97,
+          "speaker": "speaker-1",
+          "flags": []
+        },
+        {
+          "word_id": "word-004",
+          "text": "page.",
+          "start_us": 1810000,
+          "end_us": 2300000,
+          "confidence": 0.96,
+          "speaker": "speaker-1",
+          "flags": []
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}
