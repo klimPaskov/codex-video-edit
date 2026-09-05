@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from audit_publication import audit_blob, audit_index
 from workspace_files import source_files, source_digest
-from write_phase_result import validate_result, write_result
+from write_phase_result import validate_record, validate_result, write_result
 
 
 class PublicationTests(unittest.TestCase):
@@ -84,6 +84,21 @@ class PhaseResultTests(unittest.TestCase):
 
     def test_valid_structural_evidence(self):
         validate_result(self.result, self.root)
+
+    def test_public_record_does_not_require_private_artifacts_but_writer_does(self):
+        self.result['artifacts'] = ['.astra/evidence/private-native.png']
+        validate_record(self.result, self.root)
+        with self.assertRaisesRegex(ValueError, 'Evidence is missing'):
+            validate_result(self.result, self.root)
+        with self.assertRaisesRegex(ValueError, 'Evidence is missing'):
+            write_result(self.result, self.root)
+        self.result['artifacts'] = ['../outside.png']
+        with self.assertRaisesRegex(ValueError, 'inside the repository'):
+            validate_record(self.result, self.root)
+        self.result['artifacts'] = ['.astra/evidence/private-native.png']
+        self.result['native_test']['computer_use'] = False
+        with self.assertRaisesRegex(ValueError, 'Native launch'):
+            validate_record(self.result, self.root)
 
     def test_cannot_accept_incomplete_checks_or_missing_evidence(self):
         for mutation in (
