@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'"
+    />
+    <title>Electron environment probe</title>
+  </head>
+  <body>
+    <p>Native environment compatibility test. This is not the video editor.</p>
+    <button id="input">Verify input</button>
+    <output id="result" aria-live="polite">Waiting for input</output>
+    <script src="renderer.js"></script>
+  </body>
+</html>

@@ -6,4 +6,4 @@
 - Required skills: `orchestrate-implementation`, `research-product`, `spec-sync`
 - Required result: `.astra/results/P0.json`
 
-The current slice is the headless repository and lossless-fixture foundation described in `docs/46_P0_FOUNDATION.md`. P0 remains incomplete until all acceptance checks pass. No native app has been launched: an isolated native desktop has not been provided and the Docker engine is not running. Do not launch on the user's host or substitute browser evidence.
+The current slice extends the repository and lossless-fixture foundation with isolated desktop infrastructure for P0-04 and P0-07; see `docs/46_P0_FOUNDATION.md` and `tests/desktop/README.md`. Docker 28.5.2 is running. The nonroot, sandboxed Electron 44.2 / Playwright 1.63.0 compatibility probe passed in the guest, and computer use verified visible native input through TigerVNC. The product itself has not been built or launched. P0 remains incomplete pending its full acceptance audit; no phase result is asserted. The current user authorizes host environment provisioning and the native viewer, while product builds and launches remain guest-only. Do not substitute browser evidence.
