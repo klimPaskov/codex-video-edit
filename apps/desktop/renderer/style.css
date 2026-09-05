@@ -184,3 +184,145 @@ canvas {
     height: 48vh;
   }
 }
+
+header nav {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+.workspace {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+}
+.workspace .preview {
+  flex: 1;
+  min-width: 0;
+}
+.source-bar #source-details {
+  margin-left: auto;
+  white-space: nowrap;
+}
+#inspector {
+  width: 250px;
+  flex-shrink: 0;
+  background: #191d27;
+  border: 1px solid #323849;
+  padding: 18px;
+  border-radius: 10px;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+h2 {
+  font-size: 17px;
+  margin: 0;
+  font-weight: 600;
+}
+.panel-header button {
+  padding: 4px 12px;
+  font-size: 22px;
+}
+dt {
+  color: #a9aebe;
+  margin-top: 22px;
+  font-size: 13px;
+}
+dd {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+dialog {
+  background: #1b1f2a;
+  color: inherit;
+  border: 1px solid #454d63;
+  border-radius: 12px;
+  padding: 26px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+}
+dialog::backdrop {
+  background: #0009;
+}
+select {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  background: #11151e;
+  color: inherit;
+  border: 1px solid #515b73;
+  border-radius: 6px;
+  font: inherit;
+}
+select:focus-visible {
+  outline: 3px solid #b7a5ff;
+  outline-offset: 3px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 30px;
+}
+#settings-error {
+  color: #f2b4ab;
+  line-height: 1.5;
+}
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  border: 1px solid #515b73;
+  background: #242a38;
+  border-radius: 8px;
+}
+@media (max-width: 620px) {
+  header {
+    padding: 0 14px;
+    font-size: 13px;
+  }
+  header button {
+    padding: 8px;
+  }
+  .source-bar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .source-bar strong {
+    max-width: 55%;
+  }
+  .preview {
+    min-height: 140px;
+  }
+  main {
+    padding: 16px;
+  }
+}
+
+.workspace .preview {
+  height: clamp(130px, calc(100dvh - 340px), 650px);
+  min-height: 130px;
+}
+#inspector {
+  width: min(250px, 38vw);
+  max-height: clamp(130px, calc(100dvh - 340px), 650px);
+  overflow-y: auto;
+}
+@media (max-width: 620px) {
+  #inspector {
+    padding: 12px;
+  }
+  .workspace {
+    gap: 12px;
+  }
+  .panel-header {
+    gap: 8px;
+  }
+}

@@ -157,10 +157,103 @@ try {
     .click();
   await expect(window.locator("#frame")).toBeVisible();
   await expect(window.locator("#time")).toHaveText("0:00.000");
+  await expect(
+    window.getByRole("button", { name: "Library", exact: true }),
+  ).toBeFocused();
   await assertCanvasFrame(window, 0);
   await window.getByRole("button", { name: "Next frame", exact: true }).click();
   await expect(window.locator("#time")).toHaveText("0:00.500");
   await assertCanvasFrame(window, 1);
+  await window
+    .getByRole("button", { name: "Source details", exact: true })
+    .click();
+  await expect(
+    window.getByRole("complementary", { name: "Source details" }),
+  ).toBeVisible();
+  await expect(
+    window.getByRole("button", { name: "Close source details" }),
+  ).toBeFocused();
+  await window.keyboard.press("Control+,");
+  await expect(
+    window.getByRole("dialog", { name: "Settings", exact: true }),
+  ).toBeVisible();
+  await expect(window.locator("#inspector")).toBeHidden();
+  await expect(
+    window.getByLabel("Interface size", { exact: true }),
+  ).toBeFocused();
+  for (let index = 0; index < 6; index++) {
+    await window.keyboard.press("Tab");
+    assert.equal(
+      await window.evaluate(() => !!document.activeElement?.closest("dialog")),
+      true,
+    );
+  }
+  await window.keyboard.press("Escape");
+  await expect(window.locator("#settings-dialog")).toBeHidden();
+  await expect(window.locator("#inspector")).toBeVisible();
+  await expect(
+    window.getByRole("button", { name: "Close source details" }),
+  ).toBeFocused();
+  await window.keyboard.press("Escape");
+  await expect(window.locator("#inspector")).toBeHidden();
+  await expect(
+    window.getByRole("button", { name: "Source details", exact: true }),
+  ).toBeFocused();
+  for (const [width, height, scale] of [
+    [1366, 768, 1],
+    [1366, 768, 1.5],
+    [1920, 1080, 1.25],
+  ]) {
+    await electron.evaluate(
+      ({ BrowserWindow }, size) =>
+        BrowserWindow.getAllWindows()[0]!.setSize(size[0]!, size[1]!),
+      [width!, height!],
+    );
+    await window.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(
+      window.getByLabel("Interface size", { exact: true }),
+    ).toBeEnabled();
+    await window
+      .getByLabel("Interface size", { exact: true })
+      .selectOption(String(scale));
+    await window.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(window.locator("#settings-dialog")).toBeHidden();
+    assert.equal(
+      await electron.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0]!.webContents.getZoomFactor(),
+      ),
+      scale,
+    );
+    await expect(
+      window.getByRole("button", { name: "Settings", exact: true }),
+    ).toBeFocused();
+    assert.equal(
+      await window.evaluate(
+        () => document.documentElement.scrollWidth <= globalThis.innerWidth,
+      ),
+      true,
+    );
+    await assertCanvasFrame(window, 1);
+    await window
+      .getByRole("button", { name: "Source details", exact: true })
+      .click();
+    assert.equal(
+      await window.locator("#inspector").evaluate((node) => {
+        const panel = node.getBoundingClientRect();
+        const preview = document
+          .querySelector(".preview")!
+          .getBoundingClientRect();
+        return (
+          panel.left >= preview.right && panel.bottom <= globalThis.innerHeight
+        );
+      }),
+      true,
+    );
+    await window.screenshot({
+      path: join(evidence, `shell-${width}-${scale}.png`),
+    });
+    await window.keyboard.press("Escape");
+  }
   await electron.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()[0]!.setSize(1366, 768),
   );
@@ -220,6 +313,12 @@ try {
     timeout: 30000,
   });
   window = await electron.firstWindow();
+  assert.equal(
+    await electron.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]!.webContents.getZoomFactor(),
+    ),
+    1.25,
+  );
   await window.getByRole("button", { name: /Color sequence/ }).click();
   await expect(window.locator("#frame")).toBeVisible();
   await expect(window.locator("#time")).toHaveText("0:00.000");
@@ -230,7 +329,7 @@ try {
     join(evidence, "result.json"),
     JSON.stringify(
       {
-        scope: "P0-product-media-bootstrap",
+        scope: "P1-settings-focus-slice",
         executablePath,
         sourceHash,
         packaged: true,
@@ -241,6 +340,9 @@ try {
           "All pixels of opaque nonuniform BGRA frames through native canvas readback; not display or arbitrary alpha equality",
         reopen: true,
         sourceUnchanged: true,
+        preferencesPersisted: true,
+        keyboardFocus: true,
+        modalIsolation: true,
         computerUse: false,
       },
       null,

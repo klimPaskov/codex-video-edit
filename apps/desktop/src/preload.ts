@@ -1,3 +1,4 @@
+import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import { contextBridge, ipcRenderer } from "electron";
 import { channels } from "./bridge.ts";
 import type { DesktopBridge, Reply } from "./bridge.ts";
@@ -36,6 +37,12 @@ async function invoke<T>(
   return { ok: true, value: result.value as T };
 }
 const bridge: DesktopBridge = {
+  getPreferences: () =>
+    invoke(channels.preferencesGet, undefined, assertPreferences),
+  setPreferences: (value) => {
+    assertPreferences(value);
+    return invoke(channels.preferencesSet, value, assertPreferences);
+  },
   listMedia: () => invoke(channels.list, undefined, assertMediaList),
   importVideo: () =>
     invoke(channels.import, undefined, (value) => {

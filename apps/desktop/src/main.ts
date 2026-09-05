@@ -1,3 +1,5 @@
+import { PreferencesStore } from "./preferences.ts";
+import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
   app,
   BrowserWindow,
@@ -91,6 +93,25 @@ async function start(): Promise<void> {
   );
   session.defaultSession.setPermissionCheckHandler(() => false);
   session.defaultSession.on("will-download", (event) => event.preventDefault());
+  const preferences = new PreferencesStore(
+    path.join(app.getPath("userData"), "preferences"),
+  );
+  let initialScale = 1;
+  try {
+    initialScale = (await preferences.read()).interfaceScale;
+  } catch {
+    /* Renderer reports the read failure through validated IPC. */
+  }
+  register(channels.preferencesGet, async (request) => {
+    assertEmptyRequest(request);
+    return preferences.read();
+  });
+  register(channels.preferencesSet, async (request) => {
+    assertPreferences(request);
+    const value = await preferences.write(request);
+    window?.webContents.setZoomFactor(value.interfaceScale);
+    return value;
+  });
   const library = new MediaLibrary(
     path.join(app.getPath("userData"), "media-library"),
   );
@@ -170,6 +191,7 @@ async function start(): Promise<void> {
       sandbox: true,
       webSecurity: true,
       webviewTag: false,
+      zoomFactor: initialScale,
     },
   });
   window.removeMenu();

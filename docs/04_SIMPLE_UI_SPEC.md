@@ -61,6 +61,14 @@ Tracks can collapse. The default view shows only tracks with content.
 
 A bottom-right drawer contains natural-language editing, a model selector, current selection context, concise activity, and recent applied actions. Raw reasoning and full command logs are not shown.
 
+## Interface settings and focus
+
+The P1 settings/focus slice implements persistent interface scale choices of 100%, 125%, and 150%. Main owns preference storage behind strict typed get/set IPC; renderer state and a success toast update only after an actual successful save. Cancel or Escape dismisses unsaved choices, and load/save failures provide actionable messages without claiming success or discarding the prior saved scale. The modal traps keyboard focus and returns it to its invoking control when closed. Ctrl+, opens Settings.
+
+Source information shows real imported-media metadata in one inspector. Opening Settings hides that inspector; closing Settings restores it when its source remains selected. Closing the inspector returns focus to Source details. Opening a source focuses its Back control, and Back restores focus to the selected source card. Interface scaling does not change source samples, preview quality, or master settings.
+
+This slice does not implement the five-stage project shell or complete P1 accessibility acceptance. Packaged native testing remains required at supported window sizes and scales; contract and unit checks alone do not prove those interactions.
+
 ## Empty states
 
 Every empty state offers one clear next action. Do not show disabled tool grids before media exists.
