@@ -1,5 +1,7 @@
 # Screen specifications
 
+The P0 bootstrap in ADR 0012 implements only an actual Home import/library surface and bounded per-frame inspection/seek. Library entries are imported media, not recent projects or draft timelines. Show real import, cancel, selection and seek controls; report unavailable preview for unverified color/precision inputs. Do not display nonfunctional recording, project, Codex, edit, playback or export actions to imitate the complete screens below. P1 and later phases retain their complete screen and accessibility requirements; bootstrap runtime acceptance is still required.
+
 ## S01: onboarding
 
 Purpose: establish local readiness and real Codex sign-in.

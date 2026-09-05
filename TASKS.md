@@ -7,13 +7,15 @@ Complete phases in order. A task is complete only when its acceptance evidence e
 - [ ] P0-01 Read all package sources and current official documentation.
 - [ ] P0-02 Research Borumi and comparable recorders without copying protected assets.
 - [ ] P0-03 Confirm current Electron, Playwright, FFmpeg, local transcription, and Codex app-server contracts.
-- [ ] P0-04 Establish the monorepo, strict TypeScript, tests, linting, formatting, schemas, and phase result writer.
+- [ ] P0-04 Establish the monorepo, strict TypeScript, tests, linting, formatting, schemas, phase result writer, and minimum packaged local product shell with sandboxed typed IPC needed for native foundation acceptance (ADR 0012).
 - [ ] P0-05 Accept or revise ADRs with evidence.
-- [ ] P0-06 Generate and decode a short media fixture, including an exact lossless round trip.
+- [ ] P0-06 Generate and decode a short media fixture, including an exact lossless round trip; import it through the actual native product into an immutable managed library and verify bounded frame transport, seek, persistence, and explicit unsupported-preview behavior (ADR 0012).
 - [ ] P0-07 Resolve the authenticated owner and create or verify the public `codex-video-edit` repository. Publish reviewed source, specs, licence, and CI without private media.
 - [ ] P0-08 Establish tested capture, intermediate, preview, and master fidelity profiles and reject silent downgrades.
 
 Acceptance: checks pass and `.astra/results/P0.json` exists.
+
+ADR 0012 moves only the minimum actual native shell and immutable media bootstrap into P0 to satisfy its native gate. The infrastructure probe is not product evidence. The full P1 shell/navigation/accessibility, P2 Codex integration, P3 projects/drafts/A/V playback, P4 capture, and all later acceptance remain incomplete until independently proven.
 
 ## P1: secure native shell and simple design system
 

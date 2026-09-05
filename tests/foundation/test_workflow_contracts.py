@@ -27,6 +27,7 @@ class WorkflowContractsTests(unittest.TestCase):
         ui_schema = read_json("schemas/ui_state.schema.json")
         screen_schema = read_json("schemas/screen_manifest.schema.json")
         enums = [
+            read_json("schemas/project.schema.json")["properties"]["workflow_step"]["enum"],
             ui_schema["properties"]["step"]["enum"],
             screen_schema["properties"]["screens"]["items"]["properties"]["step"]["enum"],
         ]

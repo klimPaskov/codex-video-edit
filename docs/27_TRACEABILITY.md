@@ -21,6 +21,7 @@ P0 foundation scope and synchronization audit: [46_P0_FOUNDATION.md](46_P0_FOUND
 | Cross-file sync | CHANGE_CONTROL | all | spec-sync report |
 | Reproducible repository foundation | 46; research/P0_FOUNDATION.md | P0-01 through P0-05 | Strict type, lint, format, unit, schema/example and phase-result-writer checks |
 | Synthetic lossless boundary | 44, 46 | P0-06, P0-08 | Raw canonical no-op and edited-frame/audio encode/decode equality; unsupported-format and proxy-isolation rejection |
+| Actual native media bootstrap prerequisite | 03, 05, 46; ADR 0012 | P0-04, P0-06 | Packaged product security/IPC checks; native synthetic import, immutable source hashes, library reopen, frame equality/seek and explicit unsupported-preview tests; Playwright Electron and computer-use product evidence |
 | Safe source publication | 45, 46 | P0-07 | Staged path/content review, public-source audit, exact verified remote commit and CI |
 
 | Requirement | Specification | Implementation tasks | Required proof |

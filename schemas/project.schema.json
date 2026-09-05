@@ -41,8 +41,8 @@
         "home",
         "record_import",
         "auto_edit",
+        "edit",
         "review",
-        "qa",
         "export",
         "complete"
       ]

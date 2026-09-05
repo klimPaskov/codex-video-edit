@@ -2,6 +2,14 @@
   "schema_version": "1.0",
   "pairs": [
     {
+      "schema": "schemas/desktop_ipc.schema.json",
+      "example": "examples/desktop_ipc.example.json"
+    },
+    {
+      "schema": "schemas/media_library.schema.json",
+      "example": "examples/media_library.example.json"
+    },
+    {
       "schema": "schemas/activity_event.schema.json",
       "example": "examples/activity_event.example.json"
     },

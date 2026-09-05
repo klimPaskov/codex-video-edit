@@ -20,6 +20,8 @@ A phase changes UI, recording, media playback, Codex interaction, or packaging.
 7. Record build hash, test environment, steps, screenshots, short recordings, and failures.
 8. Fix defects and rerun the same path.
 
+For the P0-04/P0-06 bootstrap, apply ADR 0012 and test the actual packaged product: native import, immutable managed source, library reopen, frame seek/equality and explicit unsupported-preview behavior. Keep the media library distinct from a project or draft. The compatibility probe verifies infrastructure only. Record product runtime evidence separately; frame inspection does not establish audio or continuous playback.
+
 ## Prohibitions
 
 - Do not build or launch the product on the user's host. The current user authorizes Docker provisioning and a native guest-desktop viewer on the host; keep that infrastructure exception scoped to the isolated test environment.

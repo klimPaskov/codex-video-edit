@@ -14,18 +14,24 @@
   "scripts": {
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run check:contracts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint packages tests --no-warn-ignored",
-    "format:check": "prettier --check package.json tsconfig.json eslint.config.js \"packages/**/*.ts\" \"tests/**/*.ts\" \"tests/desktop/probe/*.{cjs,js,json,html}\"",
-    "format": "prettier --write package.json tsconfig.json eslint.config.js \"packages/**/*.ts\" \"tests/**/*.ts\" \"tests/desktop/probe/*.{cjs,js,json,html}\"",
+    "lint": "eslint packages apps tests scripts/build_desktop.mjs --no-warn-ignored",
+    "format:check": "prettier --check package.json tsconfig.json eslint.config.js \"packages/**/*.ts\" \"tests/**/*.ts\" \"tests/desktop/probe/*.{cjs,js,json,html}\" \"apps/**/*.{ts,html,css}\" scripts/build_desktop.mjs",
+    "format": "prettier --write package.json tsconfig.json eslint.config.js \"packages/**/*.ts\" \"tests/**/*.ts\" \"tests/desktop/probe/*.{cjs,js,json,html}\" \"apps/**/*.{ts,html,css}\" scripts/build_desktop.mjs",
     "test": "python -m unittest discover -s tests/foundation -p test_*.py && node --test tests/media/*.test.ts",
     "check:contracts": "python scripts/validate_package.py && python scripts/validate_delivery.py",
     "check:publication": "python scripts/audit_publication.py",
     "phase:write": "python scripts/write_phase_result.py",
-    "check:protocol": "python scripts/verify_codex_protocol.py"
+    "check:protocol": "python scripts/verify_codex_protocol.py",
+    "desktop:build": "node scripts/build_desktop.mjs",
+    "test:native": "node tests/native/desktop.test.ts"
   },
   "devDependencies": {
+    "@electron/packager": "20.3.0",
     "@types/node": "24.13.3",
+    "electron": "44.2.0",
+    "esbuild": "0.28.2",
     "eslint": "10.10.0",
+    "playwright": "1.63.0",
     "prettier": "3.9.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0"
