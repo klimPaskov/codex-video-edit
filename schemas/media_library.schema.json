@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codex-video-edit.local/schemas/media_library.schema.json",
+  "title": "Private append-only media library entry (not a project)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "summary", "source", "probe"],
+  "properties": {
+    "version": { "const": 1 },
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "width", "height", "durationUs", "frameRate", "previewAvailable"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 255, "pattern": "^[^/\\\\\\u0000-\\u001f]+$" },
+        "width": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "durationUs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "frameRate": { "type": "number", "exclusiveMinimum": 0 },
+        "previewAvailable": { "type": "boolean" }
+      }
+    },
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["file", "originalPath", "sha256", "size"],
+      "properties": {
+        "file": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.media$" },
+        "originalPath": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "size": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "required": ["streams", "format"],
+      "properties": {
+        "streams": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+        "format": { "type": "object" }
+      },
+      "description": "Private original ffprobe stream and container metadata; never sent to renderer. Runtime additionally requires the first video stream and verifies summary dimensions, duration, rate and preview eligibility against these measurements. Filename identity must equal the summary UUID. These cross-field invariants are checked by the service. Source frame transport disables implicit display rotation."
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 A standalone desktop recorder and video editor with live Codex editing, a simple timeline, optional camera, captions, B-roll, automatic zooms, and lossless-first media handling.
 
-**Status: P0 foundation in development. This is not yet a usable recorder or editor.** The repository contains executable media fidelity checks, implementation contracts, and an isolated Linux desktop with a verified sandboxed Electron compatibility probe. Product native acceptance remains pending implementation.
+**Status: P0 foundation in development. This is not yet a usable recorder or editor.** The actual packaged Electron bootstrap imports media into an immutable local library and supports bounded frame inspection. Its synthetic import, seek, reopen, security, and frame-equality checks passed in the isolated Linux desktop, with native computer-use inspection. Full phase acceptance and source publication of this slice remain pending.
 
 ## Start
 
@@ -37,7 +37,7 @@ Prerequisites: Node 24.15 or later in the 24.x line, Python 3.9+, and FFmpeg/ffp
 
 Media fixtures are generated under ignored `.astra/evidence/`. The bounded P0 adapter verifies canonical raw samples up to 64 MiB per input, BT.709, and mono/stereo PCM. It rejects preview/analysis inputs and unsupported precision or HDR paths. These checks do not establish production capture, compositor, playback, or real-time throughput support.
 
-The [isolated desktop setup](tests/desktop/README.md) runs native windows inside Docker and exposes only an authenticated loopback VNC connection. A native viewer displays the guest desktop; the product must never launch directly on the host. The sandboxed Electron/Playwright probe and computer-use input checks establish test infrastructure only. They do not establish Windows capture, installer support, audio review, or editor behavior.
+The [isolated desktop setup](tests/desktop/README.md) runs native windows inside Docker and exposes only an authenticated loopback VNC connection. A native viewer displays the guest desktop; the product must never launch directly on the host. Separate from the infrastructure probe, the actual packaged product passed Playwright Electron checks and native source selection/Next frame inspection. Its frame path is limited to native-dimension BGRA full-range GBR BT.709 SDR within explicit bounds; other supported imports remain preserved with preview unavailable. This does not establish audio playback, Windows capture, installer support, Codex editing, or the user-video workflow.
 
 Before publishing, stage only reviewed source, run `npm run check:publication`, inspect the staged diff, and verify the pushed commit. `npm run phase:write -- path/to/result.json` accepts only complete, validated phase evidence tied to a published Git revision. Keep incomplete work under `.astra/progress/`. See `VALIDATION_REPORT.md` for the planning package's historical checks, and `.astra/progress/` for implementation progress.
 

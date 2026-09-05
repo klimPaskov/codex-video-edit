@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "summary": {
+    "id": "d81632fb-4cde-4d40-a75d-679e22c15f2a",
+    "name": "synthetic.mkv",
+    "width": 16,
+    "height": 16,
+    "durationUs": 1000000,
+    "frameRate": 2,
+    "previewAvailable": true
+  },
+  "source": {
+    "file": "d81632fb-4cde-4d40-a75d-679e22c15f2a.media",
+    "originalPath": "/synthetic-fixtures/synthetic.mkv",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 2048
+  },
+  "probe": {
+    "streams": [{ "codec_type": "video", "pix_fmt": "bgra", "color_range": "pc", "color_space": "gbr", "color_primaries": "bt709", "color_transfer": "bt709", "width": 16, "height": 16, "avg_frame_rate": "2/1" }],
+    "format": { "duration": "1.000000" }
+  }
+}

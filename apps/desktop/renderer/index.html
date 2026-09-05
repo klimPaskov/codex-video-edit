@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>codex-video-edit</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <span class="mark" aria-hidden="true"></span><span>codex-video-edit</span
+      ><button id="back" hidden>Library</button>
+    </header>
+    <main>
+      <section id="home" aria-label="Media library">
+        <div class="actions">
+          <button id="import" class="primary">Import video</button>
+        </div>
+        <ul id="library" aria-label="Imported videos"></ul>
+      </section>
+      <section id="viewer" aria-label="Imported video" hidden>
+        <div class="source-bar">
+          <span class="stage">Record or Import</span
+          ><strong id="source-name"></strong>
+        </div>
+        <div class="preview">
+          <canvas id="frame" aria-label="Source frame"></canvas>
+          <p id="preview-message" hidden></p>
+        </div>
+        <div id="frame-controls">
+          <label for="seek">Frame preview</label
+          ><output id="time" for="seek"></output>
+          <input
+            id="seek"
+            type="range"
+            min="0"
+            max="0"
+            value="0"
+            aria-label="Source position"
+          />
+          <div class="transport">
+            <button id="previous" aria-label="Previous frame">←</button
+            ><button id="next" aria-label="Next frame">→</button>
+          </div>
+        </div>
+      </section>
+      <div id="progress" role="status" hidden>
+        <span>Importing video…</span><button id="cancel">Cancel</button>
+      </div>
+      <p id="error" role="alert" hidden></p>
+    </main>
+    <script src="renderer.js"></script>
+  </body>
+</html>

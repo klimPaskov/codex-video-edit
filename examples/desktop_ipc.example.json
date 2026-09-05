@@ -1,0 +1,15 @@
+{
+  "channel": "library:frame",
+  "payload": {
+    "id": "d81632fb-4cde-4d40-a75d-679e22c15f2a",
+    "timeUs": 0
+  },
+  "response": {
+    "ok": true,
+    "value": {
+      "width": 1,
+      "height": 1,
+      "rgbaBase64": "/wAA/w=="
+    }
+  }
+}

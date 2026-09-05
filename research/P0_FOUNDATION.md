@@ -24,6 +24,8 @@ Decision effect: preserve ADRs 0001, 0006, 0007 and 0009. P4 must measure native
 
 ## Native testing
 
+Native bootstrap follow-up: registry queries selected esbuild `0.28.2` and @electron/packager `20.3.0`. The packager's installed declarations export the named `packager` function. The isolated build uses esbuild bundles and an ASAR package containing only local product files. Electron's `ProcessMetric.sandboxed` is documented in its installed 44.2.0 types as macOS/Windows-only; Linux native tests instead verify renderer `/proc` state for no-new-privileges, added seccomp filters and nested PID namespaces. No sandbox-disable flag is used. [Packager API](https://electron.github.io/packager/main/), [Electron security](https://www.electronjs.org/docs/latest/tutorial/security).
+
 Playwright exposes experimental `_electron.launch`, main-process evaluation and `firstWindow` automation/screenshots. Documentation lists Electron 14+ among supported versions and notes that disabling the Node CLI inspect fuse can prevent launch. Native dialogs are not intercepted automatically; deterministic tests can replace dialog methods in the main process. [Playwright Electron API](https://playwright.dev/docs/api/class-electron)
 
 Use isolated test builds for automation and inspect the actual native window separately through computer use. Do not weaken shipping security to satisfy test instrumentation. A browser-renderer screenshot or a passing process command cannot satisfy native acceptance. This research did not launch Electron, enumerate the user's capture devices, or create screenshots.

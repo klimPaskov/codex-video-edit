@@ -6,6 +6,10 @@ Use Electron for the first release. It provides a desktop window, access to disp
 
 ## Process model
 
+ADR 0012 brings a minimum actual product shell into P0-04/P0-06 so native media acceptance has a product to exercise. `apps/desktop` owns packaged local content, main/preload isolation and validated task-based IPC; `packages/domain` and `packages/media-engine` own the bounded media-library contract and ingestion/frame adapter. The append-only library retains source bytes and probe metadata locally and is distinct from project storage, drafts, and revisions. This bootstrap does not complete the architecture below.
+
+Its initial frame path transports native-dimension BGRA full-range GBR BT.709 SDR samples without resampling or lossy proxies, within explicit dimensions/payload bounds. Import may preserve other supported video formats while reporting preview unavailable. Frame inspection and seek are not smooth playback, audio review, or an export/compositor path; those remain later acceptance work.
+
 ### Electron main process
 
 Owns:

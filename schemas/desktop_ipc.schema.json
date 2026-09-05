@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codex-video-edit.local/schemas/desktop_ipc.schema.json",
+  "title": "Desktop media library IPC exchange",
+  "description": "Contract documentation envelope for a native IPC request and response. Electron channel and request are separate arguments at runtime; absent payload represents undefined, never null. No source filesystem path crosses this boundary. Runtime also validates trusted main-frame sender and source-specific seek bounds.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response"
+      ],
+      "properties": {
+        "channel": {
+          "const": "library:list"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/summary"
+                  },
+                  "description": "Runtime additionally rejects duplicate IDs even if the other summary fields differ."
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response"
+      ],
+      "properties": {
+        "channel": {
+          "const": "library:import"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/summary"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response",
+        "payload"
+      ],
+      "properties": {
+        "channel": {
+          "const": "library:frame"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "$ref": "#/$defs/frame"
+                }
+              }
+            }
+          ]
+        },
+        "payload": {
+          "$ref": "#/$defs/frameRequest"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response"
+      ],
+      "properties": {
+        "channel": {
+          "const": "library:cancel"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "type": "null"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "width",
+        "height",
+        "durationUs",
+        "frameRate",
+        "previewAvailable"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[^/\\\\\\x00-\\x1f]+$"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "durationUs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "frameRate": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "previewAvailable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "frame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height",
+        "rgbaBase64"
+      ],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        },
+        "rgbaBase64": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 89478488,
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+        }
+      },
+      "description": "Runtime additionally checks width * height <= 16777216, exact base64 length 4 * ceil(width * height * 4 / 3), and padding for the byte count. JSON Schema alone does not establish decoded frame equality."
+    },
+    "frameRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "timeUs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "timeUs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ok",
+        "message"
+      ],
+      "properties": {
+        "ok": {
+          "const": false
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 240,
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
