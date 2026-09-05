@@ -2,7 +2,7 @@
 
 A standalone desktop recorder and video editor with live Codex editing, a simple timeline, optional camera, captions, B-roll, automatic zooms, and lossless-first media handling.
 
-**Status: P0 foundation in development. This is not yet a usable recorder or editor.** The actual packaged Electron bootstrap imports media into an immutable local library and supports bounded frame inspection. Its synthetic import, seek, reopen, security, and frame-equality checks passed in the isolated Linux desktop, with native computer-use inspection. Full phase acceptance and source publication of this slice remain pending.
+**Status: P0 foundation accepted; P1 native shell is next. This is not yet a usable recorder or editor.** The actual packaged Electron bootstrap imports media into an immutable local library and supports bounded frame inspection. Its synthetic import, seek, reopen, security, and frame-equality checks passed in the isolated Linux desktop, with native computer-use inspection. The reviewed foundation is published at `8fe7c4bcbe8511ac8772c043ff023b15075ad823`; [.astra/results/P0.json](.astra/results/P0.json) records its bounded acceptance. P1-P10 and the user-video workflow remain incomplete.
 
 ## Start
 

@@ -32,3 +32,5 @@ User recordings, project media, exported videos, authentication files, local Cod
 The included workflow checks this workspace's contracts and reference integrity. Extend it with actual lint, type, unit, media, and Electron tests as those projects are implemented. Do not count the planning checks as app tests.
 
 P9 must build an installable desktop release with verified checksums, correct dependency notices, clean-install tests, and project-preserving uninstall. Signing requires legitimate credentials. A missing signing key is reported honestly and must not be faked. Publish release assets only after their acceptance tests pass.
+
+Public package validation checks accepted record structure and repository-contained artifact references without requiring private evidence in CI. This does not rerun or prove native/media acceptance. The phase-result writer always requires the actual nonempty local artifacts before writing, and reviewed source/remote revision checks remain mandatory. Never publish private artifacts to satisfy public CI.

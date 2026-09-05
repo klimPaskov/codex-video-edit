@@ -1,11 +1,13 @@
 # Active phase
 
-- Phase ID: `P0`
-- Task IDs: `P0-01` through `P0-08`
-- Prompt: `.astra/phases/P0_RESEARCH_FOUNDATION.md`
-- Required skills: `orchestrate-implementation`, `research-product`, `spec-sync`
-- Required result: `.astra/results/P0.json`
+- Phase ID: `P1`
+- Task IDs: `P1-01` through `P1-06`
+- Prompt: `.astra/phases/P1_NATIVE_SHELL_UI.md`
+- Required skills: `orchestrate-implementation`, `native-electron`, `simple-desktop-ui`, `native-app-testing`, `security-privacy`, `reference-fidelity`, `spec-sync`
+- Required result: `.astra/results/P1.json`
 
-The current slice is the actual native media bootstrap for P0-04 and P0-06 under ADR 0012: minimum packaged local product shell, typed IPC, immutable library ingestion, and bounded frame inspection/seek. Packaged-product security, synthetic import, two-frame equality/seek, library reopen and canonical master verification passed in isolated Linux. Computer use confirmed source selection and Next frame changed red at zero to green at 0.500 seconds. Library records are not projects or drafts, and frame inspection is not A/V playback. Source publication and the full P0 audit remain pending; full P1/P2/P3/P4 and later requirements remain incomplete.
+P0 is accepted in `.astra/results/P0.json` against verified published revision `8fe7c4bcbe8511ac8772c043ff023b15075ad823`. PR #3 passed Windows/Linux push and PR checks. The actual packaged product passed secure local protocol/IPC tests, immutable synthetic import, complete opaque nonuniform frame equality across seek and reopen, and native computer-use source selection/Next frame inspection. The separate infrastructure probe is not the basis for product acceptance.
 
-The isolated desktop infrastructure was published in PR #2 at main `e37102ed289bf476d61f9f7d4a5f30b558346ec3` with Windows/Linux CI passing. Docker 28.5.2 and the nonroot sandboxed Electron 44.2 / Playwright 1.63.0 compatibility probe have been verified, including native viewer input. That probe cannot replace product evidence. P0 remains incomplete pending its full acceptance audit; no phase result is asserted. The current user authorizes host environment provisioning and the native viewer, while product builds and launches remain guest-only. Do not substitute browser evidence.
+P1 must complete the native shell, five-stage project navigation, restrained design system, one-panel behavior, keyboard accessibility, focus, supported sizes and scaling, and actual native visual acceptance. The existing library holds ingestion records, not projects, drafts or undo history. P1-P10 remain incomplete. No audio listening, Windows capture/device/installer, real Codex editing or user-video workflow is accepted.
+
+The current user authorizes host environment provisioning and the native viewer; product builds and launches remain confined to the isolated guest. Do not substitute browser evidence or publish private artifacts.

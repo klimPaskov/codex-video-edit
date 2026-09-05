@@ -17,7 +17,8 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def validate_result(result, root: Path):
+def validate_record(result, root: Path):
+    """Validate a portable published record, without claiming local artifact access."""
     schema = json.loads((root / 'schemas/phase_result.schema.json').read_text(encoding='utf-8'))
     Draft202012Validator(schema).validate(result)
     if result['status'] != 'complete':
@@ -48,6 +49,13 @@ def validate_result(result, root: Path):
         path = root / relative
         if Path(relative).is_absolute() or root.resolve() not in path.resolve().parents:
             raise ValueError('Evidence must stay inside the repository')
+    return evidence
+
+
+def validate_result(result, root: Path):
+    """Validate acceptance locally; writing never bypasses artifact existence."""
+    for relative in validate_record(result, root):
+        path = root / relative
         if not path.is_file() or path.stat().st_size == 0:
             raise ValueError('Evidence is missing or empty: ' + relative)
 

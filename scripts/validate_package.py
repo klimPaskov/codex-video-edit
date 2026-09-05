@@ -110,12 +110,13 @@ for data_rel, schema_rel in live_pairs:
         location = '.'.join(str(x) for x in issue.absolute_path) or '<root>'
         fail(f'{data_rel} at {location}: {issue.message}')
 
-# Accepted phase records must satisfy the same local evidence gate as the writer.
-from write_phase_result import validate_result
+# Public checkouts validate records and safe artifact references, not absent private evidence.
+# The result writer separately requires all actual local artifacts before acceptance.
+from write_phase_result import validate_record
 for result_path in (ROOT / '.astra/results').glob('P*.json'):
     try:
         result = load_json(result_path)
-        validate_result(result, ROOT)
+        validate_record(result, ROOT)
         if result_path.stem != result['phase_id']:
             fail(f'Phase result filename mismatch: {result_path.name}')
     except Exception as exc:

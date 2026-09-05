@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0",
+  "phase_id": "P0",
+  "status": "complete",
+  "started_at": "2026-09-04T21:25:17Z",
+  "ended_at": "2026-09-05T07:28:18Z",
+  "task_ids": [
+    "P0-01",
+    "P0-02",
+    "P0-03",
+    "P0-04",
+    "P0-05",
+    "P0-06",
+    "P0-07",
+    "P0-08"
+  ],
+  "summary": "Completed P0 research, repository and fidelity foundation, including the actual packaged native media prerequisite in ADR0012. The isolated product imports immutable synthetic media, inspects exact bounded frames, seeks and reopens its library. Reviewed source is public with passing Windows/Linux CI. This is foundation acceptance, not completion of the recorder/editor or user-video workflow.",
+  "checks": [
+    {
+      "name": "Authoritative sources, comparable workflows and current dependencies",
+      "status": "pass",
+      "command_or_method": "Required source review and official documentation/registry research; accepted ADRs reviewed",
+      "evidence": [
+        "research/P0_FOUNDATION.md",
+        "adr/0012-native-media-bootstrap-dependency.md"
+      ]
+    },
+    {
+      "name": "Installed Codex protocol contract",
+      "status": "pass",
+      "command_or_method": "Generate schemas from Codex 0.142.3 without authentication or a runtime model turn",
+      "evidence": [
+        ".astra/evidence/codex-protocol/0.142.3/generation-lbdkff_2/manifest.json"
+      ]
+    },
+    {
+      "name": "Repository, schemas, privacy and fidelity rejection checks",
+      "status": "pass",
+      "command_or_method": "npm run check; 26 Python and 17 TypeScript tests, 26 schema/example pairs; staged publication audit and full source review",
+      "evidence": [
+        ".astra/evidence/P0-native-final/validation-review.json"
+      ]
+    },
+    {
+      "name": "Canonical lossless profiles",
+      "status": "pass",
+      "command_or_method": "Exact no-op and intentionally edited canonical FFV1/PCM samples; unsupported capture/precision/HDR and preview-as-master rejected",
+      "evidence": [
+        "tests/media/lossless.test.ts",
+        ".astra/evidence/P0-native-pixels/master-roundtrip.json"
+      ]
+    },
+    {
+      "name": "Actual packaged native product",
+      "status": "pass",
+      "command_or_method": "Playwright Electron with Chromium sandbox: import, complete opaque nonuniform canvas equality, seek, library reopen, immutable source, CSP and foreign-window IPC denial",
+      "evidence": [
+        ".astra/evidence/P0-native-pixels/automated.json",
+        ".astra/evidence/P0-native-final/runtime-source-hashes.json"
+      ]
+    },
+    {
+      "name": "Actual native visual interaction",
+      "status": "pass",
+      "command_or_method": "Computer use through native TigerVNC viewer of isolated Docker product: source selection and Next frame red0 to green0.500; same runtime source as automated test",
+      "evidence": [
+        ".astra/evidence/P0-native-final/manual-review.json"
+      ]
+    },
+    {
+      "name": "Public reviewed source and CI",
+      "status": "pass",
+      "command_or_method": "PR3 merged after Windows/Linux push and PR checks passed; git ls-remote origin refs/heads/main verified 8fe7c4bcbe8511ac8772c043ff023b15075ad823",
+      "evidence": [
+        ".astra/evidence/P0-native-final/publication.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    ".astra/evidence/P0-native-final/validation-review.json",
+    ".astra/evidence/P0-native-pixels/automated.json",
+    ".astra/evidence/P0-native-pixels/master-roundtrip.json"
+  ],
+  "native_test": {
+    "launched": true,
+    "playwright": true,
+    "computer_use": true,
+    "screenshot_paths": [
+      ".astra/evidence/P0-native-pixels/playwright.png",
+      ".astra/evidence/P0-native-final/computer-use.png"
+    ],
+    "recording_paths": []
+  },
+  "known_limits": [
+    "P1-P10 remain required; no real Codex login/editing or user-example workflow is accepted.",
+    "Library records are ingestion records, not projects, draft timelines or undo history.",
+    "Preview is bounded BGRA full-range GBR BT.709 SDR. Other supported imports are preserved with preview unavailable. Native canvas equality covers tested opaque frames; display compositing and arbitrary alpha are not verified.",
+    "No audio listening or continuous A/V playback, Windows capture/device/installer behavior, lossless real-time capture throughput, or signed release is established.",
+    "Canonical master profiles are bounded BT.709 mono/stereo fixtures; packet timing, production compositing and wider metadata/precision support remain later work.",
+    "Private artifacts remain local and are not published; artifact links require the original evidence workspace."
+  ],
+  "spec_sync": {
+    "changed": [
+      "Five-stage UI/screen/project workflow contracts and historical migration notes, tasks, examples, skills, prompts, routing and traceability.",
+      "Authorized active-draft and export-staging tool policies; explicit final user actions preserved.",
+      "ADR0012 P0 native prerequisite, media-library and typed IPC schemas/examples, tests, architecture/screens, build/staging and native testing guidance.",
+      "Current dependency/protocol research, source licensing/publication checks, CI, source integrity and guarded phase-result contract."
+    ],
+    "unchanged": [
+      "Source immutability and timeline edit operation schemas; full P1-P10 feature acceptance.",
+      "Lossless capture/master policy and explicit controls for final export, source deletion, cleanup, spending and publication.",
+      "Reference image bytes/provenance; no generated screenshots become product assets.",
+      "Codex-only real runtime requirement; no fabricated threads, AI edits or login."
+    ]
+  },
+  "code_revision": "8fe7c4bcbe8511ac8772c043ff023b15075ad823"
+}
