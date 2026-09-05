@@ -5,6 +5,7 @@ P0 foundation scope and synchronization audit: [46_P0_FOUNDATION.md](46_P0_FOUND
 | Requirement | Main spec | Tasks | Main tests |
 | --- | --- | --- | --- |
 | Native standalone window | 03, 04 | P1 | Playwright Electron launch, computer-use review |
+| Persistent interface scale, settings modal and source focus | 04, 05; schemas/desktop_preferences.schema.json; schemas/desktop_ipc.schema.json; matching examples/desktop_preferences.example.json and examples/desktop_ipc.example.json | P1-03, P1-05, P1-06 | Strict preference/IPC and persistence tests; actual packaged modal save/cancel/Escape, Ctrl+,, one-inspector restoration and source/Back focus tests at supported sizes/scales; bounded native inspection passed; full P1 incomplete |
 | Real Codex only | 08 | P2 | auth, model, skill, thread, live edit smoke |
 | Project import and immutability | 07, 17 | P3 | hash, reopen, recovery, mutation tests |
 | Screen, audio, camera recording | 06 | P4 | virtual-device sync and recovery |

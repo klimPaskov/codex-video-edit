@@ -1,0 +1,98 @@
+import assert from "node:assert/strict";
+import {
+  link,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
+import { join, resolve } from "node:path";
+import test from "node:test";
+import { PreferencesStore } from "../../apps/desktop/src/preferences.ts";
+import { assertPreferences } from "../../packages/domain/src/preferences.ts";
+
+async function directory(): Promise<string> {
+  const root = resolve(".astra/evidence/preferences");
+  await mkdir(root, { recursive: true });
+  return mkdtemp(join(root, "fixture-"));
+}
+test("preferences persist valid scales and serialize queued writes across store instances", async () => {
+  const root = await directory();
+  const first = new PreferencesStore(root);
+  const second = new PreferencesStore(root);
+  assert.deepEqual(await first.read(), { interfaceScale: 1 });
+  assert.deepEqual(await readdir(root), []);
+  const input = { interfaceScale: 1.25 };
+  const initial = first.write(input);
+  input.interfaceScale = 99;
+  const next = second.write({ interfaceScale: 1.5 });
+  assert.deepEqual(await initial, { interfaceScale: 1.25 });
+  assert.deepEqual(await next, { interfaceScale: 1.5 });
+  assert.deepEqual(await new PreferencesStore(root).read(), {
+    interfaceScale: 1.5,
+  });
+  await first.write({ interfaceScale: 1 });
+  assert.deepEqual(await second.read(), { interfaceScale: 1 });
+  assert.deepEqual(await readdir(root), ["preferences.json"]);
+});
+test("invalid input is rejected without modifying existing settings", async () => {
+  const root = await directory();
+  const store = new PreferencesStore(root);
+  await store.write({ interfaceScale: 1.25 });
+  const before = await readFile(join(root, "preferences.json"));
+  for (const value of [
+    null,
+    [],
+    {},
+    { interfaceScale: NaN },
+    { interfaceScale: 2 },
+    { interfaceScale: "1" },
+    { interfaceScale: 1, path: "private" },
+  ]) {
+    assert.throws(() => assertPreferences(value));
+    assert.throws(() => store.write(value));
+  }
+  assert.deepEqual(await readFile(join(root, "preferences.json")), before);
+});
+test("corrupt settings survive failed reads and writes; queue recovers after external repair", async () => {
+  const root = await directory();
+  const store = new PreferencesStore(root);
+  const path = join(root, "preferences.json");
+  await writeFile(path, "{broken");
+  await assert.rejects(store.read(), /could not be loaded/u);
+  await assert.rejects(
+    store.write({ interfaceScale: 1.5 }),
+    /could not be saved/u,
+  );
+  assert.equal(await readFile(path, "utf8"), "{broken");
+  await writeFile(path, '{"interfaceScale":1}');
+  assert.deepEqual(await store.write({ interfaceScale: 1.25 }), {
+    interfaceScale: 1.25,
+  });
+});
+test("linked directories, hardlinked files and non-file settings are rejected without changing targets", async () => {
+  const root = await directory();
+  const real = join(root, "real");
+  await mkdir(real);
+  const linked = join(root, "linked");
+  await symlink(real, linked, "junction");
+  await assert.rejects(
+    new PreferencesStore(linked).write({ interfaceScale: 1.25 }),
+  );
+  const original = join(root, "original.json");
+  await writeFile(original, '{"interfaceScale":1}');
+  await link(original, join(real, "preferences.json"));
+  await assert.rejects(new PreferencesStore(real).read());
+  await assert.rejects(
+    new PreferencesStore(real).write({ interfaceScale: 1.5 }),
+  );
+  assert.equal(await readFile(original, "utf8"), '{"interfaceScale":1}');
+  const blocked = join(root, "blocked");
+  await mkdir(join(blocked, "preferences.json"), { recursive: true });
+  await assert.rejects(
+    new PreferencesStore(blocked).write({ interfaceScale: 1.5 }),
+  );
+  assert.throws(() => new PreferencesStore("relative/path"));
+});

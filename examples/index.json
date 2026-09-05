@@ -2,6 +2,10 @@
   "schema_version": "1.0",
   "pairs": [
     {
+      "schema": "schemas/desktop_preferences.schema.json",
+      "example": "examples/desktop_preferences.example.json"
+    },
+    {
       "schema": "schemas/desktop_ipc.schema.json",
       "example": "examples/desktop_ipc.example.json"
     },

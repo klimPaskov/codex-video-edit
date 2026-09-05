@@ -8,8 +8,11 @@
   </head>
   <body>
     <header>
-      <span class="mark" aria-hidden="true"></span><span>codex-video-edit</span
-      ><button id="back" hidden>Library</button>
+      <span class="mark" aria-hidden="true"></span><span>codex-video-edit</span>
+      <nav aria-label="Application">
+        <button id="back" hidden>Library</button
+        ><button id="settings">Settings</button>
+      </nav>
     </header>
     <main>
       <section id="home" aria-label="Media library">
@@ -21,11 +24,29 @@
       <section id="viewer" aria-label="Imported video" hidden>
         <div class="source-bar">
           <span class="stage">Record or Import</span
-          ><strong id="source-name"></strong>
+          ><strong id="source-name"></strong
+          ><button
+            id="source-details"
+            aria-expanded="false"
+            aria-controls="inspector"
+          >
+            Source details
+          </button>
         </div>
-        <div class="preview">
-          <canvas id="frame" aria-label="Source frame"></canvas>
-          <p id="preview-message" hidden></p>
+        <div class="workspace">
+          <div class="preview">
+            <canvas id="frame" aria-label="Source frame"></canvas>
+            <p id="preview-message" hidden></p>
+          </div>
+          <aside id="inspector" aria-label="Source details" hidden>
+            <div class="panel-header">
+              <h2>Source</h2>
+              <button id="close-inspector" aria-label="Close source details">
+                ×
+              </button>
+            </div>
+            <dl id="source-properties"></dl>
+          </aside>
         </div>
         <div id="frame-controls">
           <label for="seek">Frame preview</label
@@ -49,6 +70,30 @@
       </div>
       <p id="error" role="alert" hidden></p>
     </main>
+    <dialog id="settings-dialog" aria-labelledby="settings-title">
+      <form id="settings-form">
+        <div class="panel-header">
+          <h2 id="settings-title">Settings</h2>
+          <button type="button" id="close-settings" aria-label="Close settings">
+            ×
+          </button>
+        </div>
+        <label for="interface-scale">Interface size</label
+        ><select id="interface-scale">
+          <option value="1">100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+        </select>
+        <p id="settings-error" role="alert" hidden></p>
+        <div class="dialog-actions">
+          <button type="button" id="cancel-settings">Cancel</button
+          ><button type="submit" class="primary" id="save-settings">
+            Save
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast" role="status" hidden></div>
     <script src="renderer.js"></script>
   </body>
 </html>

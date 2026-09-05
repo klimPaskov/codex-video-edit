@@ -22,6 +22,8 @@ A phase changes UI, recording, media playback, Codex interaction, or packaging.
 
 For the P0-04/P0-06 bootstrap, apply ADR 0012 and test the actual packaged product: native import, immutable managed source, library reopen, frame seek/equality and explicit unsupported-preview behavior. Keep the media library distinct from a project or draft. The compatibility probe verifies infrastructure only. Record product runtime evidence separately; frame inspection does not establish audio or continuous playback.
 
+For interface sizing changes, test persisted zoom after restart, modal focus and dismissal, and inspector bounds alongside the preview at every supported size. Inspect the actual native window after saving a larger scale: focus restoration can scroll navigation out of view even when a screenshot has no horizontal overflow. Keep this visual check separate from pixel transport equality.
+
 ## Prohibitions
 
 - Do not build or launch the product on the user's host. The current user authorizes Docker provisioning and a native guest-desktop viewer on the host; keep that infrastructure exception scoped to the isolated test environment.

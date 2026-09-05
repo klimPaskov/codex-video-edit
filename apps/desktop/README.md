@@ -4,6 +4,8 @@ The P0 product bootstrap imports immutable source copies into a local media libr
 
 Preview currently accepts only verified native-resolution, full-range BGRA/GBR BT.709 SDR data. Other supported video containers can be preserved, but show an explicit unavailable-preview message. The frame transport performs an exact BGRA-to-RGBA channel permutation; the canvas fits that frame to the visible area and never supplies master inputs. No lossy preview file, audio playback, automatic edit, or export is implied.
 
+Settings persists 100%, 125%, or 150% interface size through main-owned validated storage. Ctrl+, opens its modal; Escape or Cancel discards unsaved choices and returns focus. Source details uses one inspector beside the preview. Native checks cover saved scale after restart, keyboard focus, and panel bounds; the five-stage project shell remains incomplete.
+
 ## Isolated development
 
 Provision and verify `tests/desktop/README.md` first. Never build or launch this application directly on the host.

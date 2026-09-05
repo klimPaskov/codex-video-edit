@@ -28,6 +28,8 @@ Visible:
 
 No editor tools or empty project panels appear.
 
+The current P1 slice adds Settings to the working import/library Home. Keyboard source selection opens frame inspection with focus on Back; Back returns focus to the selected source card. Source information opens one inspector with actual imported metadata. This is still a media library, not a recent-project implementation or the complete five-stage shell.
+
 ## S03: capture setup
 
 Visible:
@@ -159,3 +161,5 @@ Sections:
 - diagnostics
 
 Codex is the only provider entry. Only one settings section opens at a time.
+
+The initial working Settings modal contains Interface size at 100%, 125%, and 150%, persisted by main through validated preference get/set IPC. Open it with Settings or Ctrl+,. Cancel/Escape leaves unsaved choices unapplied. Save reports success only after persistence succeeds; failures remain actionable. The dialog owns focus while open and restores the invoking control on close. Any selected source-information inspector is hidden during the modal and restored afterward when still applicable. The complete settings sections above remain later work; do not add inactive controls to imitate them. Packaged native tests and computer-use inspection passed for this bounded slice; full P1 remains incomplete.
