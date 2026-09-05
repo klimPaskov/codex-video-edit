@@ -16,7 +16,7 @@ P0 foundation scope and synchronization audit: [46_P0_FOUNDATION.md](46_P0_FOUND
 | B-roll and layouts | 14 | P8 | provenance, crop, fallback, render tests |
 | Audio cleanup | 15 | P8 | loudness, clipping, sync, ducking tests |
 | Export and verification | 18, 19 | P9 | render, decode, hash, manifest tests |
-| Native isolated testing | 20 | all | phase screenshots and recordings |
+| Native isolated testing | 20; tests/desktop/README.md | P0-04 infrastructure; all product phases | Docker isolation validation, sandboxed Electron/Playwright probe and native viewer input evidence establish infrastructure; product phase screenshots, recordings and audio review remain required |
 | Screenshot update process | 26 | P10 and changes | manifest and visual regression checks |
 | Cross-file sync | CHANGE_CONTROL | all | spec-sync report |
 | Reproducible repository foundation | 46; research/P0_FOUNDATION.md | P0-01 through P0-05 | Strict type, lint, format, unit, schema/example and phase-result-writer checks |

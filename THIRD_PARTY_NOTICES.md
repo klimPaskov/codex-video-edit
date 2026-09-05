@@ -1,5 +1,7 @@
 # Third-party notices
 
+The test-only seccomp profile derives from Moby/profiles under Apache-2.0. Its pinned source, modification notice, hashes and full upstream licence are in [tests/desktop/SECCOMP.md](tests/desktop/SECCOMP.md). It is not relicensed under MIT.
+
 Original code and documentation use the root MIT licence. This is not a blanket licence for dependencies or assets.
 
 Before shipping, record each runtime dependency, exact version, upstream URL, licence, redistribution terms, and bundled notices. Review the actual FFmpeg build configuration and encoder licences, Electron, transcription runtime and models, Codex client, fonts, and any stock assets.
