@@ -24,7 +24,13 @@ Stage actions appear only when implemented. No navigation action may fabricate A
 - Hash imported and recorded sources.
 - Never change source bytes.
 
+During ingestion, Importing video offers Cancel. After ingestion succeeds and project creation begins, show Creating project and hide the import-only Cancel control; it cannot cancel committed source ingestion or project creation. A project-creation failure preserves the imported source for a later Create project retry.
+
 ## Project folder
+
+The current P1 implementation publishes a managed project directory containing `baseline.json` and `project.json`. The baseline contains actual versioned project/source/timeline/revision records with referential checks; navigation replaces only the committed project's stage/update metadata. This limited physical store is a prerequisite to the complete P3 folder model below, not an implementation of every listed directory or draft service.
+
+Creation and reopening verify the immutable managed media hash and compare the complete ffprobe result, including stream and format metadata, against the retained source probe. Staged creation is published only after validation. Failed creation preserves source-library media; unpublished creation directories remain for explicit recovery/cleanup. Source paths and raw probe data stay main-only. The renderer receives a strict path-free project DTO and distinguishes actual projects from imported sources.
 
 ```text
 project/

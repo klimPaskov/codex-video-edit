@@ -19,6 +19,8 @@ The main agent owns phase selection, integration, final judgment, and evidence. 
 
 ## Routing rules
 
+For the ADR 0013 project shell, keep domain/store/complete-probe verification, main/preload IPC, renderer interaction, and spec/native evidence ownership bounded by explicit files. Renderer work consumes only the path-free committed `ProjectView`; it must not create its own persistence model or fake project/revision identities. The main agent verifies pure postcommit mapping, save-failure preservation, and native five-stage interaction before integration. Project/source/timeline/revision schema shapes remain authoritative; extended IPC, examples and tests must stay synchronized. P2 shared transactions remain a separate prerequisite and must serve manual and Codex edits alike.
+
 - Delegate only a clear file or evidence boundary.
 - Give the subagent exact task IDs, inputs, outputs, and stop conditions.
 - Do not let two agents edit the same file at once.

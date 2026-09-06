@@ -1,4 +1,10 @@
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
+import {
+  assertProjectRequest,
+  assertProjectNavigation,
+  assertProjectView,
+  assertProjectList,
+} from "../../../packages/domain/src/project-view.ts";
 import { contextBridge, ipcRenderer } from "electron";
 import { channels } from "./bridge.ts";
 import type { DesktopBridge, Reply } from "./bridge.ts";
@@ -37,6 +43,20 @@ async function invoke<T>(
   return { ok: true, value: result.value as T };
 }
 const bridge: DesktopBridge = {
+  listProjects: () =>
+    invoke(channels.projectList, undefined, assertProjectList),
+  createProject: (request) => {
+    assertProjectRequest(request);
+    return invoke(channels.projectCreate, request, assertProjectView);
+  },
+  openProject: (request) => {
+    assertProjectRequest(request);
+    return invoke(channels.projectOpen, request, assertProjectView);
+  },
+  navigateProject: (request) => {
+    assertProjectNavigation(request);
+    return invoke(channels.projectNavigate, request, assertProjectView);
+  },
   getPreferences: () =>
     invoke(channels.preferencesGet, undefined, assertPreferences),
   setPreferences: (value) => {

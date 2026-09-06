@@ -73,6 +73,10 @@ The extension to 200% addresses P1-05's full scaling range. Prior native evidenc
 
 ## Empty states
 
+The implemented P1 project shell shows real Projects separately from the retained Source library. Import creates a project after successful ingestion; legacy sources offer Create project. Project views have compact five-stage navigation, with a five-choice select at narrower widths. Update selected stage only after main confirms persistence; failures retain the previous stage. Home returns focus to the originating project/source when applicable, and asynchronous replies must not override later navigation or focus choices.
+
+The current source preview, playhead and one inspector remain available across stage navigation. A concise unavailable-stage message may describe unimplemented actions, but no fake Magic Wand, editing, review findings, or export controls appear. Current packaged native tests passed sizing, keyboard/focus and five-stage persistence. Guest-only visual review confirmed the compact five-choice selector, retained frame across navigation, and one scrollable source inspector. Publication/review and the P1 result remain pending.
+
 Every empty state offers one clear next action. Do not show disabled tool grids before media exists.
 
 ## Text and chrome budget

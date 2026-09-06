@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import { basename, isAbsolute, join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
+import { isDeepStrictEqual } from "node:util";
 import {
   assertFrameRequest,
   assertMediaFrame,
@@ -27,6 +28,15 @@ interface Entry {
   version: 1;
   summary: MediaSummary;
   source: { file: string; originalPath: string; sha256: string; size: number };
+  probe: Record<string, unknown>;
+}
+/** Main-process-only source contract. Never expose these paths or probe data through preload. */
+export interface VerifiedLibrarySource {
+  summary: MediaSummary;
+  originalPath: string;
+  managedPath: string;
+  sha256: string;
+  sizeBytes: number;
   probe: Record<string, unknown>;
 }
 function invalid(): never {
@@ -71,7 +81,7 @@ function preview(
     height <= 8192
   );
 }
-function measured(
+export function mediaMeasurements(
   probe: Record<string, unknown>,
 ): Omit<MediaSummary, "id" | "name"> {
   if (!Array.isArray(probe.streams) || !object(probe.format)) invalid();
@@ -106,7 +116,7 @@ function validateEntry(value: unknown): asserts value is Entry {
   )
     invalid();
   assertMediaSummary(value.summary);
-  const expected = measured(value.probe);
+  const expected = mediaMeasurements(value.probe);
   for (const field of [
     "width",
     "height",
@@ -181,6 +191,70 @@ export class MediaLibrary {
     assertMediaList(result);
     return result;
   }
+  async verifiedSource(id: string): Promise<VerifiedLibrarySource> {
+    await this.initialize();
+    const entry = await this.entry(id);
+    const managedPath = join(this.root, "assets", entry.source.file);
+    const stat = await lstat(managedPath);
+    if (
+      !stat.isFile() ||
+      stat.isSymbolicLink() ||
+      stat.nlink !== 1 ||
+      stat.size !== entry.source.size ||
+      (await hash(managedPath)) !== entry.source.sha256
+    )
+      throw new MediaError(
+        "FIDELITY_MISMATCH",
+        "The managed source has changed.",
+      );
+    const result = await runProcess({
+      executable: this.ffprobe,
+      args: [
+        "-v",
+        "error",
+        "-protocol_whitelist",
+        "file",
+        "-format_whitelist",
+        "matroska,webm,mov,avi",
+        "-show_streams",
+        "-show_format",
+        "-of",
+        "json",
+        managedPath,
+      ],
+    });
+    const measuredProbe: unknown = JSON.parse(result.stdout.toString("utf8"));
+    if (!isDeepStrictEqual(measuredProbe, entry.probe))
+      throw new MediaError(
+        "FIDELITY_MISMATCH",
+        "The stored source measurements no longer match the media.",
+      );
+    const afterHash = await hash(managedPath);
+    const after = await lstat(managedPath);
+    if (
+      !after.isFile() ||
+      after.isSymbolicLink() ||
+      after.nlink !== 1 ||
+      after.size !== stat.size ||
+      after.dev !== stat.dev ||
+      after.ino !== stat.ino ||
+      after.mtimeMs !== stat.mtimeMs ||
+      after.ctimeMs !== stat.ctimeMs ||
+      afterHash !== entry.source.sha256
+    )
+      throw new MediaError(
+        "FIDELITY_MISMATCH",
+        "The managed source changed during verification.",
+      );
+    return {
+      summary: { ...entry.summary },
+      originalPath: entry.source.originalPath,
+      managedPath,
+      sha256: entry.source.sha256,
+      sizeBytes: entry.source.size,
+      probe: structuredClone(entry.probe),
+    };
+  }
   async importFile(
     sourcePath: string,
     signal?: AbortSignal,
@@ -245,7 +319,7 @@ export class MediaLibrary {
     const summary: MediaSummary = {
       id,
       name: basename(sourcePath),
-      ...measured(probe),
+      ...mediaMeasurements(probe),
     };
     assertMediaSummary(summary);
     if ((await hash(sourcePath, signal)) !== originalHash)

@@ -2,6 +2,8 @@
 
 The P0 bootstrap in ADR 0012 implements only an actual Home import/library surface and bounded per-frame inspection/seek. Library entries are imported media, not recent projects or draft timelines. Show real import, cancel, selection and seek controls; report unavailable preview for unverified color/precision inputs. Do not display nonfunctional recording, project, Codex, edit, playback or export actions to imitate the complete screens below. P1 and later phases retain their complete screen and accessibility requirements; bootstrap runtime acceptance is still required.
 
+The subsequent P1 project prerequisite now adds actual project create/open/reopen and five-stage navigation to the bootstrap. Home lists Projects and Source library separately, and retained source entries have a working Create project action. Successful import creates an actual project with a baseline revision. Stage selection saves through main before changing the active control, retains source/frame position, and preserves prior state on failure. Packaged native tests and guest-only visual inspection passed for this extension; publication/review and the P1 result remain pending, and later feature controls remain unimplemented. The complete screen requirements below remain authoritative.
+
 ## S01: onboarding
 
 Purpose: establish local readiness and real Codex sign-in.

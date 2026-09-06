@@ -147,3 +147,58 @@ test("renderer contracts reject nonfinite seeks, excess fields, and wrong frame 
     assertMediaSummary({ id: "unused", originalPath: "private" }),
   );
 });
+test("verified source remeasures precision, color and audio metadata despite unchanged source bytes", async () => {
+  const { dir, source } = await fixture("gbrp16le");
+  const withAudio = join(dir, "audio-video.mkv");
+  await runProcess({
+    executable: "ffmpeg",
+    args: [
+      "-v",
+      "error",
+      "-nostdin",
+      "-i",
+      source,
+      "-f",
+      "lavfi",
+      "-i",
+      "sine=frequency=440:sample_rate=48000:duration=1",
+      "-map",
+      "0:v:0",
+      "-map",
+      "1:a:0",
+      "-c:v",
+      "copy",
+      "-c:a",
+      "pcm_s16le",
+      withAudio,
+    ],
+  });
+  const root = join(dir, "verified-library");
+  const library = new MediaLibrary(root);
+  const summary = await library.importFile(withAudio);
+  const verified = await library.verifiedSource(summary.id);
+  assert.equal(summary.previewAvailable, false);
+  const path = join(root, "index", `${summary.id}.json`);
+  const pristine = await readFile(path, "utf8");
+  const sourceBytes = await readFile(verified.managedPath);
+  for (const [kind, field, value] of [
+    ["video", "pix_fmt", "gbrp10le"],
+    ["video", "color_primaries", "bt2020"],
+    ["audio", "sample_fmt", "flt"],
+  ]) {
+    const entry = JSON.parse(pristine) as {
+      probe: { streams: Record<string, unknown>[] };
+    };
+    const stream = entry.probe.streams.find(
+      (item) => item.codec_type === kind,
+    )!;
+    stream[field!] = value;
+    await writeFile(path, JSON.stringify(entry));
+    // All displayed measurements and the recorded byte hash still agree.
+    assert.deepEqual(await library.list(), [summary]);
+    await assert.rejects(library.verifiedSource(summary.id), /measurements/u);
+    assert.deepEqual(await readFile(verified.managedPath), sourceBytes);
+  }
+  await writeFile(path, pristine);
+  assert.deepEqual(await library.verifiedSource(summary.id), verified);
+});

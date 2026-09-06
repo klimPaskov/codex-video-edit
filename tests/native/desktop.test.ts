@@ -1,8 +1,17 @@
 import assert from "node:assert/strict";
-import { access, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import {
+  access,
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { _electron, expect } from "playwright/test";
 import type { Page } from "playwright/test";
+import { assertInitialProjectSnapshot } from "../../packages/domain/src/project.ts";
+import { projectStages } from "../../packages/domain/src/project-view.ts";
 import {
   encodeVerifiedMaster,
   sha256,
@@ -158,12 +167,84 @@ try {
   await expect(window.locator("#frame")).toBeVisible();
   await expect(window.locator("#time")).toHaveText("0:00.000");
   await expect(
-    window.getByRole("button", { name: "Library", exact: true }),
+    window.getByRole("button", { name: "Home", exact: true }),
   ).toBeFocused();
   await assertCanvasFrame(window, 0);
   await window.getByRole("button", { name: "Next frame", exact: true }).click();
   await expect(window.locator("#time")).toHaveText("0:00.500");
   await assertCanvasFrame(window, 1);
+  const projectList = await window.evaluate(() =>
+    globalThis.window.desktop.listProjects(),
+  );
+  assert.equal(projectList.ok, true);
+  if (!projectList.ok) throw new Error("Project list failed");
+  assert.equal(projectList.value.length, 1);
+  const project = projectList.value[0]!;
+  assert.equal(project.stage, "record_import");
+  const userData = await electron.evaluate(({ app }) =>
+    app.getPath("userData"),
+  );
+  const projectFolder = join(userData, "project-store", project.id);
+  const baselinePath = join(projectFolder, "baseline.json");
+  const baselineBytes = await readFile(baselinePath);
+  const baseline: unknown = JSON.parse(baselineBytes.toString("utf8"));
+  assertInitialProjectSnapshot(baseline);
+  assert.equal(baseline.revision.revision_id, project.revisionId);
+  assert.deepEqual(baseline.timeline.frame_rate, {
+    numerator: 2,
+    denominator: 1,
+  });
+  assert.equal(baseline.timeline.duration_us, 1_500_000);
+  const stageNames = [
+    "Record or Import",
+    "Auto Edit",
+    "Edit",
+    "Review",
+    "Export",
+  ];
+  for (const [index, stage] of projectStages.entries()) {
+    const control = window
+      .getByRole("navigation", { name: "Project stages" })
+      .getByRole("button", { name: stageNames[index]!, exact: true });
+    await control.click();
+    await expect(control).toHaveAttribute("aria-current", "step");
+    await expect(window.locator("#time")).toHaveText("0:00.500");
+    await assertCanvasFrame(window, 1);
+    assert.deepEqual(await readFile(baselinePath), baselineBytes);
+    const persisted = JSON.parse(
+      await readFile(join(projectFolder, "project.json"), "utf8"),
+    );
+    assert.equal(persisted.workflow_step, stage);
+    assert.equal(persisted.current_revision_id, project.revisionId);
+  }
+  // A real filesystem failure must not announce an unsaved stage or alter the baseline.
+  const committedMetadata = await readFile(join(projectFolder, "project.json"));
+  await chmod(projectFolder, 0o500);
+  try {
+    await window
+      .getByRole("navigation", { name: "Project stages" })
+      .getByRole("button", { name: "Edit", exact: true })
+      .click();
+    await expect(window.locator("#error")).toBeVisible();
+    await expect(
+      window
+        .getByRole("navigation", { name: "Project stages" })
+        .getByRole("button", { name: "Export", exact: true }),
+    ).toHaveAttribute("aria-current", "step");
+    assert.deepEqual(
+      await readFile(join(projectFolder, "project.json")),
+      committedMetadata,
+    );
+    assert.deepEqual(await readFile(baselinePath), baselineBytes);
+    await assertCanvasFrame(window, 1);
+  } finally {
+    await chmod(projectFolder, 0o700);
+  }
+  await window
+    .getByRole("navigation", { name: "Project stages" })
+    .getByRole("button", { name: "Review", exact: true })
+    .click();
+  await expect(window.locator("#error")).toBeHidden();
   await window
     .getByRole("button", { name: "Source details", exact: true })
     .click();
@@ -325,17 +406,42 @@ try {
     ),
     1.25,
   );
-  await window.getByRole("button", { name: /Color sequence/ }).click();
+  await window.locator(`#projects [data-project-id="${project.id}"]`).click();
   await expect(window.locator("#frame")).toBeVisible();
   await expect(window.locator("#time")).toHaveText("0:00.000");
   await assertCanvasFrame(window, 0);
+  await expect(window.locator("#stage-select")).toHaveValue("review");
+  await window.getByRole("button", { name: "Home", exact: true }).click();
+  const sourceCard = window.locator(`[data-media-id="${project.source.id}"]`);
+  await sourceCard.click();
+  await expect(window.locator("#frame")).toBeVisible();
+  await expect(window.locator("#project-navigation")).toBeHidden();
+  const oldSourceCard = await sourceCard.elementHandle();
+  assert.ok(oldSourceCard);
+  await window.getByRole("button", { name: "Home", exact: true }).click();
+  await expect
+    .poll(() => oldSourceCard.evaluate((node) => node.isConnected))
+    .toBe(false);
+  await expect(sourceCard).toBeFocused();
+  await window.locator(`#projects [data-project-id="${project.id}"]`).click();
+  await expect(window.locator("#frame")).toBeVisible();
+  await expect(window.locator("#stage-select")).toHaveValue("review");
+  assert.deepEqual(await readFile(baselinePath), baselineBytes);
+  assert.equal(
+    sha256(await readFile(baseline.source.managed_path)),
+    sourceHash,
+  );
   assert.equal(sha256(await readFile(source)), sourceHash);
   await window.screenshot({ path: join(evidence, "native-reopened.png") });
   await writeFile(
     join(evidence, "result.json"),
     JSON.stringify(
       {
-        scope: "P1-settings-focus-slice",
+        scope: "P1-project-navigation-slice",
+        projectId: project.id,
+        baselineSha256: sha256(baselineBytes),
+        projectStagesPersisted: true,
+        failedSavePreserved: true,
         executablePath,
         sourceHash,
         packaged: true,
