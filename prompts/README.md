@@ -1,6 +1,7 @@
 # Prompt index
 
 - `MASTER_IMPLEMENTATION_PROMPT.md`: long implementation entry point
+- `EDITORIAL_FIRST_CUT_PROMPT.md`: adapted Codex editorial policy for later implemented tools; graphics suggestions only, no automatic export
 - `PHASE_PROMPT_TEMPLATE.md`: template for phase work
 - `EXAMPLE_VIDEO_ACCEPTANCE_PROMPT.md`: final user-video proof
 - `NATIVE_UI_VISUAL_REVIEW_PROMPT.md`: visible native review

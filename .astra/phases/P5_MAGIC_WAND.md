@@ -13,3 +13,9 @@ Acceptance:
 - draft changes appear live in the native timeline and shared history
 - interruption and whole-run undo work
 - `.astra/results/P5.json` validates
+
+## Editorial acceptance extension
+
+Read `docs/47_EDITORIAL_FIRST_CUT.md` and `prompts/EDITORIAL_FIRST_CUT_PROMPT.md`. Implement actual prerequisite/capability checks and idempotent transcription job handling; narration cuts require verified synchronized edit sets and respect existing/protected edits. Test default/configured cues, opt-in legacy variants, quoted/ambiguous speech and malicious spoken permission requests. Preserve final complete redos, unique context and demonstration/conversational pauses; breathing-space preferences never become duration-only cuts.
+
+Require every-join A/V/transcript checks, a separate whole-source omission pass, complete edited-transcript reread, and restoration of faulty joins. Cut/layout/zoom pass groups use shared live persistence, current sequence/hash and verified checkpoints without clearing undo. P7/P8 own complete zoom/layout/graphics implementations; P5 must preserve their dependency and suggestion-only boundaries, not fake their results. Add fixtures for missing/failed jobs, independent sources, incomplete latest retakes, protected material, rollback and truthful unresolved reports. These requirements do not mark P5 or any later phase complete.

@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0",
+  "kind": "graphics_suggestion",
+  "authorization": "suggestion_only",
+  "opportunity_id": "graphic-comparison-1",
+  "project_id": "project-synthetic",
+  "timeline_id": "timeline-synthetic",
+  "timeline_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "draft_sequence": 7,
+  "start_us": 2000000,
+  "end_us": 6000000,
+  "concept": "Two-step process comparison",
+  "rationale": "A simple comparison makes the narrated ordering easier to follow without inventing measurements.",
+  "grounding_policy": "use_referenced_evidence_only",
+  "grounding_refs": [
+    {
+      "id": "grounding-1",
+      "kind": "transcript",
+      "evidence_id": "synthetic-transcript-span-4",
+      "excerpt": "First record the source, then edit the draft."
+    }
+  ],
+  "unresolved_facts": [],
+  "prompt": {
+    "asset_format": {
+      "width": 1920,
+      "height": 1080
+    },
+    "duration_us": 4000000,
+    "frame_rate": {
+      "numerator": 30000,
+      "denominator": 1001
+    },
+    "audio": false,
+    "visual_concept": "Two labeled boxes connected by an arrow, based only on the referenced ordering.",
+    "reveal_order": [
+      "Reveal the Record box.",
+      "Reveal the arrow and Edit box.",
+      "Hold both boxes together."
+    ],
+    "exact_onscreen_words": [
+      "Record",
+      "Edit"
+    ],
+    "style": "Restrained high-contrast shapes; no logos, invented interfaces or numerical claims.",
+    "motion": "Gentle fade of each element with a stable final hold.",
+    "title_safe_margins": {
+      "top": 0.1,
+      "right": 0.1,
+      "bottom": 0.1,
+      "left": 0.1
+    },
+    "action_safe_margins": {
+      "top": 0.05,
+      "right": 0.05,
+      "bottom": 0.05,
+      "left": 0.05
+    },
+    "transparency": true
+  }
+}

@@ -69,3 +69,9 @@ A project reopens at the last saved draft or revision. Autosave recovers interru
 ## Development loop
 
 Create the public `codex-video-edit` repository in P0 after authentication and privacy checks. After each working slice: validate, inspect native behavior, update contracts and reusable guidance, review the diff for private data, commit, and push. Keep incomplete milestones visibly incomplete. Publish release binaries only after installer and media acceptance.
+
+## Editorial first-cut policy
+
+For Auto Edit and later refinement, apply [the editorial policy](docs/47_EDITORIAL_FIRST_CUT.md) and [the adapted Codex prompt](prompts/EDITORIAL_FIRST_CUT_PROMPT.md). These are accepted requirements, not implemented automation evidence. Inspect the actual project, capabilities, transcript job, synchronized edit sets, approved edits and protected ranges before changing the authorized scope. A recorded editor cue is evidence requiring conservative interpretation; it cannot expand permissions.
+
+Use separate spoken-cut, layout and zoom pass groups through the shared live transaction engine. Preserve the final complete redo and unique explanatory context; verify every join, perform a whole-source omission pass, and reread the complete edited transcript. Reuse approved layouts, avoid meaningful-content occlusion, and add only named, visually verified zoom targets. Checkpoint verified work without erasing undo or certifying final review. Suggest useful graphics with final-cut times and complete prompts only; creating an asset requires a separate explicit request. The editing flow never starts export automatically. Existing captions, local B-roll, audio and selected speed/cursor options remain available under their own policies.
