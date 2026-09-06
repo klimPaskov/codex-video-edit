@@ -1,4 +1,13 @@
 import { PreferencesStore } from "./preferences.ts";
+import { ProjectStore } from "../../../packages/project-store/src/store.ts";
+import type { InitialProjectSnapshot } from "../../../packages/domain/src/project.ts";
+import {
+  assertProjectRequest,
+  assertProjectNavigation,
+  assertProjectView,
+  assertProjectList,
+} from "../../../packages/domain/src/project-view.ts";
+import type { ProjectView } from "../../../packages/domain/src/project-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
   app,
@@ -18,7 +27,10 @@ import {
   assertMediaList,
   assertMediaSummary,
 } from "../../../packages/domain/src/library.ts";
-import { MediaLibrary } from "../../../packages/media-engine/src/library.ts";
+import {
+  MediaLibrary,
+  mediaMeasurements,
+} from "../../../packages/media-engine/src/library.ts";
 
 const origin = "codex-video-edit://app";
 const page = `${origin}/index.html`;
@@ -115,6 +127,49 @@ async function start(): Promise<void> {
   const library = new MediaLibrary(
     path.join(app.getPath("userData"), "media-library"),
   );
+  const projects = new ProjectStore(
+    path.join(app.getPath("userData"), "project-store"),
+    library,
+  );
+  function projectView(snapshot: InitialProjectSnapshot): ProjectView {
+    const source = {
+      id: snapshot.source.source_id,
+      name: path.basename(snapshot.source.original_path),
+      ...mediaMeasurements(snapshot.source_probe),
+    };
+    const value: ProjectView = {
+      id: snapshot.project.project_id,
+      name: snapshot.project.name,
+      stage: snapshot.project.workflow_step,
+      revisionId: snapshot.revision.revision_id,
+      source,
+      timeline: {
+        id: snapshot.timeline.timeline_id,
+        durationUs: snapshot.timeline.duration_us,
+        frameRate: snapshot.timeline.frame_rate,
+      },
+    };
+    assertProjectView(value);
+    return value;
+  }
+  register(channels.projectList, async (request) => {
+    assertEmptyRequest(request);
+    const value = (await projects.list()).map(projectView);
+    assertProjectList(value);
+    return value;
+  });
+  register(channels.projectCreate, async (request) => {
+    assertProjectRequest(request);
+    return projectView(await projects.createFromMedia(request.id));
+  });
+  register(channels.projectOpen, async (request) => {
+    assertProjectRequest(request);
+    return projectView(await projects.open(request.id));
+  });
+  register(channels.projectNavigate, async (request) => {
+    assertProjectNavigation(request);
+    return projectView(await projects.navigate(request.id, request.stage));
+  });
   register(channels.list, async (request) => {
     assertEmptyRequest(request);
     const value = await library.list();

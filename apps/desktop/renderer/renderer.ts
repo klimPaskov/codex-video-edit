@@ -1,6 +1,10 @@
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import type { DesktopBridge } from "../src/bridge.ts";
 import type { MediaSummary } from "../../../packages/domain/src/library.ts";
+import type {
+  ProjectStage,
+  ProjectView,
+} from "../../../packages/domain/src/project-view.ts";
 declare global {
   interface Window {
     desktop: DesktopBridge;
@@ -27,6 +31,151 @@ let requestedTime: number | undefined;
 let decoding = false;
 let selectionGeneration = 0;
 let seekGeneration = 0;
+let activeProject: ProjectView | undefined;
+let routeGeneration = 0;
+let loadingHome = 0;
+let navigating = false;
+const stageLabels: Record<ProjectStage, string> = {
+  record_import: "Record or Import",
+  auto_edit: "Auto Edit",
+  edit: "Edit",
+  review: "Review",
+  export: "Export",
+};
+const stageMessages: Record<ProjectStage, string> = {
+  record_import: "",
+  auto_edit: "Automatic editing is not available yet.",
+  edit: "Editing tools are not available yet.",
+  review: "Review tools are not available yet.",
+  export: "Export is not available yet.",
+};
+const stageSelect = element<HTMLSelectElement>("stage-select");
+const stageButtons = new Map<ProjectStage, HTMLButtonElement>();
+for (const stage of Object.keys(stageLabels) as ProjectStage[]) {
+  const button = document.createElement("button");
+  button.textContent = stageLabels[stage];
+  button.addEventListener("click", () => {
+    void navigate(stage);
+  });
+  element("stage-buttons").append(button);
+  stageButtons.set(stage, button);
+  const option = document.createElement("option");
+  option.value = stage;
+  option.textContent = stageLabels[stage];
+  stageSelect.append(option);
+}
+stageSelect.addEventListener("change", () => {
+  const value = stageSelect.value as ProjectStage;
+  renderStage();
+  void navigate(value);
+});
+function renderStage(): void {
+  element("project-navigation").hidden = !activeProject;
+  const message = element("stage-message");
+  message.textContent = activeProject ? stageMessages[activeProject.stage] : "";
+  message.hidden = !message.textContent;
+  stageSelect.disabled = navigating;
+  if (activeProject) stageSelect.value = activeProject.stage;
+  for (const [stage, button] of stageButtons) {
+    button.disabled = navigating;
+    if (activeProject?.stage === stage)
+      button.setAttribute("aria-current", "step");
+    else button.removeAttribute("aria-current");
+  }
+}
+async function navigate(stage: ProjectStage): Promise<void> {
+  if (!activeProject || navigating || stage === activeProject.stage) return;
+  const project = activeProject,
+    generation = routeGeneration;
+  const origin = document.activeElement;
+  navigating = true;
+  renderStage();
+  clearError();
+  try {
+    const reply = await window.desktop.navigateProject({
+      id: project.id,
+      stage,
+    });
+    if (generation !== routeGeneration || activeProject?.id !== project.id)
+      return;
+    if (!reply.ok) showError(reply.message);
+    else activeProject = reply.value;
+  } catch {
+    if (generation === routeGeneration)
+      showError(
+        "The stage could not be saved. Your previous stage is unchanged. Try again.",
+      );
+  } finally {
+    if (generation === routeGeneration) {
+      navigating = false;
+      renderStage();
+      if (
+        !settingsDialog.open &&
+        document.activeElement === document.body &&
+        origin instanceof HTMLElement
+      )
+        origin.focus();
+    }
+  }
+}
+async function openProject(
+  id: string,
+  origin?: HTMLButtonElement,
+): Promise<void> {
+  const generation = ++routeGeneration;
+  clearError();
+  try {
+    const reply = await window.desktop.openProject({ id });
+    if (generation !== routeGeneration) return;
+    if (!reply.ok) {
+      showError(reply.message);
+      return;
+    }
+    selectProject(reply.value, origin);
+  } catch {
+    if (generation === routeGeneration)
+      showError("The project could not be opened. Try again.");
+  }
+}
+function selectProject(project: ProjectView, origin?: HTMLButtonElement): void {
+  activeProject = project;
+  navigating = false;
+  select(project.source);
+  selectedButton =
+    origin ??
+    document.querySelector<HTMLButtonElement>(
+      `[data-project-id="${project.id}"]`,
+    ) ??
+    undefined;
+  element("source-name").textContent = project.name;
+  renderStage();
+}
+async function createProject(
+  media: MediaSummary,
+  origin?: HTMLButtonElement,
+): Promise<void> {
+  const generation = ++routeGeneration;
+  if (origin) origin.disabled = true;
+  clearError();
+  try {
+    const reply = await window.desktop.createProject({ id: media.id });
+    if (generation !== routeGeneration) return;
+    await loadLibrary();
+    if (generation !== routeGeneration) return;
+    if (!reply.ok) {
+      showError(reply.message);
+      return;
+    }
+    selectProject(reply.value);
+  } catch {
+    if (generation === routeGeneration)
+      showError(
+        "The project could not be created. Your imported source is preserved. Try Create project again.",
+      );
+  } finally {
+    if (origin) origin.disabled = false;
+  }
+}
 function showError(message: string): void {
   error.textContent = message;
   error.hidden = false;
@@ -40,13 +189,40 @@ function time(value: number): string {
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, "0")}`;
 }
 async function loadLibrary(): Promise<void> {
-  const reply = await window.desktop.listMedia();
+  const generation = ++loadingHome;
+  const [reply, projects] = await Promise.all([
+    window.desktop.listMedia(),
+    window.desktop.listProjects(),
+  ]);
+  if (generation !== loadingHome) return;
+  if (!projects.ok) showError(projects.message);
+  else {
+    const list = element("projects");
+    list.replaceChildren();
+    element("projects-section").hidden = projects.value.length === 0;
+    for (const project of projects.value) {
+      const row = document.createElement("li"),
+        button = document.createElement("button"),
+        name = document.createElement("span"),
+        detail = document.createElement("small");
+      name.textContent = project.name;
+      detail.textContent = `${time(project.timeline.durationUs)} · ${stageLabels[project.stage]}`;
+      button.append(name, detail);
+      button.dataset.projectId = project.id;
+      button.addEventListener("click", () => {
+        void openProject(project.id, button);
+      });
+      row.append(button);
+      list.append(row);
+    }
+  }
   if (!reply.ok) {
     showError(reply.message);
     return;
   }
   const list = element("library");
   list.replaceChildren();
+  element("library-section").hidden = reply.value.length === 0;
   for (const media of reply.value) {
     const row = document.createElement("li"),
       button = document.createElement("button");
@@ -57,10 +233,21 @@ async function loadLibrary(): Promise<void> {
     button.append(name, detail);
     button.dataset.mediaId = media.id;
     button.addEventListener("click", () => {
+      routeGeneration++;
+      activeProject = undefined;
+      navigating = false;
       selectedButton = button;
       select(media);
+      renderStage();
     });
-    row.append(button);
+    const create = document.createElement("button");
+    create.className = "create-project";
+    create.textContent = "Create project";
+    create.setAttribute("aria-label", `Create project from ${media.name}`);
+    create.addEventListener("click", () => {
+      void createProject(media, create);
+    });
+    row.append(button, create);
     list.append(row);
   }
 }
@@ -81,9 +268,7 @@ function select(media: MediaSummary): void {
   viewer.hidden = false;
   back.hidden = false;
   element("source-name").textContent = media.name;
-  seek.max = String(
-    Math.max(0, media.durationUs - Math.ceil(1_000_000 / media.frameRate)),
-  );
+  seek.max = String(Math.max(0, media.durationUs - Math.ceil(frameInterval())));
   seek.step = "1";
   seek.value = "0";
   canvas.hidden = !media.previewAvailable;
@@ -150,27 +335,39 @@ async function decodeFrames(): Promise<void> {
   }
 }
 importButton.addEventListener("click", async () => {
+  const generation = ++routeGeneration;
   clearError();
   importButton.disabled = true;
   progress.hidden = false;
   try {
     const reply = await window.desktop.importVideo();
+    if (generation !== routeGeneration) {
+      await loadLibrary();
+      return;
+    }
     if (!reply.ok) showError(reply.message);
     else if (reply.value) {
-      await loadLibrary();
-      select(reply.value);
+      element("progress-label").textContent = "Creating project…";
+      element("cancel").hidden = true;
+      await createProject(reply.value);
     }
   } catch {
     showError("Import could not finish. Please try again.");
   } finally {
     importButton.disabled = false;
     progress.hidden = true;
+    element("progress-label").textContent = "Importing video…";
+    element("cancel").hidden = false;
   }
 });
 element("cancel").addEventListener("click", () => {
   void window.desktop.cancelImport();
 });
 back.addEventListener("click", () => {
+  routeGeneration++;
+  activeProject = undefined;
+  navigating = false;
+  renderStage();
   selected = undefined;
   selectionGeneration++;
   requestedTime = undefined;
@@ -179,17 +376,47 @@ back.addEventListener("click", () => {
   back.hidden = true;
   clearError();
   setInspector(false);
-  (selectedButton ?? importButton).focus();
+  (selectedButton?.isConnected ? selectedButton : importButton).focus();
+  // Keep cards current after stage persistence without stealing restored focus.
+  const restoreProjectId = selectedButton?.dataset.projectId;
+  const restoreMediaId = selectedButton?.dataset.mediaId;
+  const restoreSelector = restoreProjectId
+    ? `[data-project-id="${restoreProjectId}"]`
+    : restoreMediaId
+      ? `[data-media-id="${restoreMediaId}"]`
+      : undefined;
+  const homeGeneration = routeGeneration;
+  const focused = document.activeElement;
+  void loadLibrary()
+    .then(() => {
+      if (
+        home.hidden ||
+        !restoreSelector ||
+        homeGeneration !== routeGeneration ||
+        settingsDialog.open ||
+        (document.activeElement !== document.body &&
+          document.activeElement !== focused)
+      )
+        return;
+      document.querySelector<HTMLButtonElement>(restoreSelector)?.focus();
+    })
+    .catch(() =>
+      showError("Home could not be refreshed. Try reopening the application."),
+    );
 });
 seek.addEventListener("input", () => requestFrame(Number(seek.value)));
 previous.addEventListener("click", () => {
-  if (selected)
-    requestFrame(Number(seek.value) - 1_000_000 / selected.frameRate);
+  if (selected) requestFrame(Number(seek.value) - frameInterval());
 });
 next.addEventListener("click", () => {
-  if (selected)
-    requestFrame(Number(seek.value) + 1_000_000 / selected.frameRate);
+  if (selected) requestFrame(Number(seek.value) + frameInterval());
 });
+function frameInterval(): number {
+  return activeProject
+    ? (1_000_000 * activeProject.timeline.frameRate.denominator) /
+        activeProject.timeline.frameRate.numerator
+    : 1_000_000 / (selected?.frameRate ?? 1);
+}
 void loadLibrary().catch(() =>
   showError(
     "The library could not be opened. Restart the application to retry.",

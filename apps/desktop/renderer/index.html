@@ -10,21 +10,27 @@
     <header>
       <span class="mark" aria-hidden="true"></span><span>codex-video-edit</span>
       <nav aria-label="Application">
-        <button id="back" hidden>Library</button
+        <button id="back" hidden>Home</button
         ><button id="settings">Settings</button>
       </nav>
     </header>
     <main>
-      <section id="home" aria-label="Media library">
+      <section id="home" aria-label="Home">
         <div class="actions">
           <button id="import" class="primary">Import video</button>
         </div>
-        <ul id="library" aria-label="Imported videos"></ul>
+        <section id="projects-section" aria-label="Projects" hidden>
+          <h2>Projects</h2>
+          <ul id="projects" aria-label="Projects"></ul>
+        </section>
+        <section id="library-section" aria-label="Source library" hidden>
+          <h2>Source library</h2>
+          <ul id="library" aria-label="Imported videos"></ul>
+        </section>
       </section>
       <section id="viewer" aria-label="Imported video" hidden>
         <div class="source-bar">
-          <span class="stage">Record or Import</span
-          ><strong id="source-name"></strong
+          <strong id="source-name"></strong
           ><button
             id="source-details"
             aria-expanded="false"
@@ -33,6 +39,11 @@
             Source details
           </button>
         </div>
+        <nav id="project-navigation" aria-label="Project stages" hidden>
+          <div id="stage-buttons"></div>
+          <select id="stage-select" aria-label="Project stage"></select>
+        </nav>
+        <p id="stage-message" role="status" hidden></p>
         <div class="workspace">
           <div class="preview">
             <canvas id="frame" aria-label="Source frame"></canvas>
@@ -66,7 +77,8 @@
         </div>
       </section>
       <div id="progress" role="status" hidden>
-        <span>Importing video…</span><button id="cancel">Cancel</button>
+        <span id="progress-label">Importing video…</span
+        ><button id="cancel">Cancel</button>
       </div>
       <p id="error" role="alert" hidden></p>
     </main>

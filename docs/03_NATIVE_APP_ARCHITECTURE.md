@@ -73,6 +73,14 @@ subagents/                 bounded agent prompts
 docs/                      product and engineering specs
 ```
 
+## P1 project shell implementation
+
+`packages/project-store` now implements the ADR 0013 prerequisite behind Electron main. Creation consumes a verified library source, publishes a project folder with an immutable baseline and separate mutable navigation metadata, and returns an actual committed project. Open/list/navigation revalidate references, source hashes and the complete reprobed stream/format metadata. Source library entries remain independently identifiable media.
+
+The renderer receives a path-free `ProjectView`: project identity/name/stage, resolving baseline revision ID, source summary and canonical timeline identity/duration/rational frame rate. The main process maps this DTO purely from the already validated committed snapshot, with no fallible postcommit filesystem read. Strict project list/create/open/navigate IPC uses the existing trusted-sender boundary. Runtime source paths and full probe data never cross preload.
+
+The renderer separates Projects from Source library, creates a project after successful import, and offers Create project for existing sources. Five-stage controls persist before their selected state changes; stale responses cannot reopen a screen after Home or overwrite a newer selection. Stage changes retain the preview position and current source. Headless and current packaged native tests passed, including all five stages, immutable baseline/source checks, failed-save preservation, reopen and security/focus at 100/125/150/200%. Guest-only native visual review also passed. It does not complete P1 or implement later stage features.
+
 ## Version policy
 
 Research and pin compatible stable versions at P0. Do not encode an unverified version in the product spec. Regenerate Codex protocol types from the installed official binary and record its version.

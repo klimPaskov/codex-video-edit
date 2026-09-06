@@ -30,6 +30,10 @@ P1's project bootstrap records an actual immutable baseline revision and initial
 
 ## Operation journal
 
+The implemented P1 store retains an immutable baseline snapshot and a separate `project.json` for persisted stage metadata. Existing project, source, timeline and revision schema shapes remain unchanged. Reads validate those records, cross-references, canonical baseline integrity and the complete verified source probe. Stage persistence revalidates committed state before replacement and leaves baseline/source/timeline data intact on failure. The postcommit renderer mapping is pure, preventing a successful save from being reported as a failure due to a subsequent media read.
+
+Headless tests cover this prerequisite's creation/reopen, integrity, failure preservation and navigation boundaries. The current packaged native suite passed all five stages with unchanged baseline/source data, a permission-denied save preserving the stage, and reopen at Review. Guest visual inspection separately confirmed project/library identity and retained frame during navigation. No shared edit journal, undo implementation, complete crash recovery, power-loss guarantee or external concurrent-writer safety follows from this initial store.
+
 Each operation contains:
 
 - stable operation ID

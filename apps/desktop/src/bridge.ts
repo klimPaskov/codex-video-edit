@@ -1,5 +1,10 @@
 import type { Preferences } from "../../../packages/domain/src/preferences.ts";
 import type {
+  ProjectView,
+  ProjectRequest,
+  ProjectNavigation,
+} from "../../../packages/domain/src/project-view.ts";
+import type {
   FrameRequest,
   MediaFrame,
   MediaSummary,
@@ -7,6 +12,10 @@ import type {
 
 export type Reply<T> = { ok: true; value: T } | { ok: false; message: string };
 export interface DesktopBridge {
+  listProjects(): Promise<Reply<ProjectView[]>>;
+  createProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
+  openProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
+  navigateProject(request: ProjectNavigation): Promise<Reply<ProjectView>>;
   getPreferences(): Promise<Reply<Preferences>>;
   setPreferences(value: Preferences): Promise<Reply<Preferences>>;
   listMedia(): Promise<Reply<MediaSummary[]>>;
@@ -15,6 +24,10 @@ export interface DesktopBridge {
   cancelImport(): Promise<Reply<null>>;
 }
 export const channels = Object.freeze({
+  projectList: "projects:list",
+  projectCreate: "projects:create",
+  projectOpen: "projects:open",
+  projectNavigate: "projects:navigate",
   preferencesGet: "preferences:get",
   preferencesSet: "preferences:set",
   list: "library:list",

@@ -107,6 +107,86 @@ class DesktopIpcContractTests(unittest.TestCase):
             self.invalid({'channel': 'preferences:get', 'response': {'ok': True, 'value': wrong}})
             self.invalid({'channel': 'preferences:set', 'payload': valid, 'response': {'ok': True, 'value': wrong}})
 
+    def project_view(self):
+        return {
+            'id': '11111111-1111-4111-8111-111111111111', 'name': 'Synthetic project',
+            'stage': 'record_import', 'revisionId': '22222222-2222-4222-8222-222222222222',
+            'source': deepcopy(self.summary),
+            'timeline': {'id': '33333333-3333-4333-8333-333333333333', 'durationUs': 1001000,
+                         'frameRate': {'numerator': 30000, 'denominator': 1001}},
+        }
+
+    def project_exchange(self, channel, view=None):
+        view = self.project_view() if view is None else view
+        result = {'channel': 'projects:' + channel,
+                  'response': {'ok': True, 'value': [view] if channel == 'list' else view}}
+        if channel != 'list':
+            result['payload'] = {'id': view['source']['id'] if channel == 'create' else view['id']}
+            if channel == 'navigate':
+                result['payload']['stage'] = view['stage']
+        return result
+
+    def test_project_channels_success_errors_and_five_stages(self):
+        for channel in ['list', 'create', 'open', 'navigate']:
+            exchange = self.project_exchange(channel)
+            self.valid(exchange)
+            exchange['response'] = {'ok': False, 'message': 'Project could not be opened.'}
+            self.valid(exchange)
+        self.valid({'channel': 'projects:list', 'response': {'ok': True, 'value': []}})
+        for stage in ['record_import', 'auto_edit', 'edit', 'review', 'export']:
+            view = self.project_view()
+            view['stage'] = stage
+            self.valid(self.project_exchange('navigate', view))
+
+    def test_project_requests_require_exact_ids_and_no_paths(self):
+        for channel in ['create', 'open', 'navigate']:
+            for payload in [None, {}, {'id': '../private/project'}, {'path': '/private/project.json'}]:
+                exchange = self.project_exchange(channel)
+                exchange['payload'] = payload
+                self.invalid(exchange)
+            for key in ['path', 'projectRoot', 'originalPath']:
+                exchange = self.project_exchange(channel)
+                exchange['payload'][key] = '/private/project'
+                self.invalid(exchange)
+            exchange = self.project_exchange(channel)
+            del exchange['payload']
+            self.invalid(exchange)
+        for payload in [None, {}, {'id': self.project_view()['id']}]:
+            exchange = self.project_exchange('list')
+            exchange['payload'] = payload
+            self.invalid(exchange)
+        for stage in ['home', 'qa', 'complete', 'delete', None, 0]:
+            exchange = self.project_exchange('navigate')
+            exchange['payload']['stage'] = stage
+            self.invalid(exchange)
+
+    def test_project_view_is_path_free_bounded_and_strict(self):
+        for key in ['originalPath', 'managedPath', 'projectRoot', 'source_probe']:
+            view = self.project_view()
+            view[key] = '/private/source'
+            self.invalid(self.project_exchange('open', view))
+        for name in ['/private/video', 'C:\\private\\video', 'bad\x00name', '', 'x' * 161]:
+            view = self.project_view()
+            view['name'] = name
+            self.invalid(self.project_exchange('open', view))
+        for bad in [0, -1, 0.5, 9007199254740992, '30000', True, None]:
+            for key in ['numerator', 'denominator']:
+                view = self.project_view()
+                view['timeline']['frameRate'][key] = bad
+                self.invalid(self.project_exchange('open', view))
+            view = self.project_view()
+            view['timeline']['durationUs'] = bad
+            self.invalid(self.project_exchange('open', view))
+        for location in ['source', 'timeline']:
+            view = self.project_view()
+            view[location]['path'] = '/private/source'
+            self.invalid(self.project_exchange('open', view))
+        view = self.project_view()
+        self.invalid({'channel': 'projects:list', 'response': {'ok': True, 'value': [view, view]}})
+        listing = next(branch for branch in self.schema['oneOf'] if branch['properties']['channel'].get('const') == 'projects:list')
+        self.assertEqual(listing['properties']['response']['oneOf'][1]['properties']['value']['maxItems'], 1000)
+        self.invalid({'channel': 'projects:delete', 'payload': {'id': view['id']}, 'response': {'ok': True, 'value': view}})
+
 
 if __name__ == '__main__':
     unittest.main()
