@@ -15,7 +15,7 @@ Low-confidence imported footage uses fewer or no automatic zooms.
 
 ## Candidate generation
 
-Create candidates around clicks, text entry, menu selection, key reveals, and small controls that would otherwise be hard to see. Exclude ordinary cursor travel, long narration over a static screen, and repeated nearby actions that would cause zoom pumping.
+Create candidates around clicks, text entry, menu selection, key reveals, and small controls that would otherwise be hard to see. Exclude ordinary cursor travel, long narration over a static screen without a continuing readability need, and repeated nearby actions that would cause zoom pumping.
 
 ## Motion rules
 
@@ -35,3 +35,11 @@ The user can add a zoom block, drag its edges, move or resize the target rectang
 ## QA
 
 Check target visibility, centering, edge coverage, text readability, motion stability, timing against action, overlap, and frequency. Render proof frames at start, peak, hold, and end.
+
+## Editorial targeting and scope
+
+Apply [47_EDITORIAL_FIRST_CUT.md](47_EDITORIAL_FIRST_CUT.md), particularly its zoom and protected-edit rules. Plan from the committed screen-led sections after verified cuts/layouts. Reassess existing effects only inside the authorized scope; preserve approved/protected material. Name the exact target internally and record its evidence and source/layer. Skip generic center zooms and decorative motion. Use cursor-follow for moving interactions and fixed targets for stable panels, results, prices and phone screens.
+
+Desktop scale around 1.6–1.8×, centered-phone scale around 1.8–2.0× and durations around 3–10 seconds are adjustable starting preferences, not unconditional limits. Longer holds need a readability reason. End before unrelated narration, leave short wider-view rests between unrelated targets, and never overlap zooms. Camera zooms require a clear rhetorical reason in an already camera-led section.
+
+Use a dedicated undoable zoom pass. Inspect an interior frame, midpoint and both boundaries of every effect, including target legibility, camera/caption occlusion and protected-range integrity. Repair or remove failures before checkpointing. Tests must cover wrong-cursor tracking, empty targets, clipped text, timing/overlap, inappropriate camera zooms and stale timeline hashes. Target identity/mode/layer/verification contracts must be implemented before claiming these behaviors; the existing rectangle alone does not establish editorial intent.

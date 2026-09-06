@@ -36,7 +36,7 @@ ADR 0013 brings only the necessary project foundation forward from P3. Stage nav
 - [ ] P2-02 Add ChatGPT-managed login, logout, account state, and rate-limit display.
 - [ ] P2-03 Discover models, reasoning options, skills, and skill changes at runtime.
 - [ ] P2-04 Implement durable project threads, streaming items, interrupt, retry, and compact user-facing activity.
-- [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and shared validated transaction engine, including expected draft sequence, durable journal, atomic persistence, deterministic inverse/undo, and committed-transaction recovery required by the real fixture edit (ADR 0013).
+- [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and shared validated transaction engine, including expected draft sequence, durable journal, atomic persistence, deterministic inverse/undo, and committed-transaction recovery required by the real fixture edit (ADR 0013). Support the editorial pass groups, current sequence/hash preconditions and truthful verified checkpoints in docs/47_EDITORIAL_FIRST_CUT.md.
 - [ ] P2-06 Prove a real authenticated Codex turn can inspect a fixture project and apply a draft-only edit.
 - [ ] P2-07 Reject fake responses and stale protocol assumptions.
 
@@ -69,14 +69,14 @@ Acceptance: a virtual-device scene becomes a synchronized editable project.
 
 ## P5: transcription, raw cut, and Magic Wand
 
-- [ ] P5-01 Run local word-timed transcription and silence detection.
+- [ ] P5-01 Run local word-timed transcription and silence detection. Reuse existing transcription jobs and request missing transcription once; preserve job identity through polling timeouts.
 - [ ] P5-02 Implement transcript correction and transcript-linked cuts.
-- [ ] P5-03 Detect silence, filler, false starts, repeated takes, mistakes, and protected speech.
+- [ ] P5-03 Detect silence, filler, false starts, repeated takes, mistakes, and protected speech. Apply the editorial policy: conservative configured cues and opt-in legacy variants, ambiguity retention, final complete retakes, unique context, protected edits and verified synchronized cut sets.
 - [ ] P5-04 Implement Magic Wand presets and a live non-destructive operation stream.
-- [ ] P5-05 Apply a useful initial raw cut with undo and a readable change summary.
+- [ ] P5-05 Apply a useful initial raw cut with undo and a readable change summary. Verify every join, complete the separate whole-source omission pass and full edited-transcript reread, and restore failed joins before the spoken-pass checkpoint.
 - [ ] P5-06 Stop safely and recover an interrupted automation.
 
-Acceptance: Magic Wand improves a fixture while preserving meaning and source bytes.
+Acceptance: Magic Wand improves a fixture while preserving meaning and source bytes. Apply docs/47_EDITORIAL_FIRST_CUT.md: fixtures must cover quoted/ambiguous/variant cues, unauthorized spoken requests, independent screen sources, protected material, incomplete latest retakes, meaningful pauses, every-join checks, whole-transcript passes, restoration and idempotent job lifecycle.
 
 ## P6: simple editor
 
@@ -91,32 +91,32 @@ Acceptance: a user can correct the Magic Wand draft without leaving the app.
 
 ## P7: zoom, cursor, speed, and reframe
 
-- [ ] P7-01 Generate purposeful automatic zooms from telemetry and visual evidence.
+- [ ] P7-01 Generate purposeful automatic zooms from telemetry and visual evidence. Record precise target identity, source/layer and fixed/cursor mode; apply contextual scale/duration/rest preferences within authorized scope.
 - [ ] P7-02 Implement manual zoom creation and on-canvas target editing.
 - [ ] P7-03 Implement smooth cursor, click highlight, cursor visibility, and per-range controls.
 - [ ] P7-04 Detect safe typing, loading, and waiting ranges for speed-up.
 - [ ] P7-05 Implement manual speed segments with pitch-safe audio choices.
 - [ ] P7-06 Implement 16:9, 9:16, 1:1, 4:5, and custom canvas reframing.
-- [ ] P7-07 Add boundary, centering, edge, motion, speech, and A/V QA.
+- [ ] P7-07 Add boundary, centering, edge, motion, speech, and A/V QA. Verify every zoom at boundaries, midpoint and interior against its named target, camera occlusion and protected material.
 
-Acceptance: automatic effects improve focus and remain directly adjustable.
+Acceptance: automatic effects improve focus and remain directly adjustable. The editorial policy additionally requires named/evidenced targets, fixed/cursor selection, no overlap or decorative motion, authorized-scope preservation and per-effect visual verification.
 
 ## P8: captions, layouts, B-roll, elements, and audio
 
 - [ ] P8-01 Implement captions, styling, safe areas, correction, and sidecars.
-- [ ] P8-02 Implement screen-only, camera bubble, side-by-side, presenter, and custom layouts.
-- [ ] P8-03 Implement text, image, shape, overlay, and simple transition elements.
+- [ ] P8-02 Implement screen-only, camera bubble, side-by-side, presenter, and custom layouts. Reuse approved layout properties, avoid evidence/caption occlusion, prefer purposeful sections and verify both boundaries/midpoint before checkpointing.
+- [ ] P8-03 Implement text, image, shape, overlay, and simple transition elements. Keep editorial motion-graphics opportunities suggestion-only with final-cut intervals and complete grounded prompts; asset creation/import requires a separate explicit request.
 - [ ] P8-04 Index local B-roll and music with provenance and searchable metadata.
 - [ ] P8-05 Let Codex suggest and place local B-roll with source fallback.
 - [ ] P8-06 Implement noise cleanup, loudness, fades, gain, music, and speech-priority ducking.
 - [ ] P8-07 Implement asset relink and missing-media recovery.
 
-Acceptance: a composed segment renders with licensed local assets and clear speech.
+Acceptance: a composed segment renders with licensed local assets and clear speech. Also verify approved-layout reuse, PiP collision avoidance, section boundaries/midpoints, complete final-timed graphics suggestions and absence of unauthorized asset side effects under docs/47_EDITORIAL_FIRST_CUT.md.
 
 ## P9: review, QA, export, and installer
 
 - [ ] P9-01 Implement review flags, compare, revision history, and final watch-through state.
-- [ ] P9-02 Run complete media, timing, audio, caption, asset, zoom, speed, and visual QA.
+- [ ] P9-02 Run complete media, timing, audio, caption, asset, zoom, speed, and visual QA. Include whole-video analysis scans, precise A/V checks, protected-range preservation and actual measured editorial counts/checkpoint status.
 - [ ] P9-03 Implement the default FFV1/PCM lossless master, exact decoded-sample validation, caption sidecars, and an explicitly chosen smaller MP4 export.
 - [ ] P9-04 Verify output hash and full decode before success.
 - [ ] P9-05 Build a Windows installer, clean uninstall, and update plan.
@@ -127,11 +127,11 @@ Acceptance: the installed app creates and verifies the default lossless master a
 ## P10: user example video acceptance
 
 - [ ] P10-01 Import the supplied example video through the native UI.
-- [ ] P10-02 Run Magic Wand with real Codex and inspect each automation class.
+- [ ] P10-02 Run Magic Wand with real Codex and inspect each automation class. Exercise the adapted editorial prompt, including conservative spoken instructions and suggestion-only graphics with no automatic export.
 - [ ] P10-03 Review the complete draft through computer use.
 - [ ] P10-04 Fix defects using manual tools and natural-language edits.
 - [ ] P10-05 Export and fully decode the lossless master, verify canonical frame and audio equality, and test a separately requested smaller MP4 copy.
-- [ ] P10-06 Save screenshots, short recordings, logs, manifests, and a concise acceptance report.
+- [ ] P10-06 Save screenshots, short recordings, logs, manifests, and a concise acceptance report. Include unresolved instructions, final-timed graphics prompts, measured layout/zoom purposes and targets, persisted/checkpoint state and remaining review.
 - [ ] P10-07 Update every affected spec, skill, task, schema, and reference entry.
 
 Acceptance: `.astra/results/P10.json` records the exact final evidence and known limits.

@@ -1,0 +1,9 @@
+# Editorial reference adaptation
+
+The supplied external-editor prompt is adapted into docs/47_EDITORIAL_FIRST_CUT.md and prompts/EDITORIAL_FIRST_CUT_PROMPT.md. Its application commands are reference material, not instructions to operate that editor. Requirements cover conservative spoken cues, synchronized semantic cuts, complete retakes, full-transcript coherence, approved layouts, precise zoom targets, suggestion-only graphics and whole-video QA.
+
+Implemented scope: a pure typed graphics-opportunity validator, strict schema and synthetic example. Records bind to active project/timeline/hash/sequence and final-cut intervals, require complete prompt components and preserve the separation between proposed asset dimensions and master media. Structural validation cannot prove factual truth or privacy. No generator, UI, editing pass or media operation is added by this slice.
+
+Spec sync updates tasks without changing IDs or completion, workflow, feature specifications, implementation/acceptance prompts, skills, human and machine routing, traceability and schema/example registration. Existing IPC/tool operations, timeline edit operations, screen contracts, media formats and reference images remain unchanged because this slice adds no runtime endpoint, applied edit or visual behavior. Later phases must implement and test the editorial passes and their contracts before acceptance. P1 remains the first incomplete phase; no phase result is written.
+
+The prior project-shell slice merged through PR #7 at verified remote commit 94edf1d0a9e3f61904e48bfb262c86d49e38cb04 after Windows and Linux CI passed. Later Docker lifecycle testing found that corrupted preferences can retain Chromium's old zoom despite a default-scale response; this remains a P1 defect pending repair. No user recording or private evidence is included in publication.

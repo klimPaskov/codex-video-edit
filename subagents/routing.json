@@ -140,12 +140,13 @@
       ]
     },
     {
-      "need": "Magic Wand, automatic zooms, speed, and B-roll plans",
+      "need": "Meaning-preserving editorial passes, spoken cues, automatic zooms and suggestion-only graphics",
       "subagent": "automation-editor",
       "path": "subagents/automation-editor.md",
       "skills": [
         "magic-edit",
-        "automatic-zoom"
+        "automatic-zoom",
+        "broll-layout"
       ],
       "phases": [
         "P5",

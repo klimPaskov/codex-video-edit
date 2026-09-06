@@ -84,6 +84,8 @@ Do not show raw FFmpeg, transcription, or protocol logs.
 
 ## S07: Auto Edit
 
+The later editorial flow follows docs/47_EDITORIAL_FIRST_CUT.md. Show meaningful current pass progress and actionable unresolved directions from real persisted work, with separate spoken-cut, layout and zoom undo groups. Do not turn the detailed QA requirements into persistent dashboards or extra panels. The configured cue and protected scope belong to relevant project/edit settings.
+
 Visible:
 
 - video preview
@@ -118,6 +120,8 @@ Visible:
 - Continue editing
 
 ## S10: review and quality summary (Review stage; internal screen `qa`)
+
+The editorial report exposes measured changes, unresolved cues and selective graphics suggestions at final-cut times. Each suggestion contains its complete prompt and remains distinct from an imported asset; viewing it never triggers generation or export. Keep this in the selected review surface or Codex drawer, respecting the single-panel rule. A pass checkpoint does not certify whole-result review. These are later implementation requirements, not current shell controls.
 
 Visible:
 

@@ -28,3 +28,11 @@
 ## QA
 
 Check order, bounds, readability, safe areas, line breaks, collisions, missing words, duplicate words, and synchronization after cuts and speed changes.
+
+## Editorial instructions and coherence
+
+Apply [47_EDITORIAL_FIRST_CUT.md](47_EDITORIAL_FIRST_CUT.md). Transcript processing reuses the actual job handle; request transcription once only when absent, and do not restart merely because an observation times out. Configured editor cues identify candidates, not unconditional commands. Inspect neighboring sentences and visuals, accept conservative variants, require opt-in legacy aliases, and retain quoted or ambiguous cues and affected content as unresolved items.
+
+Use word-level timing and microphone silence as supporting evidence for semantic cuts within verified synchronized edit sets. Never cut an independent screen source merely because narration was removed. Preserve the final complete retake, unique setup and qualifications, meaningful pauses and protected material. Verify every resulting transcript/A/V join; perform a separate whole-source omission pass and a complete edited-transcript reread in scene order. Restore necessary wording when a join fragments a sentence or loses context. Resolved spoken directions may be cut only after their edits and joins are verified.
+
+Do not polish transcript text to disguise an awkward recording edit. Text/caption correction remains distinct from audio cuts and never resynthesizes speech. Tests include quoted/phonetic false cues, ambiguous scope, incomplete final retakes, independent screen layers, retained demonstration pauses, full-reread omissions and successful restoration.

@@ -34,3 +34,18 @@ P0 foundation scope and synchronization audit: [46_P0_FOUNDATION.md](46_P0_FOUND
 | Individual native UI references | references/manifest.json and IMPLEMENTATION_NOTES.md | P1-04, P1-06, P6-03 | Real native screenshots and interaction checks |
 
 | Five-stage navigation and authorized live draft editing | 02, 04, 05, 08, 30, 46; ADR 0003 | P0-05, P1-03, P2-05 | tests/foundation/test_workflow_contracts.py contract checks; native stage persistence and authenticated live-edit checks remain required |
+
+## Editorial first-cut requirement mapping
+
+[47_EDITORIAL_FIRST_CUT.md](47_EDITORIAL_FIRST_CUT.md) and `prompts/EDITORIAL_FIRST_CUT_PROMPT.md` are accepted later-feature requirements. The following evidence remains required; these rows assert neither implemented automation nor P1 completion. Typed editorial/operation/zoom/opportunity contracts and examples must be synchronized as implemented.
+
+| Requirement | Specifications / skill routes | Tasks | Required acceptance evidence |
+| --- | --- | --- | --- |
+| Actual context, one transcription job, authorized scope and synchronized cut sets | 09, 13, 32, 47; magic-edit; media/recording/Codex engineers | P2-05, P4-03, P5-01 | Real job identity/polling; missing capability and independent-source rejection; protected/approved edits preserved |
+| Conservative spoken cues and complete semantic cut | 09, 13, 32, 47; magic-edit | P5-03, P5-05, P10-02 | Configured and opt-in legacy aliases; quoted/ambiguous/hostile cues; final complete redo and unique context; pauses supporting demonstrations; every join, omission pass, full reread and restoration |
+| Shared live pass groups and verified checkpoints | 32, 47; magic-edit; editor/Codex engineers | P2-05, P5-04, P5-06 | Current sequence/hash after structural edits; atomic persistence before announcement; abort or compensating undo; no false checkpoint/revision/export claims |
+| Approved purposeful layouts | 14, 37, 47; broll-layout | P8-02, P10-02 | Property reuse, preferred-corner collision handling, screen-only return, meaningful section count, both edges/midpoint and protected-region QA |
+| Selective graphics opportunities only | 14, 32, 47; broll-layout | P8-03, P10-06 | Final-cut timing/remapping; complete grounded generator-neutral prompts; proposed asset dimensions distinct from master; zero generation/import/placement without separate asset request |
+| Initial graphics suggestion data validation | graphics_opportunity schema/example; domain graphics-opportunity.ts | P8-03 | tests/media/graphics-opportunity.test.ts covers detached validation, stale context, bounds, exact rate/duration, strict fields and sparse-array rejection; actual suggestion generation/UI remain unimplemented |
+| Named screen/camera zoom targets | 11, 32, 47; automatic-zoom | P7-01, P7-07, P10-02 | Exact target and mode/layer evidence; readability-based scale/duration/rests; overlap/wrong-cursor/empty-target/camera-collision rejection; boundaries/midpoint/interior review |
+| Final editorial QA/report and source fidelity | 32, 44, 47; native-qa/security/media engineers | P9-02, P10-03, P10-06 | Whole-video analysis scan plus precise rendered A/V; protected ranges; actual duration/counts/targets/unresolved cues/checkpoint state; analysis/master isolation and no automatic export |

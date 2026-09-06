@@ -41,3 +41,11 @@ Camera and screen share the recording session clock. The preview and final rende
 ## Reframing
 
 Layouts must adapt to 16:9, 9:16, 1:1, 4:5, and custom canvas. Do not simply crop the speaker or important screen content. Save per-canvas overrides when needed.
+
+## Editorial layout pass
+
+Apply [47_EDITORIAL_FIRST_CUT.md](47_EDITORIAL_FIRST_CUT.md). Inspect raw sources and composed output, approved layouts and authorized/protected ranges before editing. Copy the exact available properties of an approved talking-head treatment; otherwise use a clean inset with comfortable margins and supported restrained corners/shadow.
+
+Prefer screen-led PiP during demonstrations, starting bottom-right but moving away from important controls/results/captions. Use screen-only framing when density or unavoidable occlusion requires it and restore the camera when that need ends. Favor camera-led framing for introductions, conclusions, opinions, setup and transitions where the screen contributes little; return to screen-led framing for demonstrated evidence. Keep the speaker visible when helpful, not merely because a camera source exists. Avoid frequent gratuitous switches.
+
+Use an undoable layout pass after the spoken-cut checkpoint. Inspect both boundaries and midpoint of every section for synchronization, usable face framing, meaningful screen visibility and protected-material preservation. Only verified sections reach a checkpoint. Tests cover exact approved-property reuse, preferred-corner collisions, screen-only-to-camera return, rhetorical sections, excessive switching and verification failures. This does not assert implemented automatic layout selection.

@@ -39,3 +39,11 @@ Support 16:9, 9:16, 1:1, 4:5, Fit source, and custom size. Reframing must preser
 ## Licence rule
 
 Codex may select only assets with declared usable provenance. Missing provenance creates a warning and excludes the asset from final export until resolved.
+
+## Editorial layouts and suggestion-only graphics
+
+Apply [47_EDITORIAL_FIRST_CUT.md](47_EDITORIAL_FIRST_CUT.md). Reuse exact available properties of an approved layout; otherwise use a restrained inset. Prefer bottom-right PiP only when it leaves useful UI and captions visible. Plan a few meaningful screen-led/camera-led sections and inspect both boundaries and midpoint of each. Protected edits remain intact.
+
+Motion-graphic opportunities are a separate suggestion record, not B-roll assets or generated overlays. A normal edit request, including a recorded cue asking for a graphic, permits only selective concepts with final-cut start/end times, benefit and a complete generator-neutral prompt. Include proposed 1920×1080 asset dimensions, exact rate/duration, no audio, reveal order, exact grounded wording, style/motion, safe margins and transparency when appropriate. Rebind opportunity timing after structural changes. This asset proposal cannot change the source-matched project canvas/master or authorize another generative provider. No composition, generation, render, import or placement occurs without a separate explicit asset request.
+
+Existing permitted local B-roll and manually requested elements remain supported. Tests must distinguish local-asset placement from graphics suggestions, reject unauthorized asset side effects and invented data/branding, and verify prompt completeness and final-cut timing. These are later P8/P10 acceptance requirements.

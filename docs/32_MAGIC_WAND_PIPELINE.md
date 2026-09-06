@@ -71,3 +71,13 @@ Use only the enabled switches and user thresholds.
 ## Completion summary
 
 Show removed duration, restored or protected sections, cut count, zoom count, speed ranges, caption status, audio work, layout changes, B-roll suggestions, and unresolved warnings. Every category links to the affected timeline items.
+
+## Editorial pass ordering and verification
+
+The mandatory detailed policy is [47_EDITORIAL_FIRST_CUT.md](47_EDITORIAL_FIRST_CUT.md); use `prompts/EDITORIAL_FIRST_CUT_PROMPT.md` for the runtime task. Discover only real app capabilities/guidance once per connection. Establish active project/revision/draft sequence/hash, transcription job identity, authorized scope, protected ranges, source synchronization and approved styles before planning operations.
+
+The spoken-cut pass establishes the source/output map first. Preserve final complete redos, unique context and meaningful pauses; batch only confirmed nonoverlapping cuts across verified synchronized sources. Check every join in transcript and rendered A/V, run the whole-source omission pass and full edited-transcript reread, and restore failures. Then verify a separate layout pass. Identify selective graphics opportunities after layouts, and verify a separate target-driven zoom pass. Re-map all opportunities after any subsequent timing edit. Other selected presentation/pacing tools remain governed by their source-map dependencies.
+
+A pass checkpoint records verified persisted draft work, not a forced immutable revision, cleared undo history or completed final review. Re-read current sequence/hash after each structural change; reject stale requests. Never announce state before persistence. Abort uncommitted invalid batches; if a persisted effect fails later verification, apply its deterministic compensating undo and record the outcome. Stopping prevents new work while preserving committed history.
+
+Complete a whole-video analysis contact-sheet scan plus precise frames/A/V where required; analysis derivatives never feed the master. Report actual duration, scene/layout/zoom counts and purposes/targets, removals, retained exceptions, unresolved cues, final-timed complete graphics prompts, checkpoint/persistence state and remaining review. Verify no unrequested asset creation or export. Required tests cover job idempotency/timeouts, independent sources, ambiguity/protection, stale hashes, rollback, missing verification and fabricated summaries. Pipeline documentation is not implementation evidence.
