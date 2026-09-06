@@ -63,11 +63,13 @@ A bottom-right drawer contains natural-language editing, a model selector, curre
 
 ## Interface settings and focus
 
-The P1 settings/focus slice implements persistent interface scale choices of 100%, 125%, and 150%. Main owns preference storage behind strict typed get/set IPC; renderer state and a success toast update only after an actual successful save. Cancel or Escape dismisses unsaved choices, and load/save failures provide actionable messages without claiming success or discarding the prior saved scale. The modal traps keyboard focus and returns it to its invoking control when closed. Ctrl+, opens Settings.
+The P1 settings/focus slice implements persistent interface scale choices of 100%, 125%, 150%, and 200%. Main owns preference storage behind strict typed get/set IPC; renderer state and a success toast update only after an actual successful save. Cancel or Escape dismisses unsaved choices, and load/save failures provide actionable messages without claiming success or discarding the prior saved scale. The modal traps keyboard focus and returns it to its invoking control when closed. Ctrl+, opens Settings.
 
 Source information shows real imported-media metadata in one inspector. Opening Settings hides that inspector; closing Settings restores it when its source remains selected. Closing the inspector returns focus to Source details. Opening a source focuses its Back control, and Back restores focus to the selected source card. Interface scaling does not change source samples, preview quality, or master settings.
 
 This slice does not implement the five-stage project shell or complete P1 accessibility acceptance. Packaged native testing remains required at supported window sizes and scales; contract and unit checks alone do not prove those interactions.
+
+The extension to 200% addresses P1-05's full scaling range. Prior native evidence covers the earlier settings/focus slice, including 150% computer-use inspection. Packaged native keyboard/focus/layout tests and guest-only visual input/capture passed at 200%; this does not complete the remaining P1 requirements.
 
 ## Empty states
 

@@ -4,6 +4,10 @@
 
 The main process owns the canonical project state. The renderer holds a view model and sends typed intents. Codex and manual controls use the same domain command layer.
 
+ADR 0013 brings real project identity, source references, initial timeline/baseline revision and persisted active stage into P1. It brings the transaction core necessary for the real guarded fixture edit into P2. P3 and P6 retain all complete project, editing, revision and recovery acceptance. Earlier prerequisite implementation does not establish those complete features.
+
+Project navigation selects a workspace stage without editing media. Persist navigation state before announcing it, preserve the committed draft and source context, and keep it separate from draft sequence and undo history. Stage changes never manufacture automation, successful review or export. Failed navigation saves retain the previous committed stage.
+
 ## Draft sequence
 
 Every accepted mutation increments an integer draft sequence. Requests carry the expected sequence. A stale request is rejected and the caller receives the current sequence plus a compact rebase summary.
@@ -19,6 +23,8 @@ A transaction contains one or more operations and has these states:
 5. announced
 
 No UI patch is announced before persistence succeeds. A failed transaction leaves the prior state intact.
+
+P2 must implement this sequence in the common engine before claiming its authenticated edit: validate expected draft sequence, persist a complete transaction with deterministic inverse/undo, promote committed state, then notify the renderer. Its tests include stale requests, failed persistence, interruption, reopen and undo. Runtime Codex uses that engine, not a separate AI mutation path; manual and Magic Wand actions must reuse it when implemented.
 
 ## Live Codex changes
 

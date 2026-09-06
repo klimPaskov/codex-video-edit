@@ -2,11 +2,11 @@
 
 ## Environment boundary
 
-The implementation agent must build and run the product app only in its isolated desktop environment. The current user instruction authorizes provisioning that environment and running its native viewer on the host. This exception covers Docker infrastructure and the viewer, not a host launch of the product or access to host capture devices, personal files, credentials, or display sockets.
+The implementation agent must build and run the product app only in its isolated desktop environment. The latest user instruction prohibits controlling the host PC: all native input and screenshots must remain inside Docker. Do not use host computer-use tools or operate/capture a host viewer. Historical viewer authorization is superseded; any future viewer use requires a new explicit request. Do not access host capture devices, personal files, credentials, or display sockets.
 
-The current [Docker environment](../tests/desktop/README.md) provides a private Linux display, an unprivileged user, dropped capabilities, restricted seccomp, and no host mounts or devices. Its authenticated VNC endpoint binds only to loopback. Use a native viewer with clipboard transfer disabled. The separate Electron compatibility probe must retain Chromium sandboxing; do not use `--no-sandbox` to make a test pass.
+The current [Docker environment](../tests/desktop/README.md) provides a private Linux display, an unprivileged user, dropped capabilities, restricted seccomp, and no host mounts or devices. Use `tests/desktop/guest-input.py` inside that guest for native input and screenshots. It uses X11/XTEST via ctypes and FFmpeg x11grab, guarded by Linux, `/.dockerenv`, UID 1000 and display `:99`. The existing authenticated loopback VNC endpoint is not the current testing route. Retain Chromium sandboxing; do not use `--no-sandbox` to make a test pass.
 
-Docker 28.5.2, Electron 44.2, and Playwright 1.63.0 have passed the environment probe. Computer use inspected the native Xmessage and Electron windows through TigerVNC and confirmed visible input responses. This establishes display/input and sandbox compatibility, not a usable editor. A user Escape interrupted the later computer-use close step; no clean computer-use close is claimed. Linux desktop evidence does not prove Windows capture or installer behavior. VNC does not forward audio, and its 24-bit display does not prove high-precision master fidelity.
+Docker 28.5.2, Electron 44.2, and Playwright 1.63.0 passed the environment probe. Earlier TigerVNC observations are historical; the later host-viewer 200% attempt was stopped by the user and did not pass. The current guest-only path captured the desktop, closed the probe, opened the actual product source, opened Settings with Ctrl+,, selected and saved 200%, opened Source details, and advanced the actual frame to 0:00.500 without host input. Native 200% tests passed separately. These bounded observations do not prove full P1 acceptance, Windows devices/installers, audio listening, or high-precision display fidelity.
 
 ## Browser role
 
@@ -28,7 +28,7 @@ Launch the Electron app, obtain the first window, stub native dialogs where need
 
 ### Computer use
 
-Operate the visible native window for real visual inspection. Test resize, focus, selection, drag handles, menus, keyboard shortcuts, progress, errors, and final playback. Record exact steps and screenshots.
+Operate and capture the actual guest native window using the guarded guest helper. Inspect the latest guest screenshot before choosing a coordinate or key, perform one action, and inspect its resulting screenshot. Test resize, focus, selection, drag handles, menus, keyboard shortcuts, progress, errors, and final playback as implemented. Record exact steps and screenshots privately. Do not infer a visual pass from helper exit status alone.
 
 ### Capture tests
 

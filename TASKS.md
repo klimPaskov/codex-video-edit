@@ -21,12 +21,14 @@ ADR 0012 moves only the minimum actual native shell and immutable media bootstra
 
 - [ ] P1-01 Build a packaged Electron window that never opens as a normal browser page.
 - [ ] P1-02 Use local packaged renderer content, context isolation, sandboxing, CSP, and a narrow typed preload API.
-- [ ] P1-03 Implement Home, the five-step header (Record or Import, Auto Edit, Edit, Review, Export), modal system, toast system, and one-panel-at-a-time layout.
+- [ ] P1-03 Implement Home, the five-step header (Record or Import, Auto Edit, Edit, Review, Export), modal system, toast system, and one-panel-at-a-time layout. Include the real project create/open foundation, source-matched initial timeline and baseline revision, and persisted active stage needed for honest project navigation (ADR 0013).
 - [ ] P1-04 Keep logs, Ready badges, status footers, repeated titles, and obvious descriptions out of normal screens. Apply the current reference correction notes.
 - [ ] P1-05 Add keyboard navigation, scaling, focus states, and visual regression fixtures.
 - [ ] P1-06 Launch and inspect the native window with Playwright Electron and computer use.
 
 Acceptance: native screenshots show a simple shell with no debug clutter.
+
+ADR 0013 brings only the necessary project foundation forward from P3. Stage navigation persists actual project presentation state without executing features, modifying draft history, certifying review, or starting export. Verify all five transitions and reopen against the same project, source and draft state. Unimplemented stage actions remain absent or truthfully unavailable; navigation is not evidence that later features work.
 
 ## P2: real Codex runtime
 
@@ -34,11 +36,13 @@ Acceptance: native screenshots show a simple shell with no debug clutter.
 - [ ] P2-02 Add ChatGPT-managed login, logout, account state, and rate-limit display.
 - [ ] P2-03 Discover models, reasoning options, skills, and skill changes at runtime.
 - [ ] P2-04 Implement durable project threads, streaming items, interrupt, retry, and compact user-facing activity.
-- [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and transaction log.
+- [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and shared validated transaction engine, including expected draft sequence, durable journal, atomic persistence, deterministic inverse/undo, and committed-transaction recovery required by the real fixture edit (ADR 0013).
 - [ ] P2-06 Prove a real authenticated Codex turn can inspect a fixture project and apply a draft-only edit.
 - [ ] P2-07 Reject fake responses and stale protocol assumptions.
 
 Acceptance: a real Codex smoke test passes or the phase remains blocked with exact evidence.
+
+Use P1's actual project foundation and the shared transaction engine for the authenticated fixture edit. Do not substitute an AI-only state store or fake project. P3 and P6 retain their full acceptance even where their foundations were implemented earlier.
 
 ## P3: projects, import, media model, and preview
 

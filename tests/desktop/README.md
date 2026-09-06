@@ -1,6 +1,6 @@
 # Isolated native desktop
 
-This P0 test environment runs Linux native windows inside Docker. The host runs only a native VNC viewer; never launch Electron directly on the host. This environment is not Windows capture, installer, audio-listening or product acceptance evidence.
+This P0 test environment runs Linux native windows inside Docker. All native input and screenshots now stay inside Docker under the latest user instruction. Never control the host PC or launch Electron directly on it. This environment is not Windows capture, installer, audio-listening or product acceptance evidence.
 
 ## Provision
 
@@ -16,19 +16,19 @@ The launcher creates `codex-video-edit-desktop`. It fails on an existing name in
 
 The build context is only this directory; `.dockerignore` includes only the Dockerfile and display entry point. Private evidence and user footage must never enter a build context. Stop a test session with `docker stop codex-video-edit-desktop`; retain failed environments/evidence until cleanup is explicitly authorized.
 
-## Native viewer
+## Restart recovery
 
-Use a trusted native VNC viewer, not a browser. This session used the standalone Windows TigerVNC 1.16.2 binary from the official project's linked SourceForge distribution, with its valid Brian Hinz Authenticode signature checked before launch. Keep downloaded binaries and the password file under ignored `.astra/private/desktop/`.
+The display startup script recovers only display 99's stale lock and socket inside the private container namespace. It refuses recovery when the recorded process is alive or the display responds. An abrupt stop/start of the empty test container must pass `python scripts/desktop_environment.py check` again before product testing. The empty-guest abrupt kill/start recovery test passed, with the previous container retained and source evidence private. Retain failed containers and evidence; rebuilding the image does not update an existing container's startup script.
 
-Copy the generated environment password without displaying it:
+## Guest-only native observation and input
 
-```sh
-docker cp codex-video-edit-desktop:/home/node/.vnc/passwd .astra/private/desktop/vnc.passwd
-```
+The current visual testing route is `tests/desktop/guest-input.py`, copied as reviewed source into the guest and executed there with Python. It uses the guest's existing X11/XTEST libraries via ctypes for native input and FFmpeg x11grab for screenshots. Runtime guards require Linux, `/.dockerenv`, UID 1000, `DISPLAY=:99`, and the expected 1440×900 guest display. It neither controls nor captures the host desktop.
 
-Connect to `127.0.0.1::5909` with `-PasswordFile <absolute-private-password-path> -AcceptClipboard=0 -SendClipboard=0 -AutoSelect=0 -PreferredEncoding=Raw -FullColor=1`. The only published port is localhost; authentication still applies. No file transfer is provided. Do not expose this endpoint on the network or publish debugger ports. VNC raw display transport avoids an extra JPEG representation, but the virtual display remains 24-bit and cannot establish high-precision master fidelity. VNC does not forward audio.
+Actions are `capture`, `click <x> <y>`, and `key <permitted-key>`. Inspect the most recent guest screenshot before choosing coordinates. The permitted keys are Tab, Shift_L+Tab, Escape, Return, Up, Down, Home, End and Control_L+comma. Each action produces a fresh private screenshot and JSON record under `/home/node/evidence/visual/` with the action, display, hash and `hostInput: false`. Inspect the result before taking another action; a successful command alone is not a visual pass.
 
-Use computer use to inspect the actual viewer window and click the native infrastructure probe. Confirm that the probe disappears. This verifies input/display transport, not the video editor. Keep screenshots private and label their scope.
+The current path captured the guest desktop, closed its probe, opened an actual product source, opened Settings with Ctrl+,, selected/saved 200%, opened Source details and advanced the actual frame to 0:00.500. Native 200% tests passed separately. This does not establish audio listening, full accessibility, arbitrary-alpha/display precision, or Windows acceptance.
+
+Earlier tests used an authenticated loopback TigerVNC viewer. That is historical evidence only. The user's later stop interrupted the host-viewer 200% attempt; it is not a pass. Do not launch or operate a host viewer unless the user explicitly requests it again. Retain private viewer files and old evidence without using them as current host-control authorization. The existing VNC endpoint must remain loopback-only and must not be exposed to the network.
 
 ## Sandboxed Electron compatibility
 

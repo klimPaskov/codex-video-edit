@@ -202,6 +202,8 @@ try {
   for (const [width, height, scale] of [
     [1366, 768, 1],
     [1366, 768, 1.5],
+    [1366, 768, 2],
+    [1200, 800, 2],
     [1920, 1080, 1.25],
   ]) {
     await electron.evaluate(
@@ -244,7 +246,11 @@ try {
           .querySelector(".preview")!
           .getBoundingClientRect();
         return (
-          panel.left >= preview.right && panel.bottom <= globalThis.innerHeight
+          panel.left >= preview.right &&
+          panel.bottom <= globalThis.innerHeight &&
+          document.querySelector("header")!.getBoundingClientRect().top >= 0 &&
+          document.querySelector("#frame-controls")!.getBoundingClientRect()
+            .bottom <= globalThis.innerHeight
         );
       }),
       true,

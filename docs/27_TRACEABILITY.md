@@ -5,6 +5,7 @@ P0 foundation scope and synchronization audit: [46_P0_FOUNDATION.md](46_P0_FOUND
 | Requirement | Main spec | Tasks | Main tests |
 | --- | --- | --- | --- |
 | Native standalone window | 03, 04 | P1 | Playwright Electron launch, computer-use review |
+| Interface scale through 200% | 04, 05, 22; desktop_preferences and desktop_ipc schemas/examples | P1-05, P1-06 | Five storage and seven IPC tests passed for the 200% extension; packaged native keyboard/focus and guest-only layout inspection at 200% passed; prior 150% evidence remains separate |
 | Persistent interface scale, settings modal and source focus | 04, 05; schemas/desktop_preferences.schema.json; schemas/desktop_ipc.schema.json; matching examples/desktop_preferences.example.json and examples/desktop_ipc.example.json | P1-03, P1-05, P1-06 | Strict preference/IPC and persistence tests; actual packaged modal save/cancel/Escape, Ctrl+,, one-inspector restoration and source/Back focus tests at supported sizes/scales; bounded native inspection passed; full P1 incomplete |
 | Real Codex only | 08 | P2 | auth, model, skill, thread, live edit smoke |
 | Project import and immutability | 07, 17 | P3 | hash, reopen, recovery, mutation tests |

@@ -14,3 +14,5 @@ Files in this directory are accepted starting decisions. Revisit them only with 
 - 0010: public development from P0
 - 0011: individual reference corrections
 - 0012: minimum actual native media bootstrap prerequisite for P0
+
+- 0013: real project shell and shared transaction prerequisites

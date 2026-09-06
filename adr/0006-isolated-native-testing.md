@@ -15,8 +15,12 @@ The implementation agent launches and tests the desktop application only inside 
 - Virtual devices provide deterministic capture tests.
 - Product builds, launches, and capture tests run only in the isolated guest environment.
 
-## Scope resolution, 2026-09-05
+## Historical scope resolution, 2026-09-05
 
-The current user request to make the isolated environment available authorizes host-side environment provisioning and a native viewer. Under `AUTHORITATIVE_ORDER.md`, that instruction supersedes the original blanket prohibition on host test actions. This narrow exception permits Docker infrastructure and TigerVNC to display and control the guest desktop. It does not authorize a product launch on the host or mounting host personal files, credentials, devices, or display sockets into the guest.
+The request to make the isolated environment available authorized host-side environment provisioning and a native viewer at that time. The earlier TigerVNC evidence retains that historical scope. It did not authorize a product launch on the host or mounting host personal files, credentials, devices, or display sockets into the guest.
 
-The current Linux Docker desktop verifies infrastructure with a sandboxed Electron/Playwright probe and native viewer input. It does not establish Windows product, capture, installer, or audio-review acceptance. See `docs/20_NATIVE_COMPUTER_USE_TESTING.md` and `tests/desktop/README.md` for the boundary and reproducible checks.
+## Current boundary, 2026-09-06
+
+The latest user instruction prohibits control of the host PC. Under `AUTHORITATIVE_ORDER.md`, it supersedes the historical viewer exception: all native input and screenshots now remain inside Docker. Use guest X11/XTEST input and guest display capture alongside Playwright Electron. Do not operate a host viewer or capture its window; a future host-viewer session requires a new explicit user request.
+
+The guest helper requires Linux, `/.dockerenv`, UID 1000 and display `:99`; it emits screenshots of that private guest display. This is actual native input/display evidence, not a browser substitute. Its scope remains Linux; it does not establish Windows product, capture, installer, audio-listening or high-precision display fidelity. See `docs/20_NATIVE_COMPUTER_USE_TESTING.md` and `tests/desktop/README.md` for reproducible checks.

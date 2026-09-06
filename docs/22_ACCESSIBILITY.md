@@ -20,3 +20,5 @@ Caption defaults should remain readable, safe from canvas edges, and editable. T
 ## Testing
 
 Include keyboard-only, screen-reader smoke, zoomed UI, high-contrast, focus order, and reduced-motion tests. Computer-use review must verify visible focus and clipped text at common window sizes.
+
+The P1-05 scale extension adds persisted 200% alongside 100%, 125%, and 150%. Check the actual packaged window at 200% for reachable controls, retained focus, readable labels, bounded preview/inspector layout, and scrolling that does not hide navigation. Scale is presentation-only and cannot alter source samples or master quality. Five storage and seven IPC tests passed for the extension, followed by isolated packaged native keyboard and sizing tests. Current local checks passed with 29 Python tests, 22 TypeScript tests and 27 schema/example pairs. Guest-only native input/capture verified Settings at 200%, Source details and Next frame without host control. The earlier host-viewer 200% attempt was user-stopped and is not evidence of success. This bounded pass does not complete P1 or screen-reader/high-contrast/reduced-motion acceptance.
