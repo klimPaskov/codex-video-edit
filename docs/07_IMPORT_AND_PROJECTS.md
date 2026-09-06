@@ -4,6 +4,16 @@
 
 A project has one stable ID, display name, creation time, platform, canvas, source list, active draft, saved revisions, render cache, and Codex thread identity.
 
+Under ADR 0013, P1 implements the minimum project foundation needed by its actual project shell: create from imported media, open/reopen, stable identity, immutable source references, an initial source-matched canonical timeline and real baseline revision, and persisted active stage. Existing ingestion-library records remain separate media records. Project revision IDs must resolve to immutable snapshots, and source IDs must resolve to preserved media; placeholder identities are invalid.
+
+Read rational timing and canvas metadata from the actual source contract. Do not reconstruct the working frame rate from rounded UI text or silently choose a lower-precision working format. Unsupported project/preview paths must be reported honestly. P3 retains the complete import-format, project-management, locking, autosave/recovery and smooth A/V preview requirements below.
+
+## Project navigation
+
+The five navigation controls select Record or Import, Auto Edit, Edit, Review, or Export on the active project. Main validates and persists the stage before returning the committed state. Reopen restores the saved stage without implying its feature ran. Stage selection preserves the active draft, source references, selection and playhead as applicable, and does not append edits or advance draft sequence. A save failure leaves the previous committed stage intact.
+
+Stage actions appear only when implemented. No navigation action may fabricate AI edits, certify watch-through/QA, or start export. A stage with unavailable actions may disclose that limitation and retain working navigation/source inspection. Final export remains a separate explicit user action. P1 tests shell navigation; later phases prove the corresponding stage features.
+
 ## Import
 
 - Use a native file picker.

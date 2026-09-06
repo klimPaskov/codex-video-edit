@@ -47,7 +47,7 @@ test("invalid input is rejected without modifying existing settings", async () =
     [],
     {},
     { interfaceScale: NaN },
-    { interfaceScale: 2 },
+    { interfaceScale: 3 },
     { interfaceScale: "1" },
     { interfaceScale: 1, path: "private" },
   ]) {
@@ -55,6 +55,23 @@ test("invalid input is rejected without modifying existing settings", async () =
     assert.throws(() => store.write(value));
   }
   assert.deepEqual(await readFile(join(root, "preferences.json")), before);
+});
+test("200% scale persists across reopening and can be restored to 100%", async () => {
+  const root = await directory();
+  const store = new PreferencesStore(root);
+  assert.deepEqual(await store.write({ interfaceScale: 2 }), {
+    interfaceScale: 2,
+  });
+  const reopened = new PreferencesStore(root);
+  assert.deepEqual(await reopened.read(), { interfaceScale: 2 });
+  assert.deepEqual(
+    JSON.parse(await readFile(join(root, "preferences.json"), "utf8")),
+    { interfaceScale: 2 },
+  );
+  await reopened.write({ interfaceScale: 1 });
+  assert.deepEqual(await new PreferencesStore(root).read(), {
+    interfaceScale: 1,
+  });
 });
 test("corrupt settings survive failed reads and writes; queue recovers after external repair", async () => {
   const root = await directory();

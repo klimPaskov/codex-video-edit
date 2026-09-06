@@ -10,6 +10,10 @@ ADR 0012 brings a minimum actual product shell into P0-04/P0-06 so native media 
 
 Its initial frame path transports native-dimension BGRA full-range GBR BT.709 SDR samples without resampling or lossy proxies, within explicit dimensions/payload bounds. Import may preserve other supported video formats while reporting preview unavailable. Frame inspection and seek are not smooth playback, audio review, or an export/compositor path; those remain later acceptance work.
 
+ADR 0013 moves the minimum real project foundation into P1: stable project identity, immutable source references, a source-matched initial canonical timeline, a real baseline revision, create/open/reopen, and persisted active stage. Main owns this state behind validated task-based IPC. Five-stage navigation selects a workspace view only after persistence succeeds; it does not mutate media operations or claim stage completion. The renderer must retain the committed project/draft context while changing stage presentation.
+
+P2 adds the common draft transaction core needed for its authenticated edit: sequence validation, durable journal, atomic persistence, inverse/undo and committed-transaction recovery. This core is shared by manual, Magic Wand and Codex actions. It must not become a second AI-only state store. P3/P6 still complete their full project, playback, editor, history and recovery requirements; implementing prerequisites earlier does not waive their acceptance.
+
 ### Electron main process
 
 Owns:

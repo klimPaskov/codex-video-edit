@@ -20,3 +20,7 @@ P0 media changes require actual native evidence under AGENTS.md and ADR 0006. De
 - Passing a synthetic frame transport test proves neither audio playback nor displayed high-precision master fidelity. Package, security, source-integrity, reopen, deterministic frame, and actual native interaction evidence are required before accepting this bootstrap.
 
 This decision changes dependencies, not completion status. P0 remains incomplete until its complete acceptance audit passes, and the infrastructure probe remains separate evidence.
+
+## Subsequent dependency correction
+
+ADR 0013 brings the minimum real project/timeline/baseline revision and persisted stage foundation into P1, and the common transaction prerequisites for an authenticated edit into P2. It supersedes only the earlier boundary that deferred all project foundations to P3. The P0 ingestion library remains distinct from projects; P3/P6 and later complete acceptance remains required.

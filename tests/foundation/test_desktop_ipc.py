@@ -90,7 +90,7 @@ class DesktopIpcContractTests(unittest.TestCase):
         preferences_schema = json.loads((ROOT / 'schemas/desktop_preferences.schema.json').read_text(encoding='utf8'))
         for field in ['type', 'additionalProperties', 'required', 'properties']:
             self.assertEqual(self.schema['$defs']['preferences'][field], preferences_schema[field])
-        for scale in [1, 1.25, 1.5]:
+        for scale in [1, 1.25, 1.5, 2]:
             value = {'interfaceScale': scale}
             self.valid({'channel': 'preferences:get', 'response': {'ok': True, 'value': value}})
             self.valid({'channel': 'preferences:set', 'payload': value, 'response': {'ok': True, 'value': value}})
@@ -102,7 +102,7 @@ class DesktopIpcContractTests(unittest.TestCase):
         for payload in [None, {}, {'interfaceScale': 1}]:
             self.invalid({'channel': 'preferences:get', 'payload': payload, 'response': {'ok': True, 'value': valid}})
         self.invalid({'channel': 'preferences:set', 'response': {'ok': True, 'value': valid}})
-        for wrong in [None, {}, [], {'interfaceScale': 2}, {'interfaceScale': '1'}, {'interfaceScale': True}, {'interfaceScale': 1, 'path': '/private/settings.json'}]:
+        for wrong in [None, {}, [], {'interfaceScale': 3}, {'interfaceScale': '1'}, {'interfaceScale': True}, {'interfaceScale': 1, 'path': '/private/settings.json'}]:
             self.invalid({'channel': 'preferences:set', 'payload': wrong, 'response': {'ok': True, 'value': valid}})
             self.invalid({'channel': 'preferences:get', 'response': {'ok': True, 'value': wrong}})
             self.invalid({'channel': 'preferences:set', 'payload': valid, 'response': {'ok': True, 'value': wrong}})

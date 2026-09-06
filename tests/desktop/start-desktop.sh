@@ -1,9 +1,26 @@
 #!/bin/sh
 set -eu
+if test "$(uname -s)" != Linux || test "$(id -u)" != 1000 || test "${DISPLAY:-}" != :99 || ! test -f /.dockerenv; then
+    echo 'Desktop startup requires Docker, UID 1000 and display :99' >&2
+    exit 1
+fi
 umask 077
 mkdir -p "$HOME/.vnc" "$HOME/evidence" "$HOME/runtime"
 export XDG_RUNTIME_DIR="$HOME/runtime"
 unset WAYLAND_DISPLAY PULSE_SERVER
+# The private container PID namespace cannot share an X server with the host.
+# Recover only this display's stale runtime files after an unclean shutdown.
+if test -f /tmp/.X99-lock; then
+    display_pid=$(tr -d ' \n' </tmp/.X99-lock)
+    case "$display_pid" in
+        ''|*[!0-9]*) echo 'Invalid retained X display lock' >&2; exit 1 ;;
+    esac
+    if kill -0 "$display_pid" 2>/dev/null || xdpyinfo -display :99 >/dev/null 2>&1; then
+        echo 'Display 99 is already in use' >&2
+        exit 1
+    fi
+    rm -f -- /tmp/.X99-lock /tmp/.X11-unix/X99
+fi
 password=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
 x11vnc -storepasswd "$password" "$HOME/.vnc/passwd" >/dev/null 2>&1
 unset password
@@ -11,7 +28,7 @@ Xvfb :99 -screen 0 1440x900x24 -nolisten tcp >"$HOME/evidence/xvfb.log" 2>&1 &
 xvfb_pid=$!
 trap 'kill "$xvfb_pid" 2>/dev/null || true' EXIT INT TERM
 attempt=0
-until xdpyinfo >/dev/null 2>&1; do
+until xdpyinfo -display :99 >/dev/null 2>&1; do
     attempt=$((attempt + 1))
     test "$attempt" -lt 50 || exit 1
     sleep 0.1
