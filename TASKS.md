@@ -13,20 +13,20 @@ Complete phases in order. A task is complete only when its acceptance evidence e
 - [x] P0-07 Resolve the authenticated owner and create or verify the public `codex-video-edit` repository. Publish reviewed source, specs, licence, and CI without private media.
 - [x] P0-08 Establish tested capture, intermediate, preview, and master fidelity profiles and reject silent downgrades.
 
-Accepted: all eight tasks are recorded in `.astra/results/P0.json` against published revision `8fe7c4bcbe8511ac8772c043ff023b15075ad823`. P1 is the first incomplete phase.
+Accepted: all eight tasks are recorded in `.astra/results/P0.json` against published revision `8fe7c4bcbe8511ac8772c043ff023b15075ad823`. P0 acceptance is retained; P1 acceptance is recorded below.
 
-ADR 0012 moves only the minimum actual native shell and immutable media bootstrap into P0 to satisfy its native gate. The infrastructure probe is not product evidence. The full P1 shell/navigation/accessibility, P2 Codex integration, P3 projects/drafts/A/V playback, P4 capture, and all later acceptance remain incomplete until independently proven.
+ADR 0012 moves only the minimum actual native shell and immutable media bootstrap into P0 to satisfy its native gate. The infrastructure probe is not product evidence. P1 shell/navigation/accessibility is independently accepted below. P2 Codex integration, P3 projects/drafts/A/V playback, P4 capture, and all later acceptance remain required.
 
 ## P1: secure native shell and simple design system
 
-- [ ] P1-01 Build a packaged Electron window that never opens as a normal browser page.
-- [ ] P1-02 Use local packaged renderer content, context isolation, sandboxing, CSP, and a narrow typed preload API.
-- [ ] P1-03 Implement Home, the five-step header (Record or Import, Auto Edit, Edit, Review, Export), modal system, toast system, and one-panel-at-a-time layout. Include the real project create/open foundation, source-matched initial timeline and baseline revision, and persisted active stage needed for honest project navigation (ADR 0013).
-- [ ] P1-04 Keep logs, Ready badges, status footers, repeated titles, and obvious descriptions out of normal screens. Apply the current reference correction notes.
-- [ ] P1-05 Add keyboard navigation, scaling, focus states, and visual regression fixtures.
-- [ ] P1-06 Launch and inspect the native window with Playwright Electron and computer use.
+- [x] P1-01 Build a packaged Electron window that never opens as a normal browser page.
+- [x] P1-02 Use local packaged renderer content, context isolation, sandboxing, CSP, and a narrow typed preload API.
+- [x] P1-03 Implement Home, the five-step header (Record or Import, Auto Edit, Edit, Review, Export), modal system, toast system, and one-panel-at-a-time layout. Include the real project create/open foundation, source-matched initial timeline and baseline revision, and persisted active stage needed for honest project navigation (ADR 0013).
+- [x] P1-04 Keep logs, Ready badges, status footers, repeated titles, and obvious descriptions out of normal screens. Apply the current reference correction notes.
+- [x] P1-05 Add keyboard navigation, scaling, focus states, and visual regression fixtures.
+- [x] P1-06 Launch and inspect the native window with Playwright Electron and computer use.
 
-Acceptance: native screenshots show a simple shell with no debug clutter.
+Accepted: all six tasks are recorded in `.astra/results/P1.json` against verified published revision `33d3fdc1d87787322c658fad88a1c4fa9787f2d1`. Actual packaged Linux guest tests and computer-use inspection cover the simple shell, real project navigation, recovery, focus/scaling and scoped Orca output. Windows/hardware and later editing acceptance remain required. P2 is the first incomplete dependency-safe phase.
 
 ADR 0013 brings only the necessary project foundation forward from P3. Stage navigation persists actual project presentation state without executing features, modifying draft history, certifying review, or starting export. Verify all five transitions and reopen against the same project, source and draft state. Unimplemented stage actions remain absent or truthfully unavailable; navigation is not evidence that later features work.
 

@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0",
+  "phase_id": "P1",
+  "status": "complete",
+  "started_at": "2026-09-08T18:03:36.409Z",
+  "ended_at": "2026-09-08T18:37:25.814999Z",
+  "task_ids": [
+    "P1-01",
+    "P1-02",
+    "P1-03",
+    "P1-04",
+    "P1-05",
+    "P1-06"
+  ],
+  "summary": "Accepted the secure packaged native shell, actual project baseline and persisted five-stage navigation, focused settings/inspector layout, lifecycle recovery, keyboard/scaling and bounded real reader output. Timestamps cover the final acceptance window; earlier reviewed slice evidence is retained separately. Later editor, Codex, capture and user-video acceptance remain required.",
+  "checks": [
+    {
+      "name": "Secure packaged window and actual project navigation",
+      "status": "pass",
+      "command_or_method": "Playwright Electron inside isolated Linux Docker: packaged local protocol/CSP, sandbox/preload/sender boundary; all five stages persist; actual baseline/source/frame preservation, failed-save preservation and reopen.",
+      "evidence": [
+        ".astra/evidence/P1-native-resume/native-product-result.json",
+        ".astra/evidence/P1-native-resume/provenance.json"
+      ]
+    },
+    {
+      "name": "Packaged lifecycle and recovery",
+      "status": "pass",
+      "command_or_method": "Real packaged startup failure, missing assets, normal shutdown, second instance, process kill/reopen, corrupt preferences and one explicit renderer reopen; subsequent crash closes.",
+      "evidence": [
+        ".astra/evidence/P1-lifecycle-accessibility/lifecycle.json",
+        ".astra/evidence/P1-lifecycle-accessibility/native-dialogs.json",
+        ".astra/evidence/P1-lifecycle-accessibility/parent-recovery-visual.json"
+      ]
+    },
+    {
+      "name": "Keyboard, scale and restrained visual behavior",
+      "status": "pass",
+      "command_or_method": "Packaged 100/125/150/200 percent checks, modal isolation/focus, one panel, contrast, non-color selection and emulated forced-colors/reduced-motion; guest-only input independently inspected full window at100/200 percent and Next frame.",
+      "evidence": [
+        ".astra/evidence/P1-native-resume/accessibility-result.json",
+        ".astra/evidence/P1-native-resume/parent-contrast-visual.json"
+      ]
+    },
+    {
+      "name": "Real screen-reader control output",
+      "status": "pass",
+      "command_or_method": "Natural Orca50.2/AT-SPI2.56.8 activation; seven genuine braille-output events paired with app-owned focus, settings API readback, immutable fixture and committed Edit UI/disk assertions; parent whole-guest screenshot inspection.",
+      "evidence": [
+        ".astra/evidence/P1-orca50-accepted-candidate/result.json",
+        ".astra/evidence/P1-orca50-accepted-candidate/provenance.json",
+        ".astra/evidence/P1-orca50-accepted-candidate/reader-settings.json",
+        ".astra/evidence/P1-orca50-accepted-candidate/provision-result.json",
+        ".astra/evidence/P1-orca50-accepted-candidate/parent-visual.json",
+        ".astra/evidence/P1-orca50-accepted-candidate/isolation-review.json"
+      ]
+    },
+    {
+      "name": "Source validation and spec synchronization",
+      "status": "pass",
+      "command_or_method": "Full npm run check:37 Python/44 TypeScript tests,28 schema pairs,20 reference images,10 invalid quality-contract rejections; final harness typecheck/lint/format and guest run. Source/contract review and staged privacy audit.",
+      "evidence": [
+        ".astra/evidence/P1-orca50-accepted-candidate/validation-review.json"
+      ]
+    },
+    {
+      "name": "Reviewed public source and CI",
+      "status": "pass",
+      "command_or_method": "Verified public owner/remote, reviewed slice commit, Windows/Linux CI and remote revision.",
+      "evidence": [
+        ".astra/evidence/P1-orca50-accepted-candidate/publication.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    ".astra/evidence/P1-native-resume/provenance.json",
+    ".astra/evidence/P1-orca50-accepted-candidate/validation-review.json",
+    ".astra/evidence/P1-orca50-accepted-candidate/parent-visual.json"
+  ],
+  "native_test": {
+    "launched": true,
+    "playwright": true,
+    "computer_use": true,
+    "screenshot_paths": [
+      ".astra/private/contrast-project100.png",
+      ".astra/private/contrast-project200-settled.png",
+      ".astra/private/contrast-settings200.png",
+      ".astra/private/contrast-next200.png",
+      ".astra/private/parent-recovery-dialog.png",
+      ".astra/private/parent-recovery-reopened.png",
+      ".astra/evidence/P1-orca50-accepted-candidate/0-import-focus.png",
+      ".astra/evidence/P1-orca50-accepted-candidate/2-settings-scale.png",
+      ".astra/evidence/P1-orca50-accepted-candidate/5-source-details.png"
+    ],
+    "recording_paths": []
+  },
+  "known_limits": [
+    "P2-P10 remain required. No real Codex login/edit, recorder, complete editor, continuous A/V preview, audio listening, final export or user-example edit is accepted.",
+    "Native tests are synthetic Linux Docker runs with no host UI control. Windows screen-reader, hardware capture, installer, signing and OS media-preference integration remain unverified.",
+    "Orca43.1 missed-announcement failures are retained. Orca50.2 smoke covers seven controls via actual braille monitor output, not speech, physical braille, every error announcement or full accessibility certification.",
+    "Earlier native startup and five-second pending-save timeouts remain unexplained. The final reader run passed with a bounded30-second commit wait and on-disk assertion; this does not establish the earlier timeout cause.",
+    "Edit-focus screenshot shows a subsequent Orca mode announcement and precedes stage activation; committed stage is verified separately by the test.",
+    "Source preview equality covers bounded opaque BGRA fixture canvas samples; arbitrary alpha, display compositing, production rendering and master fidelity remain outside P1.",
+    "Provenance consolidates older lifecycle/test artifacts retrospectively; test formatting differences and package metadata differences are disclosed. Private artifacts remain local and are not published.",
+    "The first PR10 Linux CI attempt was cancelled after ten minutes in FFmpeg dependency installation. Retained logs subsequently showed slow package downloads, not a proven hang. The unchanged retry is recorded separately; cancellation is not counted as a pass."
+  ],
+  "spec_sync": {
+    "changed": [
+      "ADR0013 actual project foundation; architecture, Home/project screens, import/project/data/revision specs, typed project and preferences IPC, examples, tests, P1 prompt, tasks and traceability.",
+      "Persisted100-200percent settings, single inspector/modal focus, native asset/startup failure and bounded recovery requirements; keyboard/contrast/media-preference checks.",
+      "Native-testing skills/routing and guest-only input boundary; reproducible pinned test-only reader provisioning, exact runtime/output provenance, notices and publication privacy checks.",
+      "Documentation resource organization and synchronized live references; editorial first-cut requirements and suggestion validation published separately for later phases."
+    ],
+    "unchanged": [
+      "Immutable media, lossless capture/intermediate/master policy, domain edit operations and future shared transaction requirement.",
+      "Codex-only genuine runtime, shared undo, explicit final export/deletion/cleanup/spending/publication controls; no fabricated AI or stage-execution claims.",
+      "Reference image bytes and correction notes; no bundled third-party production assets or private evidence.",
+      "P3-P10 full acceptance despite the minimum project foundation brought into P1."
+    ]
+  },
+  "code_revision": "33d3fdc1d87787322c658fad88a1c4fa9787f2d1"
+}
