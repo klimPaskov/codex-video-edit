@@ -46,6 +46,8 @@ Run `tests/native/accessibility.test.ts` for keyboard project navigation, focus,
 
 Run `dbus-run-session -- node tests/native/orca-smoke.test.ts <absolute-packaged-executable>` only inside the isolated image with Orca and AT-SPI dependencies. The real screen reader, observer and Electron share a private session bus. Speech and physical braille are disabled; require actual Orca braille-monitor output and named/typed focus events belonging to the packaged application's process IDs. Inspect full guest screenshots of that output. Test natural activation first; any separate `--forced-accessibility` run is explicitly forced, not proof of automatic detection. This is a bounded Linux control-output smoke test, not speech listening, physical braille, error-announcement coverage or full accessibility certification.
 
+Use the pinned comparison recipe in `tests/desktop/README.md` for Orca 50.2 and AT-SPI2 2.56.8. Keep old-reader failures distinct from new-reader passes. The harness records version, package and test hashes before startup and confirms reader settings through its supported API. Build each comparison from verified archives in fresh directories; do not reuse unverified extracted sources or generated build rules. Successful provisioning alone is never a passing smoke test.
+
 ## No visual shortcuts
 
 A DOM assertion or screenshot diff does not replace watching motion and audio. A native computer-use pass does not replace deterministic tests. Both are required for final acceptance.

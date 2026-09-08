@@ -36,6 +36,31 @@ The test image also installs Orca, AT-SPI and the Python accessibility bindings.
 
 New guest-only environments publish no host ports. The validator also recognizes the previously reviewed loopback VNC binding for retained historical containers, but no viewer is launched or controlled. Multiple isolated guests can therefore be tested without touching the host desktop or sharing displays.
 
+### Pinned Orca comparison
+
+The Debian reader remains available for reproducing its failures. Build a separate dependency image for the reviewed Orca 50.2/AT-SPI2 2.56.8 comparison:
+
+```sh
+docker build -t codex-video-edit-desktop:p1-accessibility tests/desktop
+docker build -f tests/desktop/orca50.Dockerfile -t codex-video-edit-desktop:p1-orca50-build tests/desktop
+```
+
+Create a distinct guest using `scripts.desktop_environment.start_arguments()`, changing only its name and image, and validate the resulting inspection with `validate_inspection()`. Preserve existing guests. Do not add mounts, devices, published ports or privileges. Transfer the reviewed provisioner and test sources with the same allowlisted source-transfer boundary as the product tests.
+
+Inside that guest, run `python3 tests/desktop/provision-orca50.py`. It verifies pinned upstream archive hashes and extracts, builds and installs into a fresh invocation directory. It retains previous runs and prints the new prefix. Installation is separate from product or accessibility acceptance.
+
+In the guest test workspace, set `ORCA_TEST_PREFIX` to that emitted prefix and `PACKAGED_EXECUTABLE` to the absolute reviewed package path, then run:
+
+```sh
+env ORCA_EXECUTABLE="$ORCA_TEST_PREFIX/bin/orca" \
+  LD_LIBRARY_PATH="$ORCA_TEST_PREFIX/lib" \
+  GI_TYPELIB_PATH="$ORCA_TEST_PREFIX/lib/girepository-1.0" \
+  XDG_DATA_DIRS="$ORCA_TEST_PREFIX/share:/usr/local/share:/usr/share" \
+  dbus-run-session -- node tests/native/orca-smoke.test.ts "$PACKAGED_EXECUTABLE"
+```
+
+The harness accepts only reviewed reader versions. Orca 50.2 uses its live D-Bus service for readiness and runtime setting readback; speech and physical braille must be off and the monitor on before app testing. All seven control checks still require actual reader output and matching application-owned focus events. Record package, reader and test provenance before startup. A monitor screenshot may show a subsequent reader mode announcement; inspect it and do not mislabel it as the earlier control announcement.
+
 Copy only the probe source, install its pinned test dependencies inside the container, and run:
 
 ```sh

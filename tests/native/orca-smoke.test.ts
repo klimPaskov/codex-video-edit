@@ -6,10 +6,11 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   stat,
   writeFile,
 } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { _electron, expect } from "playwright/test";
 import type { ElectronApplication, Page } from "playwright/test";
@@ -38,6 +39,7 @@ const evidence = await mkdtemp(
 const sourceEnv: NodeJS.ProcessEnv = {
   ...process.env,
   XDG_CONFIG_HOME: join(evidence, "config"),
+  XDG_DATA_HOME: join(evidence, "data"),
 };
 delete sourceEnv.NO_AT_BRIDGE;
 delete sourceEnv.PULSE_SERVER;
@@ -120,6 +122,88 @@ async function tabTo(page: Page, id: string): Promise<void> {
   throw new Error(`Keyboard could not reach ${id}`);
 }
 try {
+  const orcaExecutable = process.env.ORCA_EXECUTABLE ?? "orca";
+  if (orcaExecutable !== "orca") {
+    assert.ok(isAbsolute(orcaExecutable));
+    await access(orcaExecutable);
+  }
+  const version = (
+    await runProcess({ executable: orcaExecutable, args: ["--version"] })
+  ).stdout
+    .toString("utf8")
+    .trim();
+  const modern = version === "Orca version 50.2, AT-SPI2 version: 2.56.8";
+  if (modern) env.GSETTINGS_BACKEND = "keyfile";
+  assert.ok(modern || version === "43.1", "Unreviewed Orca startup contract");
+  const orcaArgs = modern
+    ? [`--debug-file=${join(evidence, "orca-debug.log")}`]
+    : [
+        "--disable=speech",
+        "--disable=braille",
+        "--enable=braille-monitor",
+        `--user-prefs-dir=${join(evidence, "orca-prefs")}`,
+        `--debug-file=${join(evidence, "orca-debug.log")}`,
+      ];
+  const runtimeLibraries = modern
+    ? await Promise.all(
+        ["libatspi.so.0", "libatk-bridge-2.0.so.0"].map(async (name) => {
+          const path = join(dirname(dirname(orcaExecutable)), "lib", name);
+          return { path, sha256: sha256(await readFile(path)) };
+        }),
+      )
+    : [];
+  await writeFile(
+    join(evidence, "provenance.json"),
+    JSON.stringify(
+      {
+        startedAt: new Date().toISOString(),
+        readerVersion: version,
+        readerCommand: [orcaExecutable, ...orcaArgs],
+        readerEntryHash: modern ? sha256(await readFile(orcaExecutable)) : null,
+        runtimeLibraries,
+        executablePath,
+        executableHash: sha256(await readFile(executablePath)),
+        asarHash: sha256(
+          await readFile(join(dirname(executablePath), "resources/app.asar")),
+        ),
+        testHash: sha256(
+          await readFile(resolve("tests/native/orca-smoke.test.ts")),
+        ),
+        observerHash: sha256(
+          await readFile(resolve("tests/native/atspi-observer.py")),
+        ),
+        environmentNames: Object.keys(env).sort(),
+        runtime: Object.fromEntries(
+          ["GI_TYPELIB_PATH", "LD_LIBRARY_PATH", "XDG_DATA_DIRS"].map((key) => [
+            key,
+            env[key] ?? null,
+          ]),
+        ),
+        activation: forced ? "forced-api-only" : "natural",
+      },
+      null,
+      2,
+    ),
+  );
+  if (modern) {
+    for (const [schema, key] of [
+      ["org.gnome.Orca.Speech:/org/gnome/orca/default/speech/", "enable"],
+      ["org.gnome.Orca.Braille:/org/gnome/orca/default/braille/", "enabled"],
+    ]) {
+      await runProcess({
+        executable: "env",
+        args: [
+          `XDG_CONFIG_HOME=${env.XDG_CONFIG_HOME}`,
+          "GSETTINGS_BACKEND=keyfile",
+          "gsettings",
+          "set",
+          schema!,
+          key!,
+          "false",
+        ],
+      });
+    }
+  }
   await runProcess({
     executable: "gdbus",
     args: [
@@ -140,17 +224,81 @@ try {
     async () => observer.output.includes('"ready": true'),
     "AT-SPI observer did not initialize",
   );
-  const orca = start("orca", "orca", [
-    "--disable=speech",
-    "--disable=braille",
-    "--enable=braille-monitor",
-    `--user-prefs-dir=${join(evidence, "orca-prefs")}`,
-    `--debug-file=${join(evidence, "orca-debug.log")}`,
-  ]);
-  await waitFor(
-    async () => (await readDebug()).length > 0,
-    "Orca did not initialize",
-  );
+  const orca = start("orca", orcaExecutable, orcaArgs);
+  if (!modern)
+    await waitFor(
+      async () => (await readDebug()).length > 0,
+      "Orca did not initialize",
+    );
+  if (modern) {
+    await waitFor(async () => {
+      try {
+        const reply = await runProcess({
+          executable: "gdbus",
+          args: [
+            "call",
+            "--session",
+            "--dest",
+            "org.gnome.Orca.Service",
+            "--object-path",
+            "/org/gnome/Orca/Service",
+            "--method",
+            "org.gnome.Orca.Service.ListModules",
+          ],
+          timeoutMs: 2000,
+        });
+        return (
+          reply.stdout.includes("BraillePresenter") &&
+          reply.stdout.includes("SpeechManager")
+        );
+      } catch {
+        return false;
+      }
+    }, "Orca control modules did not initialize");
+    const settings: Record<string, boolean> = {};
+    for (const [module, getter, expected] of [
+      ["SpeechManager", "SpeechIsEnabled", false],
+      ["BraillePresenter", "BrailleIsEnabled", false],
+      ["BraillePresenter", "MonitorIsEnabled", true],
+    ] as const) {
+      const response = await runProcess({
+        executable: "gdbus",
+        args: [
+          "call",
+          "--session",
+          "--dest",
+          "org.gnome.Orca.Service",
+          "--object-path",
+          `/org/gnome/Orca/Service/${module}`,
+          "--method",
+          "org.gnome.Orca.Module.ExecuteRuntimeSetter",
+          getter,
+          `<${expected}>`,
+        ],
+      });
+      assert.equal(response.stdout.toString("utf8").trim(), "(true,)");
+      const readback = await runProcess({
+        executable: "gdbus",
+        args: [
+          "call",
+          "--session",
+          "--dest",
+          "org.gnome.Orca.Service",
+          "--object-path",
+          `/org/gnome/Orca/Service/${module}`,
+          "--method",
+          "org.gnome.Orca.Module.ExecuteRuntimeGetter",
+          getter,
+        ],
+      });
+      assert.equal(readback.stdout.toString("utf8").trim(), `(<${expected}>,)`);
+      settings[getter] = expected;
+    }
+    await writeFile(
+      join(evidence, "reader-settings.json"),
+      JSON.stringify(settings, null, 2),
+    );
+  }
   const videoPath = join(evidence, "fixture.raw"),
     audioPath = join(evidence, "fixture.pcm"),
     source = join(evidence, "Orca fixture.mkv");
@@ -258,6 +406,8 @@ try {
         );
       return braille.length > 0 && events.length > 0;
     }, `No matching real Orca braille and app AT-SPI focus for ${name}`);
+    // Orca writes its debug output before GTK paints the monitor.
+    await delay(300);
     const screenshot = join(evidence, `${steps.length}-${name}.png`);
     await runProcess({
       executable: "ffmpeg",
@@ -317,7 +467,7 @@ try {
     .getByRole("button");
   await observe(
     "edit-stage",
-    /^.*\bEdit\b/i,
+    /(?:^Edit$|'Edit button')/,
     async () => {
       for (let i = 0; i < 10; i++) {
         await page.keyboard.press("Tab");
@@ -336,7 +486,19 @@ try {
   await expect(stages.filter({ hasText: /^Edit$/ })).toHaveAttribute(
     "aria-current",
     "step",
+    { timeout: 30000 },
   );
+  const projectStore = join(
+    env.XDG_CONFIG_HOME!,
+    "codex-video-edit",
+    "project-store",
+  );
+  const projectIds = await readdir(projectStore);
+  assert.equal(projectIds.length, 1);
+  const savedProject = JSON.parse(
+    await readFile(join(projectStore, projectIds[0]!, "project.json"), "utf8"),
+  ) as { workflow_step: string };
+  assert.equal(savedProject.workflow_step, "edit");
   assert.equal(sha256(await readFile(source)), sourceHash);
   assert.ok(children.every((item) => !item.overflow));
   await writeFile(
@@ -365,6 +527,56 @@ try {
   );
 } catch (error) {
   failure = error;
+  if (electron) {
+    try {
+      const failedPage = await electron.firstWindow();
+      await writeFile(
+        join(evidence, "failure-window.json"),
+        JSON.stringify(
+          await failedPage.evaluate(() => ({
+            text: document.body.innerText,
+            activeElement: document.activeElement?.id,
+            stages: [
+              ...document.querySelectorAll(
+                'nav[aria-label="Project stages"] button',
+              ),
+            ].map((button) => ({
+              text: button.textContent,
+              disabled: (button as HTMLButtonElement).disabled,
+              current: button.getAttribute("aria-current"),
+            })),
+          })),
+          null,
+          2,
+        ),
+      );
+      await runProcess({
+        executable: "ffmpeg",
+        args: [
+          "-hide_banner",
+          "-loglevel",
+          "error",
+          "-nostdin",
+          "-f",
+          "x11grab",
+          "-video_size",
+          "1440x900",
+          "-i",
+          ":99",
+          "-frames:v",
+          "1",
+          "-threads",
+          "1",
+          join(evidence, "failure-window.png"),
+        ],
+      });
+    } catch (inspectionError) {
+      await writeFile(
+        join(evidence, "failure-inspection.txt"),
+        String(inspectionError),
+      );
+    }
+  }
   await writeFile(
     join(evidence, "failure.json"),
     JSON.stringify(

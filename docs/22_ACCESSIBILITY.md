@@ -19,6 +19,8 @@ The P1 contrast repair uses primary backgrounds with at least 4.5:1 text contras
 
 Screen-reader evidence requires the actual reader's output. The Orca test image supplies a private session bus and braille monitor with speech/physical braille disabled; an AT-SPI tree alone is insufficient. Natural detection and forced API activation are separate outcomes. Store screenshots/output privately and state the bounded Linux scope.
 
+Record the exact reader and AT-SPI versions, package hashes, test-source hash and runtime settings with each run. Orca 43.1 retained missed-announcement failures in the isolated guest. The separate unmodified Orca 50.2/AT-SPI 2.56.8 comparison must meet the same control-output assertions; a newer dependency or successful installation alone is not acceptance. Use the reader's supported version-specific startup and settings APIs, confirm settings through readback, and wait for monitor painting before taking visual evidence. This Linux smoke scope does not establish Windows screen-reader support.
+
 ## Captions
 
 Caption defaults should remain readable, safe from canvas edges, and editable. The app should warn when a user style becomes too small or low contrast.
