@@ -14,8 +14,10 @@ Acceptance:
 - no localhost product UI or normal browser tab is used
 - Home and step shell match the simple UI rules
 - keyboard and accessibility basics pass
+- packaged lifecycle checks cover startup failure, second instance, normal shutdown, main-process kill/reopen, bounded renderer recovery and missing required assets
+- keyboard workflow, 100–200% scale, visible non-color selection, contrast, reduced-motion and forced-colors checks pass; actual screen-reader output has a clearly stated tested scope
 - actual project creation, all five stage transitions and reopen preserve source/draft identity and content; failed persistence leaves the prior committed stage intact
 - native screenshots and inspection notes exist
 - `.astra/results/P1.json` validates
 
-Use `reference-fidelity`. Read current full-page references and `references/IMPLEMENTATION_NOTES.md`. Remove debug badges, persistent readiness, duplicate headings, and excessive explanations. Default to one relevant panel. Keep working capture indicators, errors, and accessible controls.
+Use `reference-fidelity`. Read current full-page references and `docs/references/IMPLEMENTATION_NOTES.md`. Remove debug badges, persistent readiness, duplicate headings, and excessive explanations. Default to one relevant panel. Keep working capture indicators, errors, and accessible controls.

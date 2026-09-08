@@ -1,6 +1,6 @@
 # Reference integration
 
-The workspace includes ten current and ten previous individual native-app reference images. Begin with `references/README.md`, `references/IMPLEMENTATION_NOTES.md`, and `references/SCREEN_COVERAGE.md`.
+The workspace includes ten current and ten previous individual native-app reference images. Begin with `docs/references/README.md`, `docs/references/IMPLEMENTATION_NOTES.md`, and `docs/references/SCREEN_COVERAGE.md`.
 
 For every screen change:
 

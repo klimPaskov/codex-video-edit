@@ -95,7 +95,7 @@ test("initial project creates actual consistent source/timeline/revision contrac
     "python",
     [
       "-c",
-      "import json,sys; from pathlib import Path; from jsonschema import Draft202012Validator; d=json.load(sys.stdin); [(Draft202012Validator(json.loads(Path('schemas/'+k+'.schema.json').read_text(encoding='utf-8'))).validate(d[k])) for k in ('project','source','timeline','revision')]",
+      "import json,sys; from pathlib import Path; from jsonschema import Draft202012Validator; d=json.load(sys.stdin); [(Draft202012Validator(json.loads(Path('docs/schemas/'+k+'.schema.json').read_text(encoding='utf-8'))).validate(d[k])) for k in ('project','source','timeline','revision')]",
     ],
     { input: JSON.stringify(snapshot), encoding: "utf8" },
   );

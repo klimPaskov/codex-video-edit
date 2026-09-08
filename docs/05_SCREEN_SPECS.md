@@ -6,6 +6,8 @@ The subsequent P1 project prerequisite now adds actual project create/open/reope
 
 ## S01: onboarding
 
+Before ordinary screens, missing required packaged files show a native error with reinstall guidance and Close app. An unexpected renderer failure offers one Reopen window or Close app choice; another failure requires closing. Reopen means loading persisted work, not guaranteeing recovery of unsaved changes. Unreadable interface settings retain their bytes, use 100% presentation and report the failure. These native failure paths are part of P1 lifecycle acceptance and do not expose technical diagnostics in the renderer.
+
 Purpose: establish local readiness and real Codex sign-in.
 
 Visible:

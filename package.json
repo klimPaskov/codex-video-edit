@@ -26,6 +26,7 @@
     "test:native": "node tests/native/desktop.test.ts"
   },
   "devDependencies": {
+    "@electron/asar": "4.3.0",
     "@electron/packager": "20.3.0",
     "@types/node": "24.13.3",
     "electron": "44.2.0",

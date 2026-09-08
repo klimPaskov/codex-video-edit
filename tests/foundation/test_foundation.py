@@ -30,7 +30,7 @@ class PublicationTests(unittest.TestCase):
 
     def test_permitted_source_and_generated_reference(self):
         audit_blob('packages/domain/src/time.ts', b'export const value = 1;', '100644')
-        audit_blob('references/screenshots/current/example.png', b'\x89PNG\x00', '100644')
+        audit_blob('docs/references/screenshots/current/example.png', b'\x89PNG\x00', '100644')
 
     def test_private_paths_and_renamed_credentials_rejected(self):
         for path in ('private/data.json', '.astra/evidence/test.json', '.env.local', 'fixtures/user-example/video.txt', 'image.raw', 'app.exe', '.ASTRA/EVIDENCE/check.json', 'Recordings/project.json', '.ENV'):
@@ -50,6 +50,34 @@ class PublicationTests(unittest.TestCase):
                 target.write_text('data')
             self.assertEqual([p.relative_to(root).as_posix() for p in source_files(root)], ['src/file.ts'])
 
+    def test_moved_agent_guidance_is_scanned_without_runtime_data(self):
+        public = ('.codex/agents/native-qa.md', '.codex/agents/routing.json',
+                  '.agents/skills/native-electron/SKILL.md', 'docs/schemas/project.schema.json')
+        private = ('.codex/auth.json', '.codex/config.toml', '.codex/sessions/turn.json',
+                   '.codex/agents/auth.json', '.codex/agents/nested/prompt.md',
+                   'other/.codex/agents/prompt.md')
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for path in public + private:
+                target = root / path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text('safe source')
+            self.assertEqual({p.relative_to(root).as_posix() for p in source_files(root)}, set(public))
+        for path in public:
+            audit_blob(path, b'safe source', '100644')
+        for path in private:
+            with self.subTest(path=path), self.assertRaises(ValueError):
+                audit_blob(path, b'safe source', '100644')
+        with self.assertRaisesRegex(ValueError, 'credential'):
+            audit_blob('.codex/agents/native-qa.md', ('ghp_' + 'a' * 36).encode(), '100644')
+
+    def test_reference_binary_allowance_stays_in_moved_reference_tree(self):
+        audit_blob('docs/references/screenshots/current/example.png', b'\x89PNG\x00', '100644')
+        for path in ('references/screenshots/current/example.png', 'docs/private/example.png',
+                     'docs/references/example.png', '.codex/agents/example.md'):
+            with self.subTest(path=path), self.assertRaises(ValueError):
+                audit_blob(path, b'\x89PNG\x00', '100644')
+
     def test_source_integrity_is_portable_but_binary_bytes_remain_exact(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / 'source.txt'
@@ -68,8 +96,8 @@ class PhaseResultTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        (self.root / 'schemas').mkdir()
-        (self.root / 'schemas/phase_result.schema.json').write_bytes((ROOT / 'schemas/phase_result.schema.json').read_bytes())
+        (self.root / 'docs/schemas').mkdir(parents=True)
+        (self.root / 'docs/schemas/phase_result.schema.json').write_bytes((ROOT / 'docs/schemas/phase_result.schema.json').read_bytes())
         (self.root / 'TASKS.md').write_text('- [ ] P0-01 Test\n- [ ] P1-01 Native\n')
         (self.root / 'evidence.txt').write_text('synthetic test evidence')
         self.result = {

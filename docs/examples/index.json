@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0",
+  "pairs": [
+    {
+      "schema": "docs/schemas/graphics_opportunity.schema.json",
+      "example": "docs/examples/graphics_opportunity.example.json"
+    },
+    {
+      "schema": "docs/schemas/desktop_preferences.schema.json",
+      "example": "docs/examples/desktop_preferences.example.json"
+    },
+    {
+      "schema": "docs/schemas/desktop_ipc.schema.json",
+      "example": "docs/examples/desktop_ipc.example.json"
+    },
+    {
+      "schema": "docs/schemas/media_library.schema.json",
+      "example": "docs/examples/media_library.example.json"
+    },
+    {
+      "schema": "docs/schemas/activity_event.schema.json",
+      "example": "docs/examples/activity_event.example.json"
+    },
+    {
+      "schema": "docs/schemas/broll_asset.schema.json",
+      "example": "docs/examples/broll_asset.example.json"
+    },
+    {
+      "schema": "docs/schemas/caption_style.schema.json",
+      "example": "docs/examples/caption_style.example.json"
+    },
+    {
+      "schema": "docs/schemas/codex_action.schema.json",
+      "example": "docs/examples/codex_action.example.json"
+    },
+    {
+      "schema": "docs/schemas/edit_operation.schema.json",
+      "example": "docs/examples/edit_operation.example.json"
+    },
+    {
+      "schema": "docs/schemas/export_manifest.schema.json",
+      "example": "docs/examples/export_manifest.example.json"
+    },
+    {
+      "schema": "docs/schemas/magic_wand_plan.schema.json",
+      "example": "docs/examples/magic_wand_plan.example.json"
+    },
+    {
+      "schema": "docs/schemas/phase_result.schema.json",
+      "example": "docs/examples/phase_result.example.json"
+    },
+    {
+      "schema": "docs/schemas/project.schema.json",
+      "example": "docs/examples/project.example.json"
+    },
+    {
+      "schema": "docs/schemas/qa_report.schema.json",
+      "example": "docs/examples/qa_report.example.json"
+    },
+    {
+      "schema": "docs/schemas/recording_session.schema.json",
+      "example": "docs/examples/recording_session.example.json"
+    },
+    {
+      "schema": "docs/schemas/reference_manifest.schema.json",
+      "example": "docs/examples/reference_manifest.example.json"
+    },
+    {
+      "schema": "docs/schemas/revision.schema.json",
+      "example": "docs/examples/revision.example.json"
+    },
+    {
+      "schema": "docs/schemas/screen_manifest.schema.json",
+      "example": "docs/examples/screen_manifest.example.json"
+    },
+    {
+      "schema": "docs/schemas/skill_manifest.schema.json",
+      "example": "docs/examples/skill_manifest.example.json"
+    },
+    {
+      "schema": "docs/schemas/source.schema.json",
+      "example": "docs/examples/source.example.json"
+    },
+    {
+      "schema": "docs/schemas/speed_segment.schema.json",
+      "example": "docs/examples/speed_segment.example.json"
+    },
+    {
+      "schema": "docs/schemas/subagent_routing.schema.json",
+      "example": "docs/examples/subagent_routing.example.json"
+    },
+    {
+      "schema": "docs/schemas/timeline.schema.json",
+      "example": "docs/examples/timeline.example.json"
+    },
+    {
+      "schema": "docs/schemas/tool_manifest.schema.json",
+      "example": "docs/examples/tool_manifest.example.json"
+    },
+    {
+      "schema": "docs/schemas/transcript.schema.json",
+      "example": "docs/examples/transcript.example.json"
+    },
+    {
+      "schema": "docs/schemas/ui_state.schema.json",
+      "example": "docs/examples/ui_state.example.json"
+    },
+    {
+      "schema": "docs/schemas/zoom_segment.schema.json",
+      "example": "docs/examples/zoom_segment.example.json"
+    },
+    {
+      "schema": "docs/schemas/export_manifest.schema.json",
+      "example": "docs/examples/export_share.example.json"
+    }
+  ]
+}

@@ -32,6 +32,10 @@ Earlier tests used an authenticated loopback TigerVNC viewer. That is historical
 
 ## Sandboxed Electron compatibility
 
+The test image also installs Orca, AT-SPI and the Python accessibility bindings. These are test dependencies only. Run the Orca harness in one private `dbus-run-session` so Electron, the screen reader and observer share the session bus. Disable speech and physical braille while checking actual braille-monitor output. Do not connect host audio, displays, devices or accessibility services. Preserve the previous container and its evidence when changing the image.
+
+New guest-only environments publish no host ports. The validator also recognizes the previously reviewed loopback VNC binding for retained historical containers, but no viewer is launched or controlled. Multiple isolated guests can therefore be tested without touching the host desktop or sharing displays.
+
 Copy only the probe source, install its pinned test dependencies inside the container, and run:
 
 ```sh

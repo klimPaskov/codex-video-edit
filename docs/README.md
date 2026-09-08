@@ -58,5 +58,5 @@
 
 - [Lossless-first media](44_LOSSLESS_MEDIA_POLICY.md)
 - [Public development](45_OPEN_SOURCE_DEVELOPMENT.md)
-- [Individual screenshot notes](../references/IMPLEMENTATION_NOTES.md)
-- [Reference coverage](../references/SCREEN_COVERAGE.md)
+- [Individual screenshot notes](references/IMPLEMENTATION_NOTES.md)
+- [Reference coverage](references/SCREEN_COVERAGE.md)

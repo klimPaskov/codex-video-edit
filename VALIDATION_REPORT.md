@@ -18,7 +18,7 @@ No application code, native executable, installer, camera capture, real Codex si
 
 ## Reference coverage
 
-There are ten current and ten previous native-app screen images. They are original individual ImageGen outputs, not slices of collages. Some full screen states, including dedicated onboarding and settings, have specifications but no dedicated image. See `references/SCREEN_COVERAGE.md` for direct and partial mappings. The latest interface and quality rules override errors or obsolete wording embedded in the images.
+There are ten current and ten previous native-app screen images. They are original individual ImageGen outputs, not slices of collages. Some full screen states, including dedicated onboarding and settings, have specifications but no dedicated image. See `docs/references/SCREEN_COVERAGE.md` for direct and partial mappings. The latest interface and quality rules override errors or obsolete wording embedded in the images.
 
 ## Reproduce
 

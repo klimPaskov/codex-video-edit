@@ -74,7 +74,7 @@ Show removed duration, restored or protected sections, cut count, zoom count, sp
 
 ## Editorial pass ordering and verification
 
-The mandatory detailed policy is [47_EDITORIAL_FIRST_CUT.md](47_EDITORIAL_FIRST_CUT.md); use `prompts/EDITORIAL_FIRST_CUT_PROMPT.md` for the runtime task. Discover only real app capabilities/guidance once per connection. Establish active project/revision/draft sequence/hash, transcription job identity, authorized scope, protected ranges, source synchronization and approved styles before planning operations.
+The mandatory detailed policy is [47_EDITORIAL_FIRST_CUT.md](47_EDITORIAL_FIRST_CUT.md); use `docs/prompts/EDITORIAL_FIRST_CUT_PROMPT.md` for the runtime task. Discover only real app capabilities/guidance once per connection. Establish active project/revision/draft sequence/hash, transcription job identity, authorized scope, protected ranges, source synchronization and approved styles before planning operations.
 
 The spoken-cut pass establishes the source/output map first. Preserve final complete redos, unique context and meaningful pauses; batch only confirmed nonoverlapping cuts across verified synchronized sources. Check every join in transcript and rendered A/V, run the whole-source omission pass and full edited-transcript reread, and restore failures. Then verify a separate layout pass. Identify selective graphics opportunities after layouts, and verify a separate target-driven zoom pass. Re-map all opportunities after any subsequent timing edit. Other selected presentation/pacing tools remain governed by their source-map dependencies.
 

@@ -67,9 +67,9 @@ packages/codex-bridge/     app-server client and MCP tools
 packages/editor/           operations, history, snapping
 packages/ui/               design system and screens
 packages/test-fixtures/    deterministic media and fake devices
-schemas/                   versioned contracts
-skills/                    Codex and implementation skills
-subagents/                 bounded agent prompts
+docs/schemas/                   versioned contracts
+.agents/skills/                    Codex and implementation skills
+.codex/agents/                 bounded agent prompts
 docs/                      product and engineering specs
 ```
 
@@ -80,6 +80,14 @@ docs/                      product and engineering specs
 The renderer receives a path-free `ProjectView`: project identity/name/stage, resolving baseline revision ID, source summary and canonical timeline identity/duration/rational frame rate. The main process maps this DTO purely from the already validated committed snapshot, with no fallible postcommit filesystem read. Strict project list/create/open/navigate IPC uses the existing trusted-sender boundary. Runtime source paths and full probe data never cross preload.
 
 The renderer separates Projects from Source library, creates a project after successful import, and offers Create project for existing sources. Five-stage controls persist before their selected state changes; stale responses cannot reopen a screen after Home or overwrite a newer selection. Stage changes retain the preview position and current source. Headless and current packaged native tests passed, including all five stages, immutable baseline/source checks, failed-save preservation, reopen and security/focus at 100/125/150/200%. Guest-only native visual review also passed. It does not complete P1 or implement later stage features.
+
+## Startup and renderer failure handling
+
+Preflight nonempty packaged HTML, JavaScript, CSS and preload before creating the product window; serve the verified local renderer bytes from main memory. Missing required assets produce an actionable native error and a nonzero exit after dismissal. Production content still uses the restricted custom protocol, sandbox and IPC sender checks.
+
+Apply the latest committed interface scale after loading and the first render, before showing the window, including an explicit 100% fallback when preferences cannot be read. Chromium's persisted origin zoom is not authoritative. Preserve unreadable preference bytes and report the load failure.
+
+An unexpected renderer loss cancels pending media work and offers one explicit Reopen window or Close app choice. Reopen loads saved project state with the same security boundaries and never promises unsaved work survived. A second failure closes through an actionable native dialog; failure during recovery ends the attempt without reopening a shutdown dialog. These behaviors require packaged lifecycle tests and actual guest dialog inspection before phase acceptance.
 
 ## Version policy
 

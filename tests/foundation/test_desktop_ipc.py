@@ -12,11 +12,11 @@ ROOT = Path(__file__).resolve().parents[2]
 class DesktopIpcContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.schema = json.loads((ROOT / 'schemas/desktop_ipc.schema.json').read_text(encoding='utf8'))
+        cls.schema = json.loads((ROOT / 'docs/schemas/desktop_ipc.schema.json').read_text(encoding='utf8'))
         Draft202012Validator.check_schema(cls.schema)
         cls.validator = Draft202012Validator(cls.schema)
-        cls.frame = json.loads((ROOT / 'examples/desktop_ipc.example.json').read_text(encoding='utf8'))
-        cls.summary = json.loads((ROOT / 'examples/media_library.example.json').read_text(encoding='utf8'))['summary']
+        cls.frame = json.loads((ROOT / 'docs/examples/desktop_ipc.example.json').read_text(encoding='utf8'))
+        cls.summary = json.loads((ROOT / 'docs/examples/media_library.example.json').read_text(encoding='utf8'))['summary']
 
     def valid(self, value):
         self.validator.validate(value)
@@ -87,7 +87,7 @@ class DesktopIpcContractTests(unittest.TestCase):
         self.invalid({'channel': 'library:list', 'response': {'ok': True, 'value': [self.summary, self.summary]}})
 
     def test_preferences_channels_and_schema_consistency(self):
-        preferences_schema = json.loads((ROOT / 'schemas/desktop_preferences.schema.json').read_text(encoding='utf8'))
+        preferences_schema = json.loads((ROOT / 'docs/schemas/desktop_preferences.schema.json').read_text(encoding='utf8'))
         for field in ['type', 'additionalProperties', 'required', 'properties']:
             self.assertEqual(self.schema['$defs']['preferences'][field], preferences_schema[field])
         for scale in [1, 1.25, 1.5, 2]:

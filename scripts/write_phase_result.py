@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def validate_record(result, root: Path):
     """Validate a portable published record, without claiming local artifact access."""
-    schema = json.loads((root / 'schemas/phase_result.schema.json').read_text(encoding='utf-8'))
+    schema = json.loads((root / 'docs/schemas/phase_result.schema.json').read_text(encoding='utf-8'))
     Draft202012Validator(schema).validate(result)
     if result['status'] != 'complete':
         raise ValueError('Only accepted complete phases belong in results; use .astra/progress for blockers')

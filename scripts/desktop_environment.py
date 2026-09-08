@@ -19,8 +19,7 @@ def start_arguments() -> list[str]:
             '--init', '--user', '1000:1000', '--cap-drop=ALL',
             '--security-opt=no-new-privileges:true',
             '--security-opt', f'seccomp={ROOT / "tests/desktop/seccomp.json"}',
-            '--shm-size=1g', '--pids-limit=512', '--memory=4g', '--cpus=4',
-            '--publish', '127.0.0.1:5909:5900', IMAGE]
+            '--shm-size=1g', '--pids-limit=512', '--memory=4g', '--cpus=4', IMAGE]
 
 
 def validate_inspection(value: dict) -> None:
@@ -48,8 +47,8 @@ def validate_inspection(value: dict) -> None:
     except json.JSONDecodeError as error:
         raise ValueError('Invalid seccomp configuration') from error
     expected = {'5900/tcp': [{'HostIp': '127.0.0.1', 'HostPort': '5909'}]}
-    if host.get('PortBindings') != expected:
-        raise ValueError('Only the loopback viewer port may be exposed')
+    if host.get('PortBindings') not in ({}, expected):
+        raise ValueError('No published ports or the historical loopback viewer binding are allowed')
     if not value['State']['Running']:
         raise ValueError('Desktop container is not running')
 

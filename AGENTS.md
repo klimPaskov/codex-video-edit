@@ -11,7 +11,7 @@ Before implementation, read:
 - `TASKS.md`
 - accepted files in `adr/`
 - the active prompt in `.astra/active-phase.md`
-- relevant files in `skills/`
+- relevant files in `.agents/skills/`
 - schemas touched by the phase
 
 State directly when a required source could not be read. Do not imply completion without evidence.
@@ -56,7 +56,7 @@ Never launch the app on the user's host. Launch it in the agent's isolated deskt
 
 ## Final workspace requirements
 
-The project name and repository root are `codex-video-edit`. Read `docs/44_LOSSLESS_MEDIA_POLICY.md`, `docs/45_OPEN_SOURCE_DEVELOPMENT.md`, and `references/IMPLEMENTATION_NOTES.md` before implementation. They resolve the latest quality, publishing, and screenshot requirements.
+The project name and repository root are `codex-video-edit`. Read `docs/44_LOSSLESS_MEDIA_POLICY.md`, `docs/45_OPEN_SOURCE_DEVELOPMENT.md`, and `docs/references/IMPLEMENTATION_NOTES.md` before implementation. They resolve the latest quality, publishing, and screenshot requirements.
 
 Default media operations must not add lossy encoding. Verify the lossless boundary instead of trusting codec names. The renderer must not quietly reduce precision for a master. Preview quality and export quality are separate settings.
 

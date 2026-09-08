@@ -37,6 +37,10 @@ const page = `${origin}/index.html`;
 let window: BrowserWindow | undefined;
 let importing: AbortController | undefined;
 const frameRequests = new Set<AbortController>();
+let quitting = false;
+app.on("before-quit", () => {
+  quitting = true;
+});
 app.setName("codex-video-edit");
 app.enableSandbox();
 protocol.registerSchemesAsPrivileged([
@@ -75,30 +79,34 @@ function register(
 }
 
 async function start(): Promise<void> {
-  const assets = new Map([
+  const files = new Map([
     ["/index.html", ["index.html", "text/html; charset=utf-8"]],
     ["/renderer.js", ["renderer.js", "text/javascript; charset=utf-8"]],
     ["/style.css", ["style.css", "text/css; charset=utf-8"]],
   ]);
+  // Fail before opening a product window if any required packaged resource is absent.
+  const preload = await readFile(path.join(app.getAppPath(), "preload.cjs"));
+  if (!preload.length) throw new Error("Required preload is empty");
+  const assets = new Map<string, { bytes: Buffer; mime: string }>();
+  for (const [route, [filename, mime]] of files) {
+    const bytes = await readFile(
+      path.join(app.getAppPath(), "renderer", filename!),
+    );
+    if (!bytes.length) throw new Error("Required renderer resource is empty");
+    assets.set(route, { bytes, mime: mime! });
+  }
   protocol.handle("codex-video-edit", async (request) => {
     const url = new URL(request.url);
     const asset = assets.get(url.pathname);
     if (request.method !== "GET" || url.host !== "app" || url.search || !asset)
       return new Response("Not found", { status: 404 });
-    try {
-      const bytes = await readFile(
-        path.join(app.getAppPath(), "renderer", asset[0]!),
-      );
-      return new Response(bytes, {
-        headers: {
-          "Content-Type": asset[1]!,
-          "Content-Security-Policy":
-            "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; frame-src 'none'; base-uri 'none'; form-action 'none'",
-        },
-      });
-    } catch {
-      return new Response("Asset unavailable", { status: 500 });
-    }
+    return new Response(new Uint8Array(asset.bytes), {
+      headers: {
+        "Content-Type": asset.mime,
+        "Content-Security-Policy":
+          "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; frame-src 'none'; base-uri 'none'; form-action 'none'",
+      },
+    });
   });
   session.defaultSession.setPermissionRequestHandler(
     (_contents, _permission, callback) => callback(false),
@@ -108,9 +116,9 @@ async function start(): Promise<void> {
   const preferences = new PreferencesStore(
     path.join(app.getPath("userData"), "preferences"),
   );
-  let initialScale = 1;
+  let committedScale = 1;
   try {
-    initialScale = (await preferences.read()).interfaceScale;
+    committedScale = (await preferences.read()).interfaceScale;
   } catch {
     /* Renderer reports the read failure through validated IPC. */
   }
@@ -121,6 +129,7 @@ async function start(): Promise<void> {
   register(channels.preferencesSet, async (request) => {
     assertPreferences(request);
     const value = await preferences.write(request);
+    committedScale = value.interfaceScale;
     window?.webContents.setZoomFactor(value.interfaceScale);
     return value;
   });
@@ -246,7 +255,7 @@ async function start(): Promise<void> {
       sandbox: true,
       webSecurity: true,
       webviewTag: false,
-      zoomFactor: initialScale,
+      zoomFactor: committedScale,
     },
   });
   window.removeMenu();
@@ -260,8 +269,111 @@ async function start(): Promise<void> {
     for (const request of frameRequests) request.abort();
     window = undefined;
   });
-  window.once("ready-to-show", () => window?.show());
-  await window.loadURL(page);
+  const startupWindow = window;
+  let startupComplete = false;
+  let rejectInitialRender: (error: Error) => void = () => undefined;
+  const initialRenderFailure = new Promise<never>((_resolve, reject) => {
+    rejectInitialRender = reject;
+  });
+  let recoveryOffered = false;
+  let recovering = false;
+  let rejectRecovery: ((error: Error) => void) | undefined;
+  startupWindow.webContents.on("render-process-gone", (_event, details) => {
+    if (
+      quitting ||
+      details.reason === "clean-exit" ||
+      startupWindow.isDestroyed()
+    )
+      return;
+    if (!startupComplete) {
+      rejectInitialRender(new Error("Initial renderer failed"));
+      return;
+    }
+    importing?.abort();
+    for (const request of frameRequests) request.abort();
+    if (recovering) {
+      quitting = true;
+      rejectRecovery?.(new Error("Recovery renderer failed"));
+      app.quit();
+      return;
+    }
+    recovering = true;
+    const canReopen = !recoveryOffered;
+    recoveryOffered = true;
+    void (async () => {
+      const choice = await dialog.showMessageBox(startupWindow, {
+        type: "error",
+        title: "Editor window stopped",
+        message: canReopen
+          ? "The editor window stopped unexpectedly."
+          : "The editor window stopped again.",
+        detail: canReopen
+          ? "Reopen to load saved work. Changes still being saved may be unavailable."
+          : "Close the app and restart it to try again.",
+        buttons: canReopen ? ["Reopen window", "Close app"] : ["Close app"],
+        defaultId: 0,
+        cancelId: canReopen ? 1 : 0,
+        noLink: true,
+      });
+      if (quitting || startupWindow.isDestroyed()) return;
+      if (!canReopen || choice.response !== 0) {
+        quitting = true;
+        app.quit();
+        return;
+      }
+      const recoveryFailed = new Promise<never>((_resolve, reject) => {
+        rejectRecovery = reject;
+      });
+      await Promise.race([startupWindow.loadURL(page), recoveryFailed]);
+      if (!startupWindow.isDestroyed()) {
+        startupWindow.webContents.setZoomFactor(committedScale);
+        startupWindow.show();
+      }
+    })()
+      .catch(async () => {
+        if (!quitting && !startupWindow.isDestroyed())
+          await showStartupFailure();
+      })
+      .finally(() => {
+        rejectRecovery = undefined;
+        recovering = false;
+      });
+  });
+  const rendered = new Promise<void>((resolve) => {
+    startupWindow.once("ready-to-show", () => resolve());
+  });
+  await Promise.race([
+    Promise.all([startupWindow.loadURL(page), rendered]),
+    initialRenderFailure,
+  ]);
+  startupComplete = true;
+  if (!startupWindow.isDestroyed()) {
+    // Chromium may restore an origin zoom while loading. Apply the latest committed
+    // preference (or the explicit 100% read-failure fallback) before showing it.
+    startupWindow.webContents.setZoomFactor(committedScale);
+    startupWindow.show();
+  }
+}
+async function showStartupFailure(): Promise<void> {
+  if (quitting) return;
+  const message =
+    "The local application files could not be loaded. Reinstall the application and try again.";
+  // Generic diagnostics contain no source paths, credentials or project details.
+  console.error(`codex-video-edit: ${message}`);
+  try {
+    await dialog.showMessageBox({
+      type: "error",
+      title: "Could not open codex-video-edit",
+      message,
+      buttons: ["Close app"],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    });
+  } finally {
+    quitting = true;
+    app.exit(1);
+  }
 }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
@@ -269,15 +381,6 @@ else {
     if (window?.isMinimized()) window.restore();
     window?.focus();
   });
-  app
-    .whenReady()
-    .then(start)
-    .catch(() => {
-      dialog.showErrorBox(
-        "Could not open codex-video-edit",
-        "The local application files could not be loaded. Reinstall the application and try again.",
-      );
-      app.quit();
-    });
+  app.whenReady().then(start).catch(showStartupFailure);
 }
 app.on("window-all-closed", () => app.quit());
