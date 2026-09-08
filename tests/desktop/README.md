@@ -36,6 +36,12 @@ The test image also installs Orca, AT-SPI and the Python accessibility bindings.
 
 New guest-only environments publish no host ports. The validator also recognizes the previously reviewed loopback VNC binding for retained historical containers, but no viewer is launched or controlled. Multiple isolated guests can therefore be tested without touching the host desktop or sharing displays.
 
+### Codex runtime bootstrap
+
+For the P2 bootstrap, install the reviewed `@openai/codex@0.142.3` package into a dedicated private guest prefix with `npm install --ignore-scripts --save-exact --prefix <guest-prefix> @openai/codex@0.142.3`. Verify package integrity and the native executable version; retain its hash and generated protocol outputs. Do not copy host credentials, account directories or runtime configuration. `tests/native/codex-runtime.test.ts <absolute-native-codex-executable>` requires the isolated guest and creates fresh private account/context directories. It tests two real stdio connections, signed-out account state, local fixture-skill discovery, model sign-in gating and close/reconnect exclusion. It records source/runtime provenance before startup. This test does not launch Electron, authenticate, invoke a model, or edit media and cannot satisfy those phase gates.
+
+Generate `app-server generate-ts` and `app-server generate-json-schema` using that same pinned executable in the guest. Transfer only the generated text to private evidence, then normalize the reviewed TypeScript subset with `scripts/sync_codex_types.py`; `--check` verifies it against the original pinned hashes. Experimental thread/tool policy needs a separate `--experimental` generation and real negative tests before use.
+
 ### Pinned Orca comparison
 
 The Debian reader remains available for reproducing its failures. Build a separate dependency image for the reviewed Orca 50.2/AT-SPI2 2.56.8 comparison:
