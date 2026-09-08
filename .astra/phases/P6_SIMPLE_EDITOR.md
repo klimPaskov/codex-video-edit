@@ -14,4 +14,4 @@ Acceptance:
 - revision compare and crash recovery pass
 - `.astra/results/P6.json` validates
 
-Use `reference-fidelity`. Read current full-page references and `references/IMPLEMENTATION_NOTES.md`. Remove debug badges, persistent readiness, duplicate headings, and excessive explanations. Default to one relevant panel. Keep working capture indicators, errors, and accessible controls.
+Use `reference-fidelity`. Read current full-page references and `docs/references/IMPLEMENTATION_NOTES.md`. Remove debug badges, persistent readiness, duplicate headings, and excessive explanations. Default to one relevant panel. Keep working capture indicators, errors, and accessible controls.

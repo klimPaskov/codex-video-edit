@@ -30,7 +30,7 @@ def main() -> None:
     goal = (ROOT / "GOAL_PROMPT.md").read_text(encoding="utf-8")
     require(len(goal) < 4000, "Goal exceeds the under-4000-character limit")
     require(len(goal) == meta["goal_prompt_characters"], "Goal length metadata is stale")
-    refs = load("references/manifest.json")["references"]
+    refs = load("docs/references/manifest.json")["references"]
     require(len(refs) == meta["reference_image_count"], "Reference count is stale")
     seen = set()
     declared = set()
@@ -49,23 +49,23 @@ def main() -> None:
         with Image.open(p) as im:
             require(im.width >= 1500 and im.height >= 800, f"Small reference: {p}")
         require(not any(v in p.name.lower() for v in ("contact", "collage", "montage")), f"Combined-board reference: {p}")
-    actual = {p.resolve() for p in (ROOT / "references").rglob("*.png")}
+    actual = {p.resolve() for p in (ROOT / "docs/references").rglob("*.png")}
     require(actual == declared, "Unlisted or missing reference images")
     for group, count in meta["reference_sets"].items():
-        require(len(list((ROOT / "references/screenshots" / group).glob("*.png"))) == count, f"Wrong count: {group}")
-    gallery = (ROOT / "references/index.html").read_text(encoding="utf-8")
+        require(len(list((ROOT / "docs/references/screenshots" / group).glob("*.png"))) == count, f"Wrong count: {group}")
+    gallery = (ROOT / "docs/references/index.html").read_text(encoding="utf-8")
     for ref in refs:
-        require(ref["path"].removeprefix("references/") in gallery, "Gallery omits a reference")
-    for rel in ("AGENTS.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", "THIRD_PARTY_NOTICES.md", ".github/workflows/spec-validation.yml", "docs/44_LOSSLESS_MEDIA_POLICY.md", "docs/45_OPEN_SOURCE_DEVELOPMENT.md", "references/IMPLEMENTATION_NOTES.md"):
+        require(ref["path"].removeprefix("docs/references/") in gallery, "Gallery omits a reference")
+    for rel in ("AGENTS.md", "LICENSE", "CONTRIBUTING.md", "SECURITY.md", "THIRD_PARTY_NOTICES.md", ".github/workflows/spec-validation.yml", "docs/44_LOSSLESS_MEDIA_POLICY.md", "docs/45_OPEN_SOURCE_DEVELOPMENT.md", "docs/references/IMPLEMENTATION_NOTES.md"):
         require((ROOT / rel).is_file(), f"Missing required file: {rel}")
     for p in source_files(ROOT):
         require(not p.is_symlink(), f"Symlink: {p}")
         if p.is_file():
             require(p.suffix.lower() not in {".ttf", ".otf", ".woff", ".woff2", ".mp4", ".mov", ".mkv", ".wav", ".flac", ".exe", ".zip"}, f"Unexpected runtime/media binary: {p}")
-    schema = load("schemas/export_manifest.schema.json")
+    schema = load("docs/schemas/export_manifest.schema.json")
     val = Draft202012Validator(schema)
-    baseline = load("examples/export_manifest.example.json")
-    share = load("examples/export_share.example.json")
+    baseline = load("docs/examples/export_manifest.example.json")
+    share = load("docs/examples/export_share.example.json")
     val.validate(baseline)
     val.validate(share)
     failures = []

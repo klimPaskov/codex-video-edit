@@ -50,13 +50,13 @@ input:focus-visible {
   outline-offset: 4px;
 }
 .primary {
-  background: #7860da;
+  background: #6550be;
   border-color: #927ce8;
   padding: 12px 24px;
   font-weight: 600;
 }
 .primary:hover {
-  background: #8b72e7;
+  background: #6b54c1;
 }
 #back {
   margin-left: auto;
@@ -121,7 +121,11 @@ main {
   background: #40365f;
   border-color: #a68fec;
   color: #efeaff;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
+
 #stage-select {
   display: none;
   margin-top: 0;
@@ -443,5 +447,42 @@ select:focus-visible {
   }
   .dialog-actions {
     margin-top: 20px;
+  }
+}
+
+@media (forced-colors: active) {
+  button,
+  select {
+    border-color: ButtonText;
+  }
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline-color: Highlight;
+  }
+  #stage-buttons [aria-current="step"] {
+    border: 2px solid Highlight;
+  }
+}
+
+@media (prefers-contrast: more) {
+  button,
+  select,
+  #inspector {
+    border-width: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Chrome only: this must not retime the source preview or project media. */
+  button,
+  select,
+  dialog,
+  header,
+  #inspector,
+  #toast {
+    animation: none;
+    transition: none;
+    scroll-behavior: auto;
   }
 }

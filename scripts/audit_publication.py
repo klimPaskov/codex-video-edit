@@ -2,6 +2,7 @@
 import re
 import subprocess
 from pathlib import Path, PurePosixPath
+from workspace_files import is_agent_source
 
 ROOT = Path(__file__).resolve().parents[1]
 PRIVATE_PARTS = frozenset({
@@ -25,7 +26,7 @@ def audit_blob(path: str, data: bytes, mode: str):
     parsed = PurePosixPath(policy_path)
     if mode not in {'100644', '100755'}:
         raise ValueError('Symlink/submodule or unsupported Git mode: ' + path)
-    if any(part in PRIVATE_PARTS for part in parsed.parts):
+    if any(part in PRIVATE_PARTS for part in parsed.parts) and not is_agent_source(policy_path):
         raise ValueError('Private/generated path staged: ' + path)
     if policy_path.startswith(('.astra/evidence/', '.astra/private/')):
         raise ValueError('Private evidence staged: ' + path)
@@ -39,7 +40,7 @@ def audit_blob(path: str, data: bytes, mode: str):
         raise ValueError('Large file requires separate review: ' + path)
     if any(pattern.search(data) for pattern in SECRET_PATTERNS):
         raise ValueError('Potential credential in staged content: ' + path)
-    if b'\x00' in data and not (policy_path.startswith('references/screenshots/') and parsed.suffix == '.png'):
+    if b'\x00' in data and not (policy_path.startswith('docs/references/screenshots/') and parsed.suffix == '.png'):
         raise ValueError('Unreviewed binary: ' + path)
 
 

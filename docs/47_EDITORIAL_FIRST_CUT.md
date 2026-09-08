@@ -1,6 +1,6 @@
 # Editorial first-cut requirements
 
-Status: accepted product requirements for later implementation, adapted from the user-supplied editorial reference. This document and the original application prompt in `prompts/EDITORIAL_FIRST_CUT_PROMPT.md` do not establish implemented automation, native acceptance, or P1 completion. The reference's external application commands and provider suggestions are not operational instructions for this app. Codex remains the only generative provider.
+Status: accepted product requirements for later implementation, adapted from the user-supplied editorial reference. This document and the original application prompt in `docs/prompts/EDITORIAL_FIRST_CUT_PROMPT.md` do not establish implemented automation, native acceptance, or P1 completion. The reference's external application commands and provider suggestions are not operational instructions for this app. Codex remains the only generative provider.
 
 ## Preferences and boundaries
 
@@ -87,4 +87,4 @@ The final report provides measured runtime; removed categories and meaningful re
 
 All of these remain implementation/acceptance work in their assigned phases. This adaptation does not change P1 completion status or claim the user-supplied video has been edited.
 
-The initial suggestion data contract is implemented in `packages/domain/src/graphics-opportunity.ts`, with `schemas/graphics_opportunity.schema.json` and its synthetic example. It checks shape, current timeline identity/hash/sequence, final-cut bounds, exact duration, rational frame rate and safe margins. It rejects asset/execution fields and returns a detached record. It does not produce an opportunity, generate media, prove factual grounding, or apply an edit. `tests/media/graphics-opportunity.test.ts` covers these boundaries; the complete editorial runtime remains future work.
+The initial suggestion data contract is implemented in `packages/domain/src/graphics-opportunity.ts`, with `docs/schemas/graphics_opportunity.schema.json` and its synthetic example. It checks shape, current timeline identity/hash/sequence, final-cut bounds, exact duration, rational frame rate and safe margins. It rejects asset/execution fields and returns a detached record. It does not produce an opportunity, generate media, prove factual grounding, or apply an edit. `tests/media/graphics-opportunity.test.ts` covers these boundaries; the complete editorial runtime remains future work.

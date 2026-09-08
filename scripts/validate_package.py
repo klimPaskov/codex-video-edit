@@ -40,9 +40,9 @@ required_paths = [
     'docs/08_CODEX_INTEGRATION.md', 'docs/09_MAGIC_WAND_AND_AUTOMATIONS.md',
     'docs/10_TIMELINE_EDITOR.md', 'docs/19_QA_AND_ACCEPTANCE.md',
     'docs/20_NATIVE_COMPUTER_USE_TESTING.md', 'docs/26_REFERENCE_SCREENSHOT_PROCESS.md',
-    'research/RESEARCH.md', 'examples/index.json', 'references/manifest.json',
-    'skills/index.json', 'subagents/routing.json', 'contracts/screens.json',
-    'contracts/codex-tools.json',
+    'docs/research/RESEARCH.md', 'docs/examples/index.json', 'docs/references/manifest.json',
+    '.agents/skills/index.json', '.codex/agents/routing.json', 'docs/contracts/screens.json',
+    'docs/contracts/codex-tools.json',
 ]
 for rel in required_paths:
     if not (ROOT / rel).is_file():
@@ -64,14 +64,14 @@ else:
     goal_chars = 0
 
 # JSON schema and example pairs
-index = load_json(ROOT / 'examples/index.json')
+index = load_json(ROOT / 'docs/examples/index.json')
 pairs = index.get('pairs', []) if isinstance(index, dict) else []
 if len(pairs) < 20:
     fail(f'Expected at least 20 schema/example pairs, found {len(pairs)}')
 format_checker = FormatChecker()
 for pair in pairs:
     if not isinstance(pair, dict):
-        fail('examples/index.json contains a non-object pair')
+        fail('docs/examples/index.json contains a non-object pair')
         continue
     schema_path = ROOT / str(pair.get('schema', ''))
     example_path = ROOT / str(pair.get('example', ''))
@@ -94,11 +94,11 @@ for pair in pairs:
 
 # Validate live manifests against their schemas
 live_pairs = [
-    ('references/manifest.json', 'schemas/reference_manifest.schema.json'),
-    ('contracts/screens.json', 'schemas/screen_manifest.schema.json'),
-    ('contracts/codex-tools.json', 'schemas/tool_manifest.schema.json'),
-    ('skills/index.json', 'schemas/skill_manifest.schema.json'),
-    ('subagents/routing.json', 'schemas/subagent_routing.schema.json'),
+    ('docs/references/manifest.json', 'docs/schemas/reference_manifest.schema.json'),
+    ('docs/contracts/screens.json', 'docs/schemas/screen_manifest.schema.json'),
+    ('docs/contracts/codex-tools.json', 'docs/schemas/tool_manifest.schema.json'),
+    ('.agents/skills/index.json', 'docs/schemas/skill_manifest.schema.json'),
+    ('.codex/agents/routing.json', 'docs/schemas/subagent_routing.schema.json'),
 ]
 for data_rel, schema_rel in live_pairs:
     data_path, schema_path = ROOT / data_rel, ROOT / schema_rel
@@ -139,7 +139,7 @@ for phase in [f'P{i}' for i in range(11)]:
         fail(f'{phase_files[0].relative_to(ROOT)} does not identify {phase}')
 
 # Skills
-skills = load_json(ROOT / 'skills/index.json')
+skills = load_json(ROOT / '.agents/skills/index.json')
 seen_skills: set[str] = set()
 for item in skills.get('skills', []) if isinstance(skills, dict) else []:
     name = item.get('name')
@@ -155,7 +155,7 @@ for item in skills.get('skills', []) if isinstance(skills, dict) else []:
         fail(f'{path.relative_to(ROOT)} front matter does not match skill name {name}')
 
 # Subagent routes
-routes = load_json(ROOT / 'subagents/routing.json')
+routes = load_json(ROOT / '.codex/agents/routing.json')
 seen_agents: set[str] = set()
 for route in routes.get('routes', []) if isinstance(routes, dict) else []:
     agent = route.get('subagent')
@@ -170,15 +170,15 @@ for route in routes.get('routes', []) if isinstance(routes, dict) else []:
             fail(f'Subagent {agent} references unknown skill {skill}')
 
 # Screen IDs and references
-screens = load_json(ROOT / 'contracts/screens.json')
+screens = load_json(ROOT / 'docs/contracts/screens.json')
 screen_ids = [s.get('screen_id') for s in screens.get('screens', [])] if isinstance(screens, dict) else []
 if len(screen_ids) != len(set(screen_ids)):
-    fail('contracts/screens.json has duplicate screen IDs')
+    fail('docs/contracts/screens.json has duplicate screen IDs')
 screen_spec = (ROOT / 'docs/05_SCREEN_SPECS.md').read_text(encoding='utf-8')
 for screen_id in screen_ids:
     if str(screen_id) not in screen_spec:
         fail(f'docs/05_SCREEN_SPECS.md is missing {screen_id}')
-refs = load_json(ROOT / 'references/manifest.json')
+refs = load_json(ROOT / 'docs/references/manifest.json')
 seen_refs: set[str] = set()
 for ref in refs.get('references', []) if isinstance(refs, dict) else []:
     ref_id = ref.get('reference_id')
@@ -193,10 +193,10 @@ for ref in refs.get('references', []) if isinstance(refs, dict) else []:
         fail(f'Reference file does not exist: {ref_path.relative_to(ROOT)}')
 
 # Guarded tools
-tools = load_json(ROOT / 'contracts/codex-tools.json')
+tools = load_json(ROOT / 'docs/contracts/codex-tools.json')
 tool_names = [t.get('name') for t in tools.get('tools', [])] if isinstance(tools, dict) else []
 if len(tool_names) != len(set(tool_names)):
-    fail('contracts/codex-tools.json has duplicate tool names')
+    fail('docs/contracts/codex-tools.json has duplicate tool names')
 for forbidden in ['source.overwrite', 'project.delete', 'export.confirm', 'shell.run']:
     if forbidden in tool_names:
         fail(f'Forbidden Codex tool is exposed: {forbidden}')

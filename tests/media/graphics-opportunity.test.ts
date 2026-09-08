@@ -13,7 +13,7 @@ import type {
 
 function example(): GraphicsOpportunity {
   return JSON.parse(
-    readFileSync("examples/graphics_opportunity.example.json", "utf8"),
+    readFileSync("docs/examples/graphics_opportunity.example.json", "utf8"),
   ) as GraphicsOpportunity;
 }
 function context(): GraphicsTimelineContext {
@@ -216,8 +216,8 @@ test("graphics schema and synthetic example validate, with strict structural rej
       [
         "import json",
         "from jsonschema import Draft202012Validator",
-        "s=json.load(open('schemas/graphics_opportunity.schema.json'))",
-        "v=json.load(open('examples/graphics_opportunity.example.json'))",
+        "s=json.load(open('docs/schemas/graphics_opportunity.schema.json'))",
+        "v=json.load(open('docs/examples/graphics_opportunity.example.json'))",
         "Draft202012Validator.check_schema(s)",
         "validator=Draft202012Validator(s)",
         "validator.validate(v)",

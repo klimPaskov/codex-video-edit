@@ -72,5 +72,5 @@ The final milestone imports the user-provided example video, runs Magic Wand, pr
 - Public open-source development starts in P0 and continues through working commits and reviewable pull requests.
 - Lossless capture, editing intermediates, and master output are the defaults. Lower-quality modes are explicit opt-ins.
 - The normal app has no permanent debug indicators, readiness dashboard, oversized page title, or redundant explanatory subtitle.
-- The supplied current and previous reference sets each contain ten individual native-app screens. Use the current set first with the mandatory corrections in `references/IMPLEMENTATION_NOTES.md`.
+- The supplied current and previous reference sets each contain ten individual native-app screens. Use the current set first with the mandatory corrections in `docs/references/IMPLEMENTATION_NOTES.md`.
 - Codex makes reversible changes live. Review of the draft does not require a separate approval click for every ordinary editing operation.

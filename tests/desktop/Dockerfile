@@ -6,6 +6,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgtk-3-0 libnss3 libasound2 libgbm1 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    orca at-spi2-core python3-pyatspi libglib2.0-bin \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --chmod=755 start-desktop.sh /usr/local/bin/start-desktop
 USER node
 WORKDIR /home/node

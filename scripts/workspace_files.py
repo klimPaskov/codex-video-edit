@@ -1,7 +1,7 @@
 """Enumerate source without walking dependencies, generated data or private evidence."""
 import os
 import hashlib
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 EXCLUDED = frozenset({
     '.git', 'node_modules', '.venv', '__pycache__', 'dist', 'build', 'out',
@@ -10,13 +10,25 @@ EXCLUDED = frozenset({
 })
 
 
+def is_agent_source(path: str) -> bool:
+    """Only checked-in direct agent guidance belongs in the runtime directory."""
+    parts = PurePosixPath(path.casefold()).parts
+    return (len(parts) == 3 and parts[:2] == ('.codex', 'agents')
+            and (parts[2] == 'routing.json' or parts[2].endswith('.md')))
+
+
 def source_files(root: Path):
     for current, directories, files in os.walk(root, followlinks=False):
         relative = Path(current).relative_to(root)
         policy_relative = relative.as_posix().casefold()
-        directories[:] = sorted(d for d in directories if d.casefold() not in EXCLUDED
+        directories[:] = sorted(d for d in directories if (d.casefold() not in EXCLUDED
+                                or (policy_relative == '.' and d.casefold() == '.codex'))
                                 and not (policy_relative == '.astra' and d.casefold() in {'evidence', 'private'})
                                 )
+        if policy_relative == '.codex':
+            directories[:] = [d for d in directories if d.casefold() == 'agents']
+        elif policy_relative == '.codex/agents':
+            directories[:] = []
         if policy_relative == 'fixtures/user-example':
             directories[:] = []
         for directory in directories:
@@ -24,6 +36,8 @@ def source_files(root: Path):
             if candidate.is_symlink():
                 yield candidate
         for name in sorted(files):
+            if (policy_relative == '.codex' or policy_relative.startswith('.codex/')) and not is_agent_source((relative / name).as_posix()):
+                continue
             if policy_relative == 'fixtures/user-example' and name.casefold() != 'readme.md':
                 continue
             yield Path(current) / name

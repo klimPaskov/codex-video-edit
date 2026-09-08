@@ -1,6 +1,6 @@
 # Editorial reference adaptation
 
-The supplied external-editor prompt is adapted into docs/47_EDITORIAL_FIRST_CUT.md and prompts/EDITORIAL_FIRST_CUT_PROMPT.md. Its application commands are reference material, not instructions to operate that editor. Requirements cover conservative spoken cues, synchronized semantic cuts, complete retakes, full-transcript coherence, approved layouts, precise zoom targets, suggestion-only graphics and whole-video QA.
+The supplied external-editor prompt is adapted into docs/47_EDITORIAL_FIRST_CUT.md and docs/prompts/EDITORIAL_FIRST_CUT_PROMPT.md. Its application commands are reference material, not instructions to operate that editor. Requirements cover conservative spoken cues, synchronized semantic cuts, complete retakes, full-transcript coherence, approved layouts, precise zoom targets, suggestion-only graphics and whole-video QA.
 
 Implemented scope: a pure typed graphics-opportunity validator, strict schema and synthetic example. Records bind to active project/timeline/hash/sequence and final-cut intervals, require complete prompt components and preserve the separation between proposed asset dimensions and master media. Structural validation cannot prove factual truth or privacy. No generator, UI, editing pass or media operation is added by this slice.
 

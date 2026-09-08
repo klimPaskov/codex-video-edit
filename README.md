@@ -17,7 +17,7 @@ The agent starts with `AGENTS.md` and `TASKS.md`, builds the native app, and tes
 - 20 original, separate native-app UI reference images: 10 current and 10 previous
 - Lossless-first policy, restrained interface rules, and open-source development requirements
 
-Open `references/index.html` locally to browse one full-size reference at a time. Read `references/IMPLEMENTATION_NOTES.md` before copying any visual detail. No contact sheets or multi-screen collages are included.
+Open `docs/references/index.html` locally to browse one full-size reference at a time. Read `docs/references/IMPLEMENTATION_NOTES.md` before copying any visual detail. No contact sheets or multi-screen collages are included.
 
 ## Implementation priorities
 

@@ -8,7 +8,7 @@ Do not substitute generated media, a web preview, or a CLI-only run. Preserve pr
 
 Acceptance:
 
-- every checklist item in `checklists/EXAMPLE_VIDEO_CHECKLIST.md` is addressed
+- every checklist item in `docs/checklists/EXAMPLE_VIDEO_CHECKLIST.md` is addressed
 - screenshots and a short native app recording exist
 - source, timeline, QA, revision, and export hashes are recorded
 - final defects and known limits are stated plainly

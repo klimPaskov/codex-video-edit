@@ -13,6 +13,12 @@
 - Announce background progress and completed AI operations without flooding screen readers.
 - Respect reduced-motion settings in app chrome while preserving video preview accuracy.
 
+## P1 verification scope
+
+The P1 contrast repair uses primary backgrounds with at least 4.5:1 text contrast in normal and hover states. The current stage has an underline as well as color. Forced colors retain system-colored borders/focus; higher-contrast preferences strengthen control boundaries. Reduced-motion rules affect app chrome only and must not alter decoded source pixels or preview timing. Verify these in the packaged guest before acceptance.
+
+Screen-reader evidence requires the actual reader's output. The Orca test image supplies a private session bus and braille monitor with speech/physical braille disabled; an AT-SPI tree alone is insufficient. Natural detection and forced API activation are separate outcomes. Store screenshots/output privately and state the bounded Linux scope.
+
 ## Captions
 
 Caption defaults should remain readable, safe from canvas edges, and editable. The app should warn when a user style becomes too small or low contrast.
