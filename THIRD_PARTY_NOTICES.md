@@ -6,6 +6,8 @@ The test-only seccomp profile derives from Moby/profiles under Apache-2.0. Its p
 
 Original code and documentation use the root MIT licence. This is not a blanket licence for dependencies or assets.
 
+The generated protocol types under `packages/codex-bridge/src/generated/` derive from official Codex 0.142.3 (Copyright 2025 OpenAI, Apache-2.0). The pinned upstream licence is retained at `licenses/CODEX-APACHE-2.0.txt`. Generation markers remain intact; only explicit TypeScript import extensions and formatting are normalized by the reviewed sync script. The type-generation manifest records original source hashes. The official runtime is installed externally in the private test guest; no Codex binary or credentials are checked in or redistributed by this slice.
+
 The isolated accessibility comparison builds unmodified Orca 50.2 and AT-SPI2 2.56.8 from GNOME source archives. Both archives include GNU LGPL 2.1 COPYING text; their accompanying source notices remain authoritative. They are external test dependencies, not application runtime assets or checked-in binaries. Source archives: https://download.gnome.org/sources/orca/50/ and https://download.gnome.org/sources/at-spi2-core/2.56/. Preserve upstream notices in the private build environment; the project MIT licence does not replace them.
 
 Before shipping, record each runtime dependency, exact version, upstream URL, licence, redistribution terms, and bundled notices. Review the actual FFmpeg build configuration and encoder licences, Electron, transcription runtime and models, Codex client, fonts, and any stock assets.

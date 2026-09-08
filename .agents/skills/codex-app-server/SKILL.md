@@ -15,10 +15,12 @@ Changing AI login, model selection, skills, threads, streaming, interruption, ap
 - Stdio JSONL transport.
 - Initialize handshake before other requests.
 - Generate protocol types from the pinned binary.
+- Retain exact generation hashes and licensing; normalize imports/formatting reproducibly without changing type shapes. Check nullable/omitted wire fields against the pinned JSON schema rather than assuming TypeScript requiredness is a wire invariant.
 - ChatGPT-managed login in the first release.
 - Runtime `model/list` and `skills/list` discovery.
 - Durable project thread and turn streaming.
 - Safe restart, resume, interrupt, and rate-limit handling.
+- Close must settle startup and process shutdown before reconnecting against the same account directory. Never replay requests whose outcome became uncertain after timeout or disconnection.
 - Explicit skill input items when a known skill is used.
 - Guarded codex-video-edit MCP tools with validated transactions.
 
@@ -37,6 +39,8 @@ Codex receives project context and edit tools. It does not receive unrestricted 
 ## Never
 
 Simulate successful Codex output in a production path or hardcode one current model name as the catalog.
+
+Account type alone does not prove managed-token provenance. Restrict the actual login entrypoint and account-directory ownership. Before enabling turns, verify the pinned no-environment/tool policy, guarded MCP access and native child inheritance; a disabled shell feature or read-only sandbox alone is not a complete project read boundary. Bootstrap stdio tests cannot replace native sign-in and authenticated reversible-edit evidence.
 
 ## Authorized live operations
 

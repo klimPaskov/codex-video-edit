@@ -75,6 +75,14 @@ Local app processes do not imply local model inference. Codex may send approved 
 
 Official protocol reference checked 2026-09-05: https://developers.openai.com/codex/app-server/
 
+## Implemented bootstrap boundary
+
+The P2 bootstrap library pins official Codex 0.142.3, verifies its executable version before connection, and uses the reviewed generated TypeScript closure in `docs/contracts/codex-protocol.json`. Initialization verifies the server's account-directory identity. The process receives an explicit environment allowlist, dedicated context/account directories, OpenAI provider and ChatGPT login configuration. No renderer-selected executable, configuration, RPC method or environment is exposed. Close is a startup/shutdown barrier, and reconnection never replays requests.
+
+Account responses establish account type and plan, not token provenance. Omitted nullable fields are interpreted according to the pinned JSON wire schema even when the generated TypeScript spelling is required-null. Consumed model and skill fields are validated and detached; raw protocol, email, skill paths and credentials are not returned by the bootstrap summaries. Model pages are bounded and queried on one transport. A signed-out response prevents model availability claims.
+
+Native sign-in, durable threads and guarded editing remain unimplemented. Follow `docs/research/P2_RUNTIME_POLICY.md` before enabling turns: the reviewed experimental no-environment policy requires exact generated types and actual negative-tool tests. Disabling the shell feature alone does not establish a complete filesystem/tool boundary. Real unauthenticated bootstrap evidence is separate from the native and authenticated P2 gates.
+
 ## Draft authorization
 
 Apply already authorized reversible edits while the turn runs; no repeated material-change approval is required. Magic Wand and manual tools use the same validated active-draft transactions and undo history. `export.prepare` stages settings without another confirmation and cannot start an export. Source deletion, cleanup, spending, publication and final export remain explicit user actions outside these tools. Server-initiated approval requests remain distinct from application edit authorization.
