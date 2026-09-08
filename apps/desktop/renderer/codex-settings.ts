@@ -1,0 +1,238 @@
+import type { CodexView } from "../../../packages/domain/src/codex-view.ts";
+import type { Reply } from "../src/bridge.ts";
+
+export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
+  const element = <T extends HTMLElement = HTMLElement>(id: string) =>
+    document.getElementById(id)! as T;
+  const panel = element("codex-settings");
+  let epoch = 0;
+  let pending = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let current: CodexView | undefined;
+  let localError: string | null = null;
+  const active = () => dialog.open && !panel.hidden;
+  function stop(): void {
+    epoch++;
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+  }
+  function setText(id: string, value: string): void {
+    const target = element(id);
+    if (target.textContent !== value) target.textContent = value;
+  }
+  function options(
+    select: HTMLSelectElement,
+    entries: { value: string; label: string }[],
+    selected: string,
+  ): void {
+    const key = JSON.stringify(entries);
+    if (select.dataset.options !== key) {
+      select.replaceChildren(
+        ...entries.map((entry) => {
+          const option = document.createElement("option");
+          option.value = entry.value;
+          option.textContent = entry.label;
+          return option;
+        }),
+      );
+      select.dataset.options = key;
+    }
+    select.value = selected;
+  }
+  function render(view: CodexView): void {
+    current = view;
+    const message = view.message ?? localError;
+    setText(
+      "codex-account",
+      view.account === "signed_in"
+        ? `ChatGPT · ${view.plan ?? "Signed in"}`
+        : view.account === "signing_in"
+          ? "Updating Codex account…"
+          : view.account === "signed_out"
+            ? "Sign in to use Codex"
+            : "Codex is unavailable",
+    );
+    const show = (id: string, visible: boolean) => {
+      element(id).hidden = !visible;
+    };
+    show(
+      "codex-login",
+      view.connection === "connected" && view.account === "signed_out",
+    );
+    show("codex-cancel-login", view.account === "signing_in");
+    show("codex-logout", view.account === "signed_in");
+    show(
+      "codex-reconnect",
+      view.connection !== "connected" || message !== null,
+    );
+    show("codex-disclosure", view.account !== "signed_in");
+    show("codex-error", message !== null);
+    setText("codex-error", message ?? "");
+    show(
+      "codex-model-settings",
+      view.account === "signed_in" && view.models.length > 0,
+    );
+    options(
+      element<HTMLSelectElement>("codex-model"),
+      [
+        { value: "", label: "Choose a model" },
+        ...view.models.map((model) => ({ value: model.id, label: model.name })),
+      ],
+      view.selection?.modelId ?? "",
+    );
+    const model = view.models.find(
+      (entry) => entry.id === view.selection?.modelId,
+    );
+    options(
+      element<HTMLSelectElement>("codex-reasoning"),
+      (model?.reasoning ?? []).map((value) => ({ value, label: value })),
+      view.selection?.reasoning ?? "",
+    );
+    const usage = view.limits.map(
+      (limit) =>
+        `${limit.name}: ${Math.round(limit.remainingPercent)}% remaining${limit.resetsAt === null ? "" : ` · resets ${new Date(limit.resetsAt * 1000).toLocaleString()}`}`,
+    );
+    const skills = view.skills.map(
+      (skill) => `${skill.name}${skill.enabled ? "" : " (disabled)"}`,
+    );
+    for (const [id, values] of [
+      ["codex-limits", usage],
+      ["codex-skills", skills],
+    ] as const) {
+      const target = element(id),
+        key = JSON.stringify(values);
+      if (target.dataset.items !== key) {
+        target.replaceChildren(
+          ...values.map((text) => {
+            const li = document.createElement("li");
+            li.textContent = text;
+            return li;
+          }),
+        );
+        target.dataset.items = key;
+      }
+    }
+    show("codex-limits", usage.length > 0);
+    show("codex-advanced", skills.length > 0);
+    for (const control of panel.querySelectorAll<
+      HTMLButtonElement | HTMLSelectElement
+    >("button,select"))
+      control.disabled = pending || view.busy;
+  }
+  function schedule(): void {
+    if (active())
+      timer = setTimeout(() => {
+        void refresh();
+      }, 1500);
+  }
+  async function refresh(): Promise<void> {
+    if (!active() || pending) return;
+    const request = epoch;
+    try {
+      const reply = await window.desktop.getCodex();
+      if (request !== epoch || !active()) return;
+      if (!reply.ok) throw new Error();
+      render(reply.value);
+    } catch {
+      if (request === epoch && active()) {
+        setText(
+          "codex-error",
+          "Codex settings could not be loaded. Reconnect to try again.",
+        );
+        element("codex-error").hidden = false;
+        element("codex-reconnect").hidden = false;
+      }
+    }
+    if (request === epoch) schedule();
+  }
+  async function action(work: () => Promise<Reply<CodexView>>): Promise<void> {
+    if (!active() || pending) return;
+    stop();
+    localError = null;
+    const request = epoch;
+    pending = true;
+    if (current) render(current);
+    let failed = false;
+    try {
+      const reply = await work();
+      if (request !== epoch || !active()) return;
+      if (!reply.ok) throw new Error();
+      current = reply.value;
+    } catch {
+      failed = true;
+      if (request === epoch)
+        localError =
+          "This Codex action could not finish. Reconnect or try again.";
+    } finally {
+      if (request === epoch && active()) {
+        pending = false;
+        if (current) render(current);
+        if (failed) {
+          setText(
+            "codex-error",
+            "This Codex action could not finish. Reconnect or try again.",
+          );
+          element("codex-error").hidden = false;
+          element("codex-reconnect").hidden = false;
+        }
+        schedule();
+      }
+    }
+  }
+  for (const [id, work] of [
+    ["codex-login", () => window.desktop.loginCodex()],
+    ["codex-cancel-login", () => window.desktop.cancelCodexLogin()],
+    ["codex-logout", () => window.desktop.logoutCodex()],
+    ["codex-reconnect", () => window.desktop.reconnectCodex()],
+  ] as const)
+    element(id).addEventListener("click", () => {
+      void action(work);
+    });
+  element<HTMLSelectElement>("codex-model").addEventListener(
+    "change",
+    (event) => {
+      const model = current?.models.find(
+        (entry) => entry.id === (event.target as HTMLSelectElement).value,
+      );
+      if (!model && current) render(current);
+      if (model)
+        void action(() =>
+          window.desktop.selectCodexModel({
+            modelId: model.id,
+            reasoning: model.defaultReasoning,
+          }),
+        );
+    },
+  );
+  element<HTMLSelectElement>("codex-reasoning").addEventListener(
+    "change",
+    (event) => {
+      const modelId = current?.selection?.modelId,
+        reasoning = (event.target as HTMLSelectElement).value;
+      if (modelId)
+        void action(() =>
+          window.desktop.selectCodexModel({ modelId, reasoning }),
+        );
+    },
+  );
+  function section(codex: boolean): void {
+    stop();
+    pending = false;
+    panel.hidden = !codex;
+    element("appearance-settings").hidden = codex;
+    element("appearance-actions").hidden = codex;
+    element("settings-error").hidden = true;
+    element("settings-appearance").setAttribute("aria-pressed", String(!codex));
+    element("settings-codex").setAttribute("aria-pressed", String(codex));
+    if (codex) {
+      setText("codex-account", "Connecting to Codex…");
+      void refresh();
+    }
+  }
+  element("settings-appearance").addEventListener("click", () =>
+    section(false),
+  );
+  element("settings-codex").addEventListener("click", () => section(true));
+  dialog.addEventListener("close", stop);
+  return () => section(false);
+}

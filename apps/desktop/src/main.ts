@@ -1,3 +1,5 @@
+import { DesktopCodex } from "./codex.ts";
+import { assertCodexView } from "../../../packages/domain/src/codex-view.ts";
 import { PreferencesStore } from "./preferences.ts";
 import { ProjectStore } from "../../../packages/project-store/src/store.ts";
 import type { InitialProjectSnapshot } from "../../../packages/domain/src/project.ts";
@@ -16,6 +18,7 @@ import {
   ipcMain,
   protocol,
   session,
+  shell,
 } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
 import { readFile } from "node:fs/promises";
@@ -38,8 +41,17 @@ let window: BrowserWindow | undefined;
 let importing: AbortController | undefined;
 const frameRequests = new Set<AbortController>();
 let quitting = false;
-app.on("before-quit", () => {
+let codex: DesktopCodex | undefined;
+let codexClosed = false;
+app.on("before-quit", (event) => {
   quitting = true;
+  if (codex && !codexClosed) {
+    event.preventDefault();
+    void codex.close().finally(() => {
+      codexClosed = true;
+      app.quit();
+    });
+  }
 });
 app.setName("codex-video-edit");
 app.enableSandbox();
@@ -131,6 +143,29 @@ async function start(): Promise<void> {
     const value = await preferences.write(request);
     committedScale = value.interfaceScale;
     window?.webContents.setZoomFactor(value.interfaceScale);
+    return value;
+  });
+  codex = new DesktopCodex(
+    process.resourcesPath,
+    app.getPath("userData"),
+    (url) => shell.openExternal(url),
+  );
+  for (const [channel, operation] of [
+    [channels.codexGet, () => codex!.get()],
+    [channels.codexReconnect, () => codex!.reconnect()],
+    [channels.codexLogin, () => codex!.login()],
+    [channels.codexCancelLogin, () => codex!.cancelLogin()],
+    [channels.codexLogout, () => codex!.logout()],
+  ] as const)
+    register(channel, async (request) => {
+      assertEmptyRequest(request);
+      const value = await operation();
+      assertCodexView(value);
+      return value;
+    });
+  register(channels.codexSelect, async (request) => {
+    const value = await codex!.select(request);
+    assertCodexView(value);
     return value;
   });
   const library = new MediaLibrary(

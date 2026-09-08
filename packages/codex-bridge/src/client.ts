@@ -6,14 +6,18 @@ import type { InitializeParams } from "./generated/InitializeParams.ts";
 import type { GetAccountParams } from "./generated/v2/GetAccountParams.ts";
 import type { ModelListParams } from "./generated/v2/ModelListParams.ts";
 import type { SkillsListParams } from "./generated/v2/SkillsListParams.ts";
+import { CodexAuthController, type AuthState } from "./auth.ts";
 import {
   decodeAccount,
   decodeInitialization,
   decodeModels,
   decodeSkills,
+  decodeRateLimits,
+  validateRateLimitsUpdate,
   type AccountState,
   type ModelSummary,
   type SkillSummary,
+  type RateLimitsSummary,
 } from "./metadata.ts";
 import { CodexStdioTransport, CodexTransportError } from "./transport.ts";
 
@@ -29,6 +33,8 @@ export interface CodexClientOptions {
   codexHome: string;
   environment: NodeJS.ProcessEnv;
   onSkillsChanged?: () => void;
+  onAuthStateChanged?: (state: AuthState) => void;
+  onRateLimitsChanged?: () => void;
 }
 
 /** Main-process-only bootstrap client. No arbitrary RPC, turns or edit tools exposed. */
@@ -39,6 +45,7 @@ export class CodexClient {
   private startupAbort: AbortController | undefined;
   private startupFinished: Promise<void> | undefined;
   private closing: Promise<void> | undefined;
+  private auth: CodexAuthController | undefined;
 
   constructor(options: CodexClientOptions) {
     for (const path of [options.executable, options.cwd, options.codexHome]) {
@@ -60,6 +67,7 @@ export class CodexClient {
       finishStartup = resolve;
     });
     let transport: CodexStdioTransport | undefined;
+    let auth: CodexAuthController | undefined;
     try {
       const executable = await realpath(this.options.executable);
       const cwd = await realpath(this.options.cwd);
@@ -102,14 +110,30 @@ export class CodexClient {
           'model_provider="openai"',
           "-c",
           "features.shell_tool=false",
+          "-c",
+          "project_root_markers=[]",
         ],
         cwd,
         env,
-        onNotification: (method) => {
+        onNotification: (method, params) => {
           if (method === "skills/changed") this.options.onSkillsChanged?.();
+          auth?.notification(method, params);
+          if (method === "account/rateLimits/updated") {
+            validateRateLimitsUpdate(params);
+            this.options.onRateLimitsChanged?.();
+          }
         },
+        onDisconnect: () => auth?.close(),
       });
       this.transport = transport;
+      const connectedTransport = transport;
+      auth = new CodexAuthController({
+        request: (method, params) => connectedTransport.request(method, params),
+        onChanged: (state) => {
+          if (this.auth === auth) this.options.onAuthStateChanged?.(state);
+        },
+      });
+      this.auth = auth;
       const params: InitializeParams = {
         clientInfo: {
           name: "codex_video_edit",
@@ -123,6 +147,8 @@ export class CodexClient {
         throw new CodexTransportError("protocol");
       if (startupAbort.signal.aborted) throw new CodexTransportError("closed");
     } catch (error) {
+      auth?.close();
+      if (this.auth === auth) this.auth = undefined;
       await transport?.close();
       if (this.transport === transport) this.transport = undefined;
       if (startupAbort.signal.aborted) throw new CodexTransportError("closed");
@@ -143,8 +169,35 @@ export class CodexClient {
   }
 
   async account(): Promise<AccountState> {
-    const params: GetAccountParams = { refreshToken: false };
-    return decodeAccount(await this.ready().request("account/read", params));
+    this.ready();
+    return this.auth!.refreshAccount();
+  }
+
+  authState(): AuthState {
+    return (
+      this.auth?.snapshot() ?? { status: "idle", account: null, error: null }
+    );
+  }
+  /** Main-only result. Never serialize its URL to the packaged renderer. */
+  async startLogin(): Promise<{ authUrl: string } | null> {
+    this.ready();
+    return this.auth!.startLogin();
+  }
+  async cancelLogin(): Promise<void> {
+    this.ready();
+    await this.auth!.cancelLogin();
+  }
+  async logout(): Promise<void> {
+    this.ready();
+    await this.auth!.logout();
+  }
+  async rateLimits(): Promise<RateLimitsSummary> {
+    const transport = this.ready();
+    if ((await this.account()).status !== "chatgpt")
+      throw new CodexTransportError("not_ready");
+    return decodeRateLimits(
+      await transport.request("account/rateLimits/read", undefined),
+    );
   }
 
   async models(): Promise<ModelSummary[]> {
@@ -190,6 +243,8 @@ export class CodexClient {
     if (this.closing) return this.closing;
     const startupFinished = this.startupFinished;
     this.startupAbort?.abort();
+    this.auth?.close();
+    this.auth = undefined;
     const transport = this.transport;
     this.transport = undefined;
     this.closing = Promise.all([transport?.close(), startupFinished])

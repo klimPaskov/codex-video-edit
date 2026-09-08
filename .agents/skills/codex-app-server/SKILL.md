@@ -45,3 +45,11 @@ Account type alone does not prove managed-token provenance. Restrict the actual 
 ## Authorized live operations
 
 Apply authorized reversible active-draft transactions during the turn without repeated material-change confirmation. Magic Wand, Codex and manual edits share undo history. Export preparation may stage settings without confirmation but cannot start final export. Keep source deletion, cleanup, spending, publication and final export under explicit user action; handle native server approvals separately. Test both authorization and forbidden-effect boundaries.
+
+## Packaged account/settings validation
+
+Resolve only main-owned fixed packaged resources and verify the pinned runtime manifest, binary and licence before connection. Keep the official runtime outside ASAR and out of Git; preserve licensing in private packaged builds. A content hash is not a release signature. Test missing, damaged and redirected resources without launching test fixture bytes.
+
+Managed browser-login URLs stay in main and require exact pinned origin/path and OAuth parameter checks before external launch. Correlate attempt/connection identity; reconcile account state after completion, cancellation and replacement. Cancel incomplete login when the browser cannot open. Never expose raw errors, login URLs, codes or credentials in ordinary UI/evidence. Signed-out start/cancel checks do not prove authentication. Isolated tests must never open the user host browser.
+
+Keep Appearance and Codex settings in one modal with one selected section. Persist model/reasoning choices only after runtime validation, distinguish application preferences from later project/turn settings, and show usage only from actual returned limits. Verify native focus, cancellation, reconnect, persistence and failure states before claiming the settings slice works.

@@ -1,0 +1,17 @@
+{
+  "channel": "codex:get",
+  "response": {
+    "ok": true,
+    "value": {
+      "connection": "connected",
+      "account": "signed_out",
+      "plan": null,
+      "busy": false,
+      "message": null,
+      "models": [],
+      "skills": [],
+      "limits": [],
+      "selection": null
+    }
+  }
+}

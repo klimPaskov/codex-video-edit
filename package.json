@@ -28,6 +28,7 @@
   "devDependencies": {
     "@electron/asar": "4.3.0",
     "@electron/packager": "20.3.0",
+    "@openai/codex": "0.142.3",
     "@types/node": "24.13.3",
     "electron": "44.2.0",
     "esbuild": "0.28.2",

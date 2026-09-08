@@ -188,5 +188,22 @@ class DesktopIpcContractTests(unittest.TestCase):
         self.invalid({'channel': 'projects:delete', 'payload': {'id': view['id']}, 'response': {'ok': True, 'value': view}})
 
 
+    def test_codex_settings_channels_reject_credentials_urls_and_arbitrary_requests(self):
+        fixture = json.loads((ROOT / 'docs/contracts/codex-settings-example.json').read_text(encoding='utf-8'))
+        self.valid(fixture)
+        for channel in ('codex:get', 'codex:reconnect', 'codex:login', 'codex:cancel-login', 'codex:logout'):
+            exchange = dict(fixture, channel=channel)
+            self.valid(exchange)
+            self.invalid(dict(exchange, payload={'type': 'apiKey', 'apiKey': 'PRIVATE'}))
+        for key in ('authUrl', 'loginId', 'email', 'token', 'path'):
+            bad = json.loads(json.dumps(fixture))
+            bad['response']['value'][key] = 'PRIVATE'
+            self.invalid(bad)
+        selection = dict(fixture, channel='codex:select', payload={'modelId': 'runtime-model', 'reasoning': 'runtime-effort'})
+        self.valid(selection)
+        selection['payload']['command'] = 'unsafe'
+        self.invalid(selection)
+
+
 if __name__ == '__main__':
     unittest.main()

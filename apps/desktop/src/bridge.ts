@@ -1,3 +1,7 @@
+import type {
+  CodexView,
+  CodexSelection,
+} from "../../../packages/domain/src/codex-view.ts";
 import type { Preferences } from "../../../packages/domain/src/preferences.ts";
 import type {
   ProjectView,
@@ -12,6 +16,12 @@ import type {
 
 export type Reply<T> = { ok: true; value: T } | { ok: false; message: string };
 export interface DesktopBridge {
+  getCodex(): Promise<Reply<CodexView>>;
+  reconnectCodex(): Promise<Reply<CodexView>>;
+  loginCodex(): Promise<Reply<CodexView>>;
+  cancelCodexLogin(): Promise<Reply<CodexView>>;
+  logoutCodex(): Promise<Reply<CodexView>>;
+  selectCodexModel(value: CodexSelection): Promise<Reply<CodexView>>;
   listProjects(): Promise<Reply<ProjectView[]>>;
   createProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
   openProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
@@ -24,6 +34,12 @@ export interface DesktopBridge {
   cancelImport(): Promise<Reply<null>>;
 }
 export const channels = Object.freeze({
+  codexGet: "codex:get",
+  codexReconnect: "codex:reconnect",
+  codexLogin: "codex:login",
+  codexCancelLogin: "codex:cancel-login",
+  codexLogout: "codex:logout",
+  codexSelect: "codex:select",
   projectList: "projects:list",
   projectCreate: "projects:create",
   projectOpen: "projects:open",

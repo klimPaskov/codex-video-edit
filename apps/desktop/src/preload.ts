@@ -1,3 +1,7 @@
+import {
+  assertCodexView,
+  assertCodexSelection,
+} from "../../../packages/domain/src/codex-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
   assertProjectRequest,
@@ -43,6 +47,17 @@ async function invoke<T>(
   return { ok: true, value: result.value as T };
 }
 const bridge: DesktopBridge = {
+  getCodex: () => invoke(channels.codexGet, undefined, assertCodexView),
+  reconnectCodex: () =>
+    invoke(channels.codexReconnect, undefined, assertCodexView),
+  loginCodex: () => invoke(channels.codexLogin, undefined, assertCodexView),
+  cancelCodexLogin: () =>
+    invoke(channels.codexCancelLogin, undefined, assertCodexView),
+  logoutCodex: () => invoke(channels.codexLogout, undefined, assertCodexView),
+  selectCodexModel: (value) => {
+    assertCodexSelection(value);
+    return invoke(channels.codexSelect, value, assertCodexView);
+  },
   listProjects: () =>
     invoke(channels.projectList, undefined, assertProjectList),
   createProject: (request) => {

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://codex-video-edit.local/schemas/desktop_ipc.schema.json",
-  "title": "Desktop library, project and preferences IPC exchange",
+  "title": "Desktop library, project, preferences and Codex settings IPC exchange",
   "description": "Contract documentation envelope for a native IPC request and response. Electron channel and request are separate arguments at runtime; absent payload represents undefined, never null. No source filesystem path crosses this boundary. Runtime also validates trusted main-frame sender and source-specific seek bounds.",
   "oneOf": [
     {
@@ -402,6 +402,226 @@
           "$ref": "#/$defs/projectNavigation"
         }
       }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response"
+      ],
+      "properties": {
+        "channel": {
+          "const": "codex:get"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "$ref": "#/$defs/codexView"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response"
+      ],
+      "properties": {
+        "channel": {
+          "const": "codex:reconnect"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "$ref": "#/$defs/codexView"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response"
+      ],
+      "properties": {
+        "channel": {
+          "const": "codex:login"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "$ref": "#/$defs/codexView"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response"
+      ],
+      "properties": {
+        "channel": {
+          "const": "codex:cancel-login"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "$ref": "#/$defs/codexView"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response"
+      ],
+      "properties": {
+        "channel": {
+          "const": "codex:logout"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "$ref": "#/$defs/codexView"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response",
+        "payload"
+      ],
+      "properties": {
+        "channel": {
+          "const": "codex:select"
+        },
+        "response": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "ok",
+                "value"
+              ],
+              "properties": {
+                "ok": {
+                  "const": true
+                },
+                "value": {
+                  "$ref": "#/$defs/codexView"
+                }
+              }
+            }
+          ]
+        },
+        "payload": {
+          "$ref": "#/$defs/codexSelection"
+        }
+      }
     }
   ],
   "$defs": {
@@ -652,6 +872,257 @@
         }
       },
       "description": "Path-free committed project view. Runtime additionally requires project, revision, source and timeline IDs to be distinct. A stage identifies navigation, not successful feature execution or export."
+    },
+    "codexView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connection",
+        "account",
+        "plan",
+        "busy",
+        "message",
+        "models",
+        "skills",
+        "limits",
+        "selection"
+      ],
+      "properties": {
+        "connection": {
+          "enum": [
+            "disconnected",
+            "connected",
+            "unavailable"
+          ]
+        },
+        "account": {
+          "enum": [
+            "unknown",
+            "signed_out",
+            "signing_in",
+            "signed_in"
+          ]
+        },
+        "plan": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "busy": {
+          "type": "boolean"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240,
+              "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "models": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "reasoning",
+              "defaultReasoning"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024,
+                "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+              },
+              "reasoning": {
+                "type": "array",
+                "maxItems": 32,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+                },
+                "uniqueItems": true
+              },
+              "defaultReasoning": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+              }
+            }
+          }
+        },
+        "skills": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "description",
+              "enabled"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024,
+                "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 16384
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "limits": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "remainingPercent",
+              "resetsAt"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+              },
+              "remainingPercent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "resetsAt": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            }
+          }
+        },
+        "selection": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "modelId",
+                "reasoning"
+              ],
+              "properties": {
+                "modelId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256,
+                  "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+                },
+                "reasoning": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "account": {
+                "const": "signed_in"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "connection": {
+                "const": "connected"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "plan": {
+                "type": "null"
+              },
+              "models": {
+                "maxItems": 0
+              },
+              "limits": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ],
+      "description": "Main-owned account settings summary. Runtime additionally rejects duplicate model IDs and requires each default reasoning to exist in its model catalog. Unknown account state is not signed out. Login URL, login ID, email, credentials, paths and generic RPC are forbidden. Model selection is persisted only after runtime catalog validation."
+    },
+    "codexSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modelId",
+        "reasoning"
+      ],
+      "properties": {
+        "modelId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+        },
+        "reasoning": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+        }
+      }
     }
   }
 }
