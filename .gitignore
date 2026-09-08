@@ -19,6 +19,7 @@ models/
 checkpoints/
 credentials/
 .codex/auth.json
+.codex/config.toml
 .codex/sessions/
 .astra/evidence/
 .astra/private/

@@ -6,6 +6,8 @@ The test-only seccomp profile derives from Moby/profiles under Apache-2.0. Its p
 
 Original code and documentation use the root MIT licence. This is not a blanket licence for dependencies or assets.
 
+The isolated accessibility comparison builds unmodified Orca 50.2 and AT-SPI2 2.56.8 from GNOME source archives. Both archives include GNU LGPL 2.1 COPYING text; their accompanying source notices remain authoritative. They are external test dependencies, not application runtime assets or checked-in binaries. Source archives: https://download.gnome.org/sources/orca/50/ and https://download.gnome.org/sources/at-spi2-core/2.56/. Preserve upstream notices in the private build environment; the project MIT licence does not replace them.
+
 Before shipping, record each runtime dependency, exact version, upstream URL, licence, redistribution terms, and bundled notices. Review the actual FFmpeg build configuration and encoder licences, Electron, transcription runtime and models, Codex client, fonts, and any stock assets.
 
 The screenshots under docs/references/screenshots are unmodified generated design references from this conversation. They are not product runtime assets. Do not extract the people, scenery, device imagery, icons, or logos as stock content. The manifest records their source and limitations. No font files, model weights, private footage, or credentials are included in this workspace.
