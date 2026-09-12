@@ -1,16 +1,20 @@
 import {
   buildExperimentalInitialize,
   buildThreadStartRequest,
+  buildThreadUnsubscribeRequest,
   buildTurnInterruptRequest,
   buildTurnStartRequest,
   CodexThreadProtocolError,
   decodeThreadSession,
+  decodeThreadUnsubscribe,
   decodeTurnInterrupt,
   decodeTurnStart,
+  threadProtocolInternals,
   type ExperimentalInitializeRequest,
   type ThreadResumeRequest,
   type ThreadRuntimePolicy,
   type ThreadStartRequest,
+  type ThreadUnsubscribeRequest,
   type TurnInterruptRequest,
   type TurnStartInput,
   type TurnStartRequest,
@@ -43,6 +47,7 @@ export type OpenThreadRequest =
 export class ProjectThreadRuntime {
   private readonly options: ProjectThreadRuntimeOptions;
   private projector: ThreadStreamProjector | undefined;
+  private threadId: string | undefined;
   private currentTurnId: string | undefined;
   private turnStarting = false;
   private lastTerminalTurnId: string | undefined;
@@ -99,6 +104,7 @@ export class ProjectThreadRuntime {
       allowedMcpServer: this.options.allowedMcpServer,
       allowedMcpTools: this.options.allowedMcpTools,
     });
+    this.threadId = session.threadId;
     this.currentTurnId = undefined;
     this.turnStarting = false;
     this.lastTerminalTurnId = undefined;
@@ -164,6 +170,55 @@ export class ProjectThreadRuntime {
   acceptInterruptResponse(response: unknown): void {
     decodeTurnInterrupt(response);
     // Only turn/completed is terminal. The response does not clear the active turn.
+  }
+
+  async unsubscribeRequest(): Promise<ThreadUnsubscribeRequest> {
+    this.requireProjector();
+    if (this.currentTurnId || this.turnStarting) {
+      throw new CodexThreadProtocolError("configuration");
+    }
+    return buildThreadUnsubscribeRequest(await this.requireThreadId());
+  }
+
+  acceptUnsubscribeResponse(response: unknown): void {
+    decodeThreadUnsubscribe(response);
+    this.projector = undefined;
+    this.threadId = undefined;
+    this.currentTurnId = undefined;
+    this.turnStarting = false;
+    this.lastTerminalTurnId = undefined;
+  }
+
+  /** A correlated RPC error proves that no turn was accepted; timeouts use disconnect(). */
+  rejectTurnStart(): void {
+    if (!this.turnStarting || this.currentTurnId) {
+      throw new CodexThreadProtocolError("configuration");
+    }
+    this.turnStarting = false;
+  }
+
+  assertActiveCorrelation(params: unknown, requireItem: boolean): void {
+    this.requireProjector();
+    if (!threadProtocolInternals.record(params)) {
+      throw new CodexThreadProtocolError("protocol");
+    }
+    const threadId = threadProtocolInternals.identifier(
+      params.threadId,
+      "protocol",
+    );
+    const turnId = threadProtocolInternals.identifier(
+      params.turnId,
+      "protocol",
+    );
+    if (
+      threadId !== this.threadId ||
+      (!this.currentTurnId ? !this.turnStarting : turnId !== this.currentTurnId)
+    ) {
+      throw new CodexThreadProtocolError("forbidden");
+    }
+    if (requireItem) {
+      threadProtocolInternals.identifier(params.itemId, "protocol");
+    }
   }
 
   notification(method: string, params: unknown): ThreadStreamEvent | null {

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.codex-video-edit.invalid/codex_thread_view.schema.json",
+  "title": "Renderer-safe Codex project conversation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "projectId", "messages", "activities", "message"],
+  "properties": {
+    "status": {
+      "enum": ["closed", "opening", "ready", "starting", "running", "interrupting", "uncertain", "failed"]
+    },
+    "projectId": {
+      "anyOf": [
+        { "$ref": "#/$defs/id" },
+        { "type": "null" }
+      ]
+    },
+    "messages": {
+      "type": "array",
+      "maxItems": 200,
+      "items": { "$ref": "#/$defs/message" }
+    },
+    "activities": {
+      "type": "array",
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/activity" }
+    },
+    "message": {
+      "anyOf": [
+        { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]+$" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "closed" } } },
+      "then": {
+        "properties": {
+          "projectId": { "type": "null" },
+          "messages": { "maxItems": 0 },
+          "activities": { "maxItems": 0 },
+          "message": { "type": "null" }
+        }
+      },
+      "else": { "properties": { "projectId": { "$ref": "#/$defs/id" } } }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+    },
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "role", "text", "complete"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "role": { "enum": ["user", "codex"] },
+        "text": { "type": "string", "maxLength": 65536, "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]*$" },
+        "complete": { "type": "boolean" }
+      }
+    },
+    "activity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "label", "complete"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["activity", "subagent", "edit"] },
+        "label": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]+$" },
+        "complete": { "type": "boolean" }
+      }
+    }
+  },
+  "description": "Main projects raw App Server events into this path-free bounded view. Runtime additionally requires every message and activity ID to be unique. A completed edit activity reflects an MCP item result; it does not itself prove media rendering or export."
+}

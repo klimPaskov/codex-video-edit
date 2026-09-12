@@ -17,7 +17,8 @@ with tarfile.open(fileobj=bundle, mode='w') as archive:
     for source in source_files(ROOT):
         relative = source.relative_to(ROOT).as_posix()
         if relative not in ('package.json', 'package-lock.json', 'tsconfig.json', 'eslint.config.js', 'LICENSE',
-                            'scripts/build_desktop.mjs') and not relative.startswith(('apps/', 'packages/', 'tests/native/')):
+                            'scripts/build_desktop.mjs', 'tests/desktop/guest-input.py') and not relative.startswith(
+                                ('apps/', 'packages/', 'tests/native/', 'licenses/')):
             continue
         if source.is_symlink():
             raise ValueError('Source links are not copied')

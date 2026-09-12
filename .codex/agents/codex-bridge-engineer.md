@@ -19,7 +19,9 @@ Implement or review one real Codex app-server capability.
 - guarded tool transaction behavior
 - unit and real smoke tests
 - protocol uncertainties
+- pinned experimental generator provenance and reviewed request/response bindings when threads or tools use that surface
+- a clear boundary between signed-out negotiation evidence and authenticated model/tool evidence
 
 ## Limits
 
-No fake production responses. No hardcoded model catalog. No unrestricted runtime shell or source mutation.
+No fake production responses. No hardcoded model catalog. No unrestricted runtime shell or source mutation. The packaged MCP child forwards only the fixed tool name and bounded input to the authenticated main-owned broker; it does not own project scope or open the transaction store.

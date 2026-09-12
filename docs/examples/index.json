@@ -124,6 +124,10 @@
     {
       "schema": "docs/schemas/export_manifest.schema.json",
       "example": "docs/examples/export_share.example.json"
+    },
+    {
+      "schema": "docs/schemas/codex_thread_view.schema.json",
+      "example": "docs/examples/codex_thread_view.example.json"
     }
   ]
 }

@@ -162,6 +162,7 @@ async function acceptNativeDialog(): Promise<void> {
 
 function exitOf(
   child: ChildProcess,
+  timeoutMs = 15_000,
 ): Promise<{ code: number | null; signal: NodeJS.Signals | null }> {
   if (child.exitCode !== null || child.signalCode !== null)
     return Promise.resolve({ code: child.exitCode, signal: child.signalCode });
@@ -169,9 +170,11 @@ function exitOf(
     const timer = setTimeout(
       () =>
         reject(
-          new Error("Owned application process did not exit within 15 seconds"),
+          new Error(
+            `Owned application process did not exit within ${timeoutMs / 1_000} seconds`,
+          ),
         ),
-      15_000,
+      timeoutMs,
     );
     child.once("error", (error) => {
       clearTimeout(timer);
@@ -517,7 +520,11 @@ try {
       ),
       0,
     );
-    const failedExit = exitOf(broken.process());
+    // GTK resolves the native message box before Electron has necessarily
+    // finished its fatal-startup shutdown on a loaded guest. Keep the exact
+    // exit-code assertion while allowing that separate process transition to
+    // use the same bound as packaged startup.
+    const failedExit = exitOf(broken.process(), 30_000);
     await acceptNativeDialog();
     assert.equal((await failedExit).code, 1);
     application = undefined;

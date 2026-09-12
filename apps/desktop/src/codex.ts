@@ -5,6 +5,8 @@ import {
   type CodexClientOptions,
 } from "../../../packages/codex-bridge/src/client.ts";
 import type { AuthState } from "../../../packages/codex-bridge/src/auth.ts";
+import type { ThreadStreamEvent } from "../../../packages/codex-bridge/src/thread-stream.ts";
+import { CodexTransportError } from "../../../packages/codex-bridge/src/transport.ts";
 import {
   resolveCodexRuntime,
   CodexRuntimeError,
@@ -16,6 +18,11 @@ import {
   type CodexSelection,
 } from "../../../packages/domain/src/codex-view.ts";
 import { CodexSettingsStore } from "./codex-settings.ts";
+import {
+  assertCodexThreadView,
+  type CodexThreadView,
+} from "../../../packages/domain/src/codex-thread-view.ts";
+import type { CodexMcpRuntime } from "../../../packages/codex-tools/src/broker.ts";
 
 type Client = Pick<
   CodexClient,
@@ -29,6 +36,10 @@ type Client = Pick<
   | "startLogin"
   | "cancelLogin"
   | "logout"
+  | "openProjectThread"
+  | "startProjectTurn"
+  | "interruptProjectTurn"
+  | "closeProjectThread"
 >;
 /** Internal deterministic-test seam; never renderer-selectable or exposed through IPC. */
 export interface DesktopCodexDependencies {
@@ -36,6 +47,7 @@ export interface DesktopCodexDependencies {
   resolveRuntime: typeof resolveCodexRuntime;
   directory: (path: string) => Promise<void>;
   settings: Pick<CodexSettingsStore, "read" | "write">;
+  mcpRuntime?: CodexMcpRuntime;
 }
 
 const initial = (): CodexView => ({
@@ -49,6 +61,15 @@ const initial = (): CodexView => ({
   limits: [],
   selection: null,
 });
+const initialThread = (): CodexThreadView => ({
+  status: "closed",
+  projectId: null,
+  messages: [],
+  activities: [],
+  message: null,
+});
+const PROJECT_THREAD_INSTRUCTIONS =
+  "You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user's requested reversible edit. Describe an edit as applied only after its tool result confirms the commit. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.";
 const label = (value: string, max: number) =>
   value
     .replace(/[\u0000-\u001f\u007f]/gu, " ")
@@ -69,6 +90,10 @@ export class DesktopCodex {
   private closing: Promise<void> | undefined;
   private authKey = "";
   private authRevision = 0;
+  private thread = initialThread();
+  private readonly threadItems = new Map<string, string>();
+  private nextThreadViewId = 0;
+  private readonly requestModels = new Map<string, string>();
   private readonly settings: Pick<CodexSettingsStore, "read" | "write">;
   private readonly dependencies: DesktopCodexDependencies;
   private readonly resources: string;
@@ -152,6 +177,98 @@ export class DesktopCodex {
     assertCodexView(this.state);
     return structuredClone(this.state);
   }
+  private threadSnapshot(): CodexThreadView {
+    assertCodexThreadView(this.thread);
+    return structuredClone(this.thread);
+  }
+  private resetThread(): void {
+    this.thread = initialThread();
+    this.threadItems.clear();
+  }
+  private viewId(prefix: "message" | "activity"): string {
+    return `${prefix}-${String(++this.nextThreadViewId).padStart(8, "0")}`;
+  }
+  private applyThreadEvent(event: ThreadStreamEvent): void {
+    if (this.thread.status === "closed") return;
+    switch (event.type) {
+      case "turn_started":
+        this.thread.status = "running";
+        break;
+      case "item_started":
+        if (event.kind !== "message") {
+          const id = this.viewId("activity");
+          this.threadItems.set(event.itemId, id);
+          this.thread.activities.push({
+            id,
+            kind: event.kind,
+            label: event.label,
+            complete: false,
+          });
+          this.thread.activities = this.thread.activities.slice(-32);
+        }
+        break;
+      case "message_delta": {
+        let id = this.threadItems.get(event.itemId);
+        let message = this.thread.messages.find((item) => item.id === id);
+        if (!message) {
+          id = this.viewId("message");
+          this.threadItems.set(event.itemId, id);
+          message = { id, role: "codex", text: "", complete: false };
+          this.thread.messages.push(message);
+        }
+        message.text += event.text;
+        this.thread.messages = this.thread.messages.slice(-200);
+        break;
+      }
+      case "item_completed": {
+        const id = this.threadItems.get(event.itemId);
+        if (event.kind === "message") {
+          let message = this.thread.messages.find((item) => item.id === id);
+          if (!message) {
+            const nextId = this.viewId("message");
+            this.threadItems.set(event.itemId, nextId);
+            message = {
+              id: nextId,
+              role: "codex",
+              text: "",
+              complete: false,
+            };
+            this.thread.messages.push(message);
+          }
+          message.text = event.text ?? message.text;
+          message.complete = true;
+          this.thread.messages = this.thread.messages.slice(-200);
+        } else {
+          const activity = this.thread.activities.find(
+            (item) => item.id === id,
+          );
+          if (activity) activity.complete = true;
+        }
+        break;
+      }
+      case "turn_problem":
+        this.thread.message = event.retrying
+          ? "Codex is retrying this turn."
+          : "Codex reported a problem with this turn.";
+        break;
+      case "turn_terminal":
+        this.thread.status = "ready";
+        for (const message of this.thread.messages) message.complete = true;
+        for (const activity of this.thread.activities) activity.complete = true;
+        this.thread.message =
+          event.status === "failed"
+            ? "This Codex turn failed. Review the committed draft before retrying."
+            : event.status === "interrupted"
+              ? "The Codex turn was interrupted."
+              : null;
+        break;
+      case "connection_uncertain":
+        this.thread.status = "uncertain";
+        this.thread.message =
+          "The connection ended during this turn. Reopen the project to reconcile its thread and committed draft.";
+        break;
+    }
+  }
   async get(): Promise<CodexView> {
     if (!this.attempted && !this.stopped) return this.reconnect();
     return this.snapshot();
@@ -177,6 +294,8 @@ export class DesktopCodex {
     const previous = this.client;
     this.client = undefined;
     this.state = { ...initial(), busy: true };
+    this.resetThread();
+    this.requestModels.clear();
     this.authKey = "";
     this.authRevision++;
     this.refreshAgain = false;
@@ -220,6 +339,12 @@ export class DesktopCodex {
         },
         onSkillsChanged: update,
         onRateLimitsChanged: update,
+        onThreadEvent: (event) => {
+          if (this.current(generation, client)) this.applyThreadEvent(event);
+        },
+        ...(this.dependencies.mcpRuntime
+          ? { mcp: this.dependencies.mcpRuntime }
+          : {}),
       });
       this.client = client;
       await client.connect();
@@ -312,6 +437,7 @@ export class DesktopCodex {
       this.state.skills = [];
       this.state.models = [];
       this.state.limits = [];
+      this.requestModels.clear();
       const skills = work[0];
       if (skills?.status === "fulfilled" && Array.isArray(skills.value))
         this.state.skills = (
@@ -324,12 +450,15 @@ export class DesktopCodex {
       if (models?.status === "fulfilled" && Array.isArray(models.value))
         this.state.models = (
           models.value as Awaited<ReturnType<CodexClient["models"]>>
-        ).map((entry) => ({
-          id: entry.id,
-          name: label(entry.displayName, 1024) || entry.id,
-          reasoning: entry.reasoning,
-          defaultReasoning: entry.defaultReasoning,
-        }));
+        ).map((entry) => {
+          this.requestModels.set(entry.id, entry.model);
+          return {
+            id: entry.id,
+            name: label(entry.displayName, 1024) || entry.id,
+            reasoning: entry.reasoning,
+            defaultReasoning: entry.defaultReasoning,
+          };
+        });
       const limits = work[2];
       if (limits?.status === "fulfilled" && !Array.isArray(limits.value)) {
         this.state.limits = [];
@@ -454,6 +583,118 @@ export class DesktopCodex {
       if (this.current(generation, client)) this.state.selection = selection;
     });
   }
+  getThread(projectId: string): CodexThreadView {
+    if (this.thread.projectId !== null && this.thread.projectId !== projectId)
+      throw new Error("Open the active project's Codex conversation.");
+    return this.threadSnapshot();
+  }
+  async openThread(projectId: string): Promise<CodexThreadView> {
+    if (
+      !this.client ||
+      this.state.connection !== "connected" ||
+      this.state.account !== "signed_in" ||
+      !this.state.selection ||
+      this.state.busy ||
+      this.thread.status !== "closed"
+    )
+      throw new Error("Codex is not ready to open this project conversation.");
+    const requestModel = this.requestModels.get(this.state.selection.modelId);
+    if (!requestModel)
+      throw new Error(
+        "Choose an available Codex model before opening the conversation.",
+      );
+    this.thread = {
+      status: "opening",
+      projectId,
+      messages: [],
+      activities: [],
+      message: null,
+    };
+    try {
+      await this.client.openProjectThread({
+        projectId,
+        model: requestModel,
+        effort: this.state.selection.reasoning,
+        developerInstructions: PROJECT_THREAD_INSTRUCTIONS,
+      });
+      if (this.thread.status === "opening") this.thread.status = "ready";
+    } catch {
+      this.thread.status = "failed";
+      this.thread.message =
+        "The project conversation could not be opened. Reconnect Codex and try again.";
+    }
+    return this.threadSnapshot();
+  }
+  async sendThread(projectId: string, text: string): Promise<CodexThreadView> {
+    if (
+      !this.client ||
+      this.thread.projectId !== projectId ||
+      this.thread.status !== "ready"
+    )
+      throw new Error("The project conversation is not ready.");
+    const id = this.viewId("message");
+    this.thread.messages.push({ id, role: "user", text, complete: true });
+    this.thread.messages = this.thread.messages.slice(-200);
+    this.thread.status = "starting";
+    this.thread.message = null;
+    try {
+      await this.client.startProjectTurn({ text });
+      if (this.thread.status === "starting") this.thread.status = "running";
+    } catch (error) {
+      if (
+        error instanceof CodexTransportError &&
+        error.code === "remote_error"
+      ) {
+        this.thread.messages = this.thread.messages.filter(
+          (message) => message.id !== id,
+        );
+        this.thread.status = "ready";
+        this.thread.message =
+          "Codex rejected this turn. Adjust it and try again.";
+      } else {
+        this.thread.status = "uncertain";
+        this.thread.message =
+          "The turn outcome is uncertain. Reopen the project before retrying.";
+      }
+    }
+    return this.threadSnapshot();
+  }
+  async interruptThread(projectId: string): Promise<CodexThreadView> {
+    if (
+      !this.client ||
+      this.thread.projectId !== projectId ||
+      this.thread.status !== "running"
+    )
+      throw new Error("There is no running Codex turn to interrupt.");
+    this.thread.status = "interrupting";
+    try {
+      await this.client.interruptProjectTurn();
+      if (this.thread.status === "interrupting")
+        this.thread.message = "Interrupt requested. Waiting for Codex to stop.";
+    } catch {
+      if (this.thread.status === "interrupting") {
+        this.thread.status = "uncertain";
+        this.thread.message =
+          "The interrupt outcome is uncertain. Reopen the project to reconcile the turn.";
+      }
+    }
+    return this.threadSnapshot();
+  }
+  async closeThread(projectId: string): Promise<void> {
+    if (this.thread.projectId === null) return;
+    if (this.thread.projectId !== projectId)
+      throw new Error("Close the active project's Codex conversation.");
+    if (
+      ["opening", "starting", "running", "interrupting"].includes(
+        this.thread.status,
+      )
+    )
+      throw new Error(
+        "Stop the running Codex turn before leaving this project.",
+      );
+    await this.client?.closeProjectThread();
+    this.resetThread();
+  }
   close(): Promise<void> {
     if (this.closing) return this.closing;
     this.stopped = true;
@@ -461,6 +702,8 @@ export class DesktopCodex {
     const client = this.client;
     this.client = undefined;
     this.state = initial();
+    this.resetThread();
+    this.requestModels.clear();
     this.refreshAgain = false;
     this.closing = Promise.all([
       client?.close(),

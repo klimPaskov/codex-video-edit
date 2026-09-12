@@ -32,6 +32,13 @@
         <div class="source-bar">
           <strong id="source-name"></strong
           ><button
+            id="codex-drawer-button"
+            aria-expanded="false"
+            aria-controls="codex-drawer"
+            hidden
+          >
+            Codex</button
+          ><button
             id="source-details"
             aria-expanded="false"
             aria-controls="inspector"
@@ -43,7 +50,6 @@
           <div id="stage-buttons"></div>
           <select id="stage-select" aria-label="Project stage"></select>
         </nav>
-        <p id="stage-message" role="status" hidden></p>
         <div class="workspace">
           <div class="preview">
             <canvas id="frame" aria-label="Source frame"></canvas>
@@ -57,6 +63,33 @@
               </button>
             </div>
             <dl id="source-properties"></dl>
+          </aside>
+          <aside id="codex-drawer" aria-label="Codex conversation" hidden>
+            <div class="panel-header">
+              <h2>Codex</h2>
+              <button id="close-codex" aria-label="Close Codex">×</button>
+            </div>
+            <p id="codex-thread-status" role="status"></p>
+            <div id="codex-thread-messages" aria-live="polite"></div>
+            <ul id="codex-thread-activity" aria-label="Codex activity"></ul>
+            <button id="open-codex-thread">Open conversation</button>
+            <form id="codex-thread-form" hidden>
+              <label for="codex-thread-input">Request an edit</label>
+              <textarea
+                id="codex-thread-input"
+                rows="3"
+                maxlength="16384"
+              ></textarea>
+              <div class="codex-thread-actions">
+                <button type="button" id="interrupt-codex-thread" hidden>
+                  Stop
+                </button>
+                <button type="submit" id="send-codex-thread" class="primary">
+                  Send
+                </button>
+              </div>
+            </form>
+            <p id="codex-thread-error" role="alert" hidden></p>
           </aside>
         </div>
         <div id="frame-controls">

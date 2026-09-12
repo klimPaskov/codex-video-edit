@@ -1,4 +1,11 @@
 import { isAbsolute } from "node:path";
+import type { ThreadResumeParams as GeneratedThreadResumeParams } from "./generated/v2/ThreadResumeParams.ts";
+import type { ThreadStartParams as GeneratedThreadStartParams } from "./generated/v2/ThreadStartParams.ts";
+import type { ThreadUnsubscribeParams as GeneratedThreadUnsubscribeParams } from "./generated/v2/ThreadUnsubscribeParams.ts";
+import type { ThreadUnsubscribeResponse as GeneratedThreadUnsubscribeResponse } from "./generated/v2/ThreadUnsubscribeResponse.ts";
+import type { TurnInterruptParams as GeneratedTurnInterruptParams } from "./generated/v2/TurnInterruptParams.ts";
+import type { TurnInterruptResponse as GeneratedTurnInterruptResponse } from "./generated/v2/TurnInterruptResponse.ts";
+import type { TurnStartParams as GeneratedTurnStartParams } from "./generated/v2/TurnStartParams.ts";
 
 const MAX_IDENTIFIER_LENGTH = 256;
 const MAX_INSTRUCTION_LENGTH = 128 * 1024;
@@ -159,6 +166,7 @@ export interface ThreadStartRequest {
     model_provider: "openai";
     project_root_markers: [];
     features: { shell_tool: false };
+    web_search: "disabled";
   };
   ephemeral: false;
   environments: [];
@@ -172,7 +180,7 @@ export function buildThreadStartRequest(
   suppliedPolicy: ThreadRuntimePolicy,
 ): ThreadStartRequest {
   const policy = validatePolicy(suppliedPolicy);
-  return {
+  const request: ThreadStartRequest = {
     model: policy.model,
     modelProvider: "openai",
     cwd: policy.cwd,
@@ -185,6 +193,7 @@ export function buildThreadStartRequest(
       model_provider: "openai",
       project_root_markers: [],
       features: { shell_tool: false },
+      web_search: "disabled",
     },
     ephemeral: false,
     environments: [],
@@ -197,6 +206,7 @@ export function buildThreadStartRequest(
       ? {}
       : { developerInstructions: policy.developerInstructions }),
   };
+  return request satisfies GeneratedThreadStartParams;
 }
 
 export interface ThreadResumeRequest {
@@ -225,7 +235,7 @@ export function buildThreadResumeRequest(
   suppliedPolicy: ThreadRuntimePolicy,
 ): ThreadResumeRequest {
   const policy = validatePolicy(suppliedPolicy);
-  return {
+  const request: ThreadResumeRequest = {
     threadId: identifier(trustedThreadId, "configuration"),
     model: policy.model,
     modelProvider: "openai",
@@ -239,6 +249,7 @@ export function buildThreadResumeRequest(
       model_provider: "openai",
       project_root_markers: [],
       features: { shell_tool: false },
+      web_search: "disabled",
     },
     excludeTurns: true,
     initialTurnsPage: {
@@ -253,6 +264,7 @@ export function buildThreadResumeRequest(
       ? {}
       : { developerInstructions: policy.developerInstructions }),
   };
+  return request satisfies GeneratedThreadResumeParams;
 }
 
 export interface TurnTextInput {
@@ -322,7 +334,7 @@ export function buildTurnStartRequest(
       path: skill.path,
     });
   }
-  return {
+  const request: TurnStartRequest = {
     threadId: identifier(trustedThreadId, "configuration"),
     clientUserMessageId: identifier(trustedClientMessageId, "configuration"),
     input,
@@ -335,6 +347,7 @@ export function buildTurnStartRequest(
     model: policy.model,
     effort: policy.effort,
   };
+  return request satisfies GeneratedTurnStartParams;
 }
 
 export interface TurnInterruptRequest {
@@ -342,14 +355,42 @@ export interface TurnInterruptRequest {
   turnId: string;
 }
 
+export interface ThreadUnsubscribeRequest {
+  threadId: string;
+}
+
+export function buildThreadUnsubscribeRequest(
+  trustedThreadId: string,
+): ThreadUnsubscribeRequest {
+  const request: ThreadUnsubscribeRequest = {
+    threadId: identifier(trustedThreadId, "configuration"),
+  };
+  return request satisfies GeneratedThreadUnsubscribeParams;
+}
+
+export function decodeThreadUnsubscribe(
+  value: unknown,
+): asserts value is GeneratedThreadUnsubscribeResponse {
+  if (
+    !record(value) ||
+    Object.keys(value).length !== 1 ||
+    !["notLoaded", "notSubscribed", "unsubscribed"].includes(
+      typeof value.status === "string" ? value.status : "",
+    )
+  ) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+}
+
 export function buildTurnInterruptRequest(
   trustedThreadId: string,
   trustedTurnId: string,
 ): TurnInterruptRequest {
-  return {
+  const request: TurnInterruptRequest = {
     threadId: identifier(trustedThreadId, "configuration"),
     turnId: identifier(trustedTurnId, "configuration"),
   };
+  return request satisfies GeneratedTurnInterruptParams;
 }
 
 export interface ThreadSession {
@@ -371,7 +412,12 @@ export function decodeThreadSession(
     value.cwd !== policy.cwd ||
     value.approvalPolicy !== "never" ||
     value.approvalsReviewer !== "user" ||
-    value.sandbox !== "read-only" ||
+    !record(value.sandbox) ||
+    Object.keys(value.sandbox).some(
+      (key) => key !== "type" && key !== "networkAccess",
+    ) ||
+    value.sandbox.type !== "readOnly" ||
+    value.sandbox.networkAccess !== false ||
     thread.ephemeral !== false ||
     (thread.parentThreadId ?? null) !== null ||
     (value.runtimeWorkspaceRoots !== undefined &&
@@ -420,7 +466,9 @@ export function decodeTurnStart(value: unknown): {
   return { turnId: decoded.id, status: decoded.status };
 }
 
-export function decodeTurnInterrupt(value: unknown): void {
+export function decodeTurnInterrupt(
+  value: unknown,
+): asserts value is GeneratedTurnInterruptResponse {
   if (!record(value) || Object.keys(value).length !== 0) {
     throw new CodexThreadProtocolError("protocol");
   }

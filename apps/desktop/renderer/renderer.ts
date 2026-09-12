@@ -6,6 +6,7 @@ import type {
   ProjectStage,
   ProjectView,
 } from "../../../packages/domain/src/project-view.ts";
+import type { CodexThreadView } from "../../../packages/domain/src/codex-thread-view.ts";
 declare global {
   interface Window {
     desktop: DesktopBridge;
@@ -43,13 +44,6 @@ const stageLabels: Record<ProjectStage, string> = {
   review: "Review",
   export: "Export",
 };
-const stageMessages: Record<ProjectStage, string> = {
-  record_import: "",
-  auto_edit: "Automatic editing is not available yet.",
-  edit: "Editing tools are not available yet.",
-  review: "Review tools are not available yet.",
-  export: "Export is not available yet.",
-};
 const stageSelect = element<HTMLSelectElement>("stage-select");
 const stageButtons = new Map<ProjectStage, HTMLButtonElement>();
 for (const stage of Object.keys(stageLabels) as ProjectStage[]) {
@@ -72,9 +66,6 @@ stageSelect.addEventListener("change", () => {
 });
 function renderStage(): void {
   element("project-navigation").hidden = !activeProject;
-  const message = element("stage-message");
-  message.textContent = activeProject ? stageMessages[activeProject.stage] : "";
-  message.hidden = !message.textContent;
   stageSelect.disabled = navigating;
   if (activeProject) stageSelect.value = activeProject.stage;
   for (const [stage, button] of stageButtons) {
@@ -140,6 +131,8 @@ async function openProject(
 }
 function selectProject(project: ProjectView, origin?: HTMLButtonElement): void {
   activeProject = project;
+  codexThreadView = undefined;
+  codexThreadIssue = null;
   navigating = false;
   select(project.source);
   selectedButton =
@@ -149,6 +142,8 @@ function selectProject(project: ProjectView, origin?: HTMLButtonElement): void {
     ) ??
     undefined;
   element("source-name").textContent = project.name;
+  element<HTMLButtonElement>("codex-drawer-button").hidden = false;
+  setCodexDrawer(false);
   renderStage();
 }
 async function createProject(
@@ -233,13 +228,26 @@ async function loadLibrary(): Promise<void> {
     detail.textContent = `${media.width} × ${media.height} · ${time(media.durationUs)}`;
     button.append(name, detail);
     button.dataset.mediaId = media.id;
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
+      const previousProject = activeProject?.id;
+      button.disabled = true;
+      if (previousProject) {
+        const closed = await window.desktop.closeProject({
+          id: previousProject,
+        });
+        if (!closed.ok) {
+          button.disabled = false;
+          showError(closed.message);
+          return;
+        }
+      }
       routeGeneration++;
       activeProject = undefined;
       navigating = false;
       selectedButton = button;
       select(media);
       renderStage();
+      button.disabled = false;
     });
     const create = document.createElement("button");
     create.className = "create-project";
@@ -259,6 +267,8 @@ function select(media: MediaSummary): void {
       `[data-media-id="${media.id}"]`,
     ) ?? undefined;
   setInspector(false);
+  setCodexDrawer(false);
+  element<HTMLButtonElement>("codex-drawer-button").hidden = !activeProject;
   selectionGeneration++;
   requestedTime = undefined;
   clearError();
@@ -364,7 +374,17 @@ importButton.addEventListener("click", async () => {
 element("cancel").addEventListener("click", () => {
   void window.desktop.cancelImport();
 });
-back.addEventListener("click", () => {
+back.addEventListener("click", async () => {
+  const previousProject = activeProject?.id;
+  back.disabled = true;
+  if (previousProject) {
+    const closed = await window.desktop.closeProject({ id: previousProject });
+    if (!closed.ok) {
+      back.disabled = false;
+      showError(closed.message);
+      return;
+    }
+  }
   routeGeneration++;
   activeProject = undefined;
   navigating = false;
@@ -375,8 +395,11 @@ back.addEventListener("click", () => {
   viewer.hidden = true;
   home.hidden = false;
   back.hidden = true;
+  back.disabled = false;
   clearError();
   setInspector(false);
+  setCodexDrawer(false);
+  element<HTMLButtonElement>("codex-drawer-button").hidden = true;
   (selectedButton?.isConnected ? selectedButton : importButton).focus();
   // Keep cards current after stage persistence without stealing restored focus.
   const restoreProjectId = selectedButton?.dataset.projectId;
@@ -426,6 +449,8 @@ void loadLibrary().catch(() =>
 
 const inspector = element("inspector");
 const detailsButton = element<HTMLButtonElement>("source-details");
+const codexDrawer = element("codex-drawer");
+const codexDrawerButton = element<HTMLButtonElement>("codex-drawer-button");
 const settingsButton = element<HTMLButtonElement>("settings");
 const settingsDialog = element<HTMLDialogElement>("settings-dialog");
 const scaleSelect = element<HTMLSelectElement>("interface-scale");
@@ -436,6 +461,7 @@ let restoreInspector = false;
 let dialogOrigin: HTMLElement | undefined;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 function setInspector(open: boolean): void {
+  if (open) setCodexDrawer(false);
   inspector.hidden = !open;
   detailsButton.setAttribute("aria-expanded", String(open));
   if (open && selected) {
@@ -455,6 +481,183 @@ function setInspector(open: boolean): void {
     }
   }
 }
+
+let codexThreadView: CodexThreadView | undefined;
+let codexThreadIssue: string | null = null;
+let codexPollGeneration = 0;
+const threadStatus: Record<CodexThreadView["status"], string> = {
+  closed: "",
+  opening: "Opening conversation…",
+  ready: "",
+  starting: "Sending…",
+  running: "Codex is working…",
+  interrupting: "Stopping…",
+  uncertain: "",
+  failed: "",
+};
+function renderCodexThread(view: CodexThreadView): void {
+  codexThreadView = view;
+  const status = element("codex-thread-status");
+  status.textContent = threadStatus[view.status];
+  status.hidden = !status.textContent;
+  const messages = element("codex-thread-messages");
+  messages.replaceChildren();
+  for (const item of view.messages) {
+    const message = document.createElement("p");
+    message.className = `codex-message ${item.role}`;
+    const role = document.createElement("strong");
+    role.textContent = item.role === "user" ? "You" : "Codex";
+    const text = document.createElement("span");
+    text.textContent = item.text;
+    message.append(role, text);
+    messages.append(message);
+  }
+  const activity = element("codex-thread-activity");
+  activity.replaceChildren();
+  for (const item of view.activities.filter((entry) => !entry.complete)) {
+    const row = document.createElement("li");
+    row.textContent = item.label;
+    activity.append(row);
+  }
+  activity.hidden = activity.childElementCount === 0;
+  const open = element<HTMLButtonElement>("open-codex-thread");
+  open.hidden = view.status !== "closed";
+  const form = element<HTMLFormElement>("codex-thread-form");
+  form.hidden = !["ready", "starting", "running", "interrupting"].includes(
+    view.status,
+  );
+  const input = element<HTMLTextAreaElement>("codex-thread-input");
+  const send = element<HTMLButtonElement>("send-codex-thread");
+  input.disabled = view.status !== "ready";
+  send.disabled = view.status !== "ready" || !input.value.trim();
+  const stop = element<HTMLButtonElement>("interrupt-codex-thread");
+  stop.hidden = !["running", "interrupting"].includes(view.status);
+  stop.disabled = view.status !== "running";
+  const issue = element("codex-thread-error");
+  issue.textContent = view.message ?? codexThreadIssue ?? "";
+  issue.hidden = !issue.textContent;
+  messages.scrollTop = messages.scrollHeight;
+}
+function setCodexDrawer(open: boolean): void {
+  codexDrawer.hidden = !open;
+  codexDrawerButton.setAttribute("aria-expanded", String(open));
+  if (open) {
+    inspector.hidden = true;
+    detailsButton.setAttribute("aria-expanded", "false");
+    const generation = ++codexPollGeneration;
+    void pollCodex(generation);
+  } else {
+    codexPollGeneration++;
+  }
+}
+async function pollCodex(generation: number): Promise<void> {
+  while (
+    generation === codexPollGeneration &&
+    !codexDrawer.hidden &&
+    activeProject
+  ) {
+    const project = activeProject;
+    try {
+      const reply = await window.desktop.getCodexThread({
+        schema_version: "1.0",
+        project_id: project.id,
+      });
+      if (
+        generation !== codexPollGeneration ||
+        codexDrawer.hidden ||
+        activeProject?.id !== project.id
+      )
+        return;
+      if (reply.ok) renderCodexThread(reply.value);
+      else {
+        codexThreadIssue = reply.message;
+        const issue = element("codex-thread-error");
+        issue.textContent = reply.message;
+        issue.hidden = false;
+      }
+    } catch {
+      if (generation === codexPollGeneration) {
+        codexThreadIssue = "The Codex conversation could not be refreshed.";
+        const issue = element("codex-thread-error");
+        issue.textContent = codexThreadIssue;
+        issue.hidden = false;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+}
+codexDrawerButton.addEventListener("click", () => {
+  setCodexDrawer(Boolean(codexDrawer.hidden));
+});
+element("close-codex").addEventListener("click", () => setCodexDrawer(false));
+element("open-codex-thread").addEventListener("click", async () => {
+  if (!activeProject || codexThreadView?.status === "opening") return;
+  const project = activeProject;
+  codexThreadIssue = null;
+  renderCodexThread({
+    status: "opening",
+    projectId: project.id,
+    messages: [],
+    activities: [],
+    message: null,
+  });
+  const reply = await window.desktop.openCodexThread({
+    schema_version: "1.0",
+    project_id: project.id,
+  });
+  if (activeProject?.id === project.id && reply.ok)
+    renderCodexThread(reply.value);
+  else if (!reply.ok) {
+    codexThreadIssue = reply.message;
+    renderCodexThread({
+      status: "closed",
+      projectId: null,
+      messages: [],
+      activities: [],
+      message: null,
+    });
+  }
+});
+element<HTMLTextAreaElement>("codex-thread-input").addEventListener(
+  "input",
+  () => {
+    if (codexThreadView) renderCodexThread(codexThreadView);
+  },
+);
+element<HTMLFormElement>("codex-thread-form").addEventListener(
+  "submit",
+  async (event) => {
+    event.preventDefault();
+    if (!activeProject || codexThreadView?.status !== "ready") return;
+    const input = element<HTMLTextAreaElement>("codex-thread-input");
+    const text = input.value.trim();
+    if (!text) return;
+    const project = activeProject;
+    input.value = "";
+    const reply = await window.desktop.sendCodexThread({
+      schema_version: "1.0",
+      project_id: project.id,
+      text,
+    });
+    if (activeProject?.id === project.id && reply.ok)
+      renderCodexThread(reply.value);
+    else if (!reply.ok) {
+      const issue = element("codex-thread-error");
+      issue.textContent = reply.message;
+      issue.hidden = false;
+    }
+  },
+);
+element("interrupt-codex-thread").addEventListener("click", async () => {
+  if (!activeProject || codexThreadView?.status !== "running") return;
+  const project = activeProject;
+  const reply = await window.desktop.interruptCodexThread({
+    schema_version: "1.0",
+    project_id: project.id,
+  });
+  if (activeProject?.id === project.id && reply.ok)
+    renderCodexThread(reply.value);
+});
 detailsButton.addEventListener("click", () => {
   setInspector(inspector.hidden === true);
   if (!inspector.hidden) element("close-inspector").focus();

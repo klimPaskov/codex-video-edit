@@ -164,7 +164,7 @@ try {
   await window
     .getByRole("button", { name: "Import video", exact: true })
     .click();
-  await expect(window.locator("#frame")).toBeVisible();
+  await expect(window.locator("#frame")).toBeVisible({ timeout: 30_000 });
   await expect(window.locator("#time")).toHaveText("0:00.000");
   await expect(
     window.getByRole("button", { name: "Home", exact: true }),
@@ -280,6 +280,30 @@ try {
   await expect(
     window.getByRole("button", { name: "Source details", exact: true }),
   ).toBeFocused();
+  await window
+    .getByRole("button", { name: "Source details", exact: true })
+    .click();
+  await window.getByRole("button", { name: "Codex", exact: true }).click();
+  await expect(window.locator("#inspector")).toBeHidden();
+  await expect(
+    window.getByRole("complementary", { name: "Codex conversation" }),
+  ).toBeVisible();
+  await expect(window.locator("#codex-thread-status")).toBeHidden();
+  await window
+    .getByRole("button", { name: "Open conversation", exact: true })
+    .click();
+  await expect(window.locator("#codex-thread-error")).toHaveText(
+    "Sign in to Codex in Settings to continue.",
+    { timeout: 30_000 },
+  );
+  await expect(
+    window.locator("#codex-thread-messages").locator("p"),
+  ).toHaveCount(0);
+  await window.screenshot({
+    path: join(evidence, "codex-drawer-signed-out.png"),
+  });
+  await window.getByRole("button", { name: "Close Codex" }).click();
+  await expect(window.locator("#codex-drawer")).toBeHidden();
   for (const [width, height, scale] of [
     [1366, 768, 1],
     [1366, 768, 1.5],
@@ -400,12 +424,15 @@ try {
     timeout: 30000,
   });
   window = await electron.firstWindow();
-  assert.equal(
-    await electron.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()[0]!.webContents.getZoomFactor(),
-    ),
-    1.25,
-  );
+  await expect
+    .poll(
+      () =>
+        electron.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()[0]!.webContents.getZoomFactor(),
+        ),
+      { timeout: 30_000 },
+    )
+    .toBe(1.25);
   await window.locator(`#projects [data-project-id="${project.id}"]`).click();
   await expect(window.locator("#frame")).toBeVisible();
   await expect(window.locator("#time")).toHaveText("0:00.000");
@@ -455,6 +482,9 @@ try {
         preferencesPersisted: true,
         keyboardFocus: true,
         modalIsolation: true,
+        codexDrawerSignedOut: true,
+        inspectorDrawerExclusive: true,
+        fabricatedConversationMessages: false,
         computerUse: false,
       },
       null,

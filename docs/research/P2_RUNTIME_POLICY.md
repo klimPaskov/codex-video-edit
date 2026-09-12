@@ -1,6 +1,6 @@
 # P2 Codex runtime policy research
 
-Date: 2026-09-08. Scope: official Codex `0.142.3`, source tag `rust-v0.142.3`, and the protocol generated from the installed unmodified runtime. This is a source review and proposed integration policy, not authenticated runtime or P2 acceptance evidence. No login, model turn, credential read, product launch, or guest mutation was performed for this review.
+Date: 2026-09-08. Scope: official Codex `0.142.3`, source tag `rust-v0.142.3`, and the protocol generated from the installed unmodified runtime. This began as a source review and proposed integration policy. A 2026-09-12 implementation update records signed-out packaged validation separately; no managed login, model turn, credential read, authenticated tool invocation, or Codex media edit is claimed.
 
 ## Authentication and provider
 
@@ -8,7 +8,7 @@ The pinned [configuration schema](https://github.com/openai/codex/blob/rust-v0.1
 
 The pinned [account processor](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/app-server/src/request_processors/account_processor.rs#L283) rejects API-key login when the forced method is ChatGPT. This restriction does **not** itself distinguish managed ChatGPT login from externally supplied ChatGPT tokens: the external-token path rejects forced API mode, not forced ChatGPT mode. The product must expose only the managed ChatGPT login variants and must never forward arbitrary login payloads or accept access tokens through its renderer IPC.
 
-Use a product-owned Codex home and an explicit child environment, without inherited provider credentials, endpoint overrides, unrelated MCP servers, plugins, or host runtime configuration. Keep credential ownership with the official runtime. Treat account metadata as status only; do not read or copy the credential store. Pin the provider on thread creation/resume and validate returned state before allowing turns. These application boundary recommendations still require implementation and tests.
+Use a product-owned Codex home and an explicit child environment, without inherited provider credentials, endpoint overrides, unrelated MCP servers, plugins, or host runtime configuration. Keep credential ownership with the official runtime. Treat account metadata as status only; do not read or copy the credential store. Pin the provider on thread creation/resume and validate returned state before allowing turns. The production client now applies these fixed boundaries and validates them in signed-out/package tests; authenticated model behavior remains unverified.
 
 ## Environment access and built-in tools
 
@@ -23,15 +23,15 @@ The pinned experimental protocol provides a stronger mechanism:
 - The [thread processor](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/app-server/src/request_processors/thread_processor.rs#L1115) supplies default environments only when the selection is omitted.
 - The upstream [`environment_count_controls_environment_backed_tools` test](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/core/src/tools/spec_plan_tests.rs#L600) asserts that no-environment turns have neither visible nor registered `shell_command`, `exec_command`, `apply_patch`, or `view_image`, even with the shell feature enabled and a patch-capable model.
 
-The stable schemas initially generated under `test-results/P2-protocol/generated-json` omit these experimental properties. Do not add them to handwritten stable protocol types or assume unknown-property acceptance. Generate the experimental protocol from the same pinned binary, retain its provenance, negotiate `initialize.capabilities.experimentalApi`, and test the actual server's acceptance and behavior. Experimental compatibility is a versioned product dependency.
+The stable schemas initially generated under private test evidence omit these experimental properties. The implementation regenerated TypeScript/JSON with `--experimental` from the same pinned binary, retained the complete output privately, and pins a reviewed 205-type dependency closure by original hashes. Request objects compile against the generated inputs, and the signed-out packaged server accepts `initialize.capabilities.experimentalApi` plus the owned MCP configuration. A signed-out startup cannot exercise `thread/start` or `turn/start`, so live no-environment acceptance remains an authenticated gate. Experimental compatibility is a versioned product dependency.
 
-The proposed thread policy is `modelProvider: "openai"`, `sandbox: "read-only"`, `approvalPolicy: "never"`, `ephemeral: false`, and `environments: []`, with an app-owned working directory and explicit instructions/context. Set `environments: []` again on every turn, including the first turn after resume. The renderer must not supply overrides. Read-only and never-approval remain defense in depth; never-approval is not a prohibition on all tools. Reject unexpected server requests that would grant filesystem, process, network, or final-export authority.
+The implemented request policy is `modelProvider: "openai"`, request-side `sandbox: "read-only"`, `approvalPolicy: "never"`, `ephemeral: false`, and `environments: []`, with an app-owned working directory and fixed instruction. It sets `environments: []` again on every turn, including the first turn after resume. The renderer cannot supply overrides. The generated response sandbox is validated as `{ type: "readOnly", networkAccess: false }`. Read-only and never-approval remain defense in depth; never-approval is not a prohibition on all tools. Server requests for command execution, file change, legacy approvals, or MCP elicitation are declined or cancelled and quarantine the connection.
 
 ## Guarded MCP and native subagents
 
 The pinned schema supports `mcp_servers.<name>.command`, `args`, `cwd`, `env`, `enabled`, `required`, `enabled_tools`, `disabled_tools`, `supports_parallel_tool_calls`, and startup/tool timeouts. Use only the product-owned server, an explicit tool allowlist, and no project-controlled command or environment values. Each allowed edit tool must authenticate its application session and validate project identity, draft sequence, operation schema, and authorization through the shared transaction engine. Do not expose final export, deletion, cleanup, publication, or spending as generically authorized tools.
 
-The [MCP tool planner](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/core/src/tools/spec_plan.rs#L861) adds discovered MCP handlers separately from environment-backed built-ins. This supports the intended architecture but does not prove MCP subprocess startup, resource discovery, skill access, or guarded transaction execution works with empty turn environments. Those are outstanding real-runtime checks.
+The [MCP tool planner](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/core/src/tools/spec_plan.rs#L861) adds discovered MCP handlers separately from environment-backed built-ins. The packaged signed-out runtime now starts the fixed-hash owned child and verifies its exact four-tool name/schema inventory with empty resources/templates through `mcpServerStatus/list`. Direct child/broker tests cover bounded authenticated forwarding into the main-owned transaction service. Authenticated model invocation and edit execution with empty turn environments remain outstanding.
 
 `features.multi_agent` and `features.multi_agent_v2` exist in the pinned configuration schema. The [collaboration planner](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/core/src/tools/spec_plan.rs#L768) exposes native collaboration tools independently of environment access. Choose and test one supported runtime surface; do not fabricate a separate subagent API or infer that enabling a feature guarantees availability for every model.
 
@@ -47,7 +47,7 @@ The experimental `multiAgentMode` request property is deprecated and ignored in 
 - Demonstrate the owned MCP server and allowed skills remain usable, with no unrelated tools or context discovered.
 - Complete an authenticated reversible fixture edit, stale sequence rejection, interruption, reconnect, durable commit recovery, and shared undo. Source review and unauthenticated discovery cannot substitute for these checks.
 
-Until those checks pass, empty-environment confinement, MCP usability, subagent inheritance, and the real edit workflow remain unproven in the product. No phase completion is claimed here.
+Signed-out packaged startup proves experimental initialization and the owned MCP name/schema inventory. It does not prove live empty-environment thread/turn acceptance, the effective authenticated model tool set, guarded tool use by a model, subagent inheritance, or the real edit workflow. No phase completion is claimed here.
 
 ## Account-settings skill discovery
 

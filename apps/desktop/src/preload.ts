@@ -18,6 +18,11 @@ import {
   assertMediaList,
   assertMediaSummary,
 } from "../../../packages/domain/src/library.ts";
+import {
+  assertCodexThreadProjectRequest,
+  assertCodexThreadSendRequest,
+  assertCodexThreadView,
+} from "../../../packages/domain/src/codex-thread-view.ts";
 
 async function invoke<T>(
   channel: string,
@@ -58,6 +63,26 @@ const bridge: DesktopBridge = {
     assertCodexSelection(value);
     return invoke(channels.codexSelect, value, assertCodexView);
   },
+  getCodexThread: (request) => {
+    assertCodexThreadProjectRequest(request);
+    return invoke(channels.codexThreadGet, request, assertCodexThreadView);
+  },
+  openCodexThread: (request) => {
+    assertCodexThreadProjectRequest(request);
+    return invoke(channels.codexThreadOpen, request, assertCodexThreadView);
+  },
+  sendCodexThread: (request) => {
+    assertCodexThreadSendRequest(request);
+    return invoke(channels.codexThreadSend, request, assertCodexThreadView);
+  },
+  interruptCodexThread: (request) => {
+    assertCodexThreadProjectRequest(request);
+    return invoke(
+      channels.codexThreadInterrupt,
+      request,
+      assertCodexThreadView,
+    );
+  },
   listProjects: () =>
     invoke(channels.projectList, undefined, assertProjectList),
   createProject: (request) => {
@@ -67,6 +92,12 @@ const bridge: DesktopBridge = {
   openProject: (request) => {
     assertProjectRequest(request);
     return invoke(channels.projectOpen, request, assertProjectView);
+  },
+  closeProject: (request) => {
+    assertProjectRequest(request);
+    return invoke(channels.projectClose, request, (value) => {
+      if (value !== null) throw new Error("Invalid response");
+    });
   },
   navigateProject: (request) => {
     assertProjectNavigation(request);

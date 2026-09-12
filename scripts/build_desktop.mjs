@@ -68,6 +68,27 @@ await writeFile(
   join(codexResources, "manifest.json"),
   JSON.stringify(codexManifest, null, 2),
 );
+const mcpResources = join(output, "mcp");
+await mkdir(mcpResources);
+const mcpScript = join(mcpResources, "codex-video-edit-mcp.cjs");
+await build({
+  entryPoints: [join(root, "packages/codex-tools/src/mcp-server.ts")],
+  outfile: mcpScript,
+  bundle: true,
+  platform: "node",
+  format: "cjs",
+  target: "node24",
+});
+const mcpManifest = {
+  schemaVersion: 1,
+  executable: "codex-video-edit-mcp.cjs",
+  size: (await lstat(mcpScript)).size,
+  sha256: await sha256(mcpScript),
+};
+await writeFile(
+  join(mcpResources, "manifest.json"),
+  JSON.stringify(mcpManifest, null, 2),
+);
 await mkdir(join(staging, "renderer"), { recursive: true });
 await build({
   entryPoints: [join(root, "apps/desktop/src/main.ts")],
@@ -119,7 +140,7 @@ const packages = await packager({
   arch: "x64",
   electronVersion: "44.2.0",
   asar: true,
-  extraResource: [codexResources],
+  extraResource: [codexResources, mcpResources],
   prune: false,
   overwrite: false,
 });
@@ -131,6 +152,7 @@ await writeFile(
       root,
       electron: "44.2.0",
       codex: codexManifest,
+      mcp: mcpManifest,
       scope: "native-media-bootstrap",
     },
     null,

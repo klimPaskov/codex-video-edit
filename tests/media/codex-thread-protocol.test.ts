@@ -50,6 +50,7 @@ test("experimental initialization and no-environment requests are exact", () => 
       model_provider: "openai",
       project_root_markers: [],
       features: { shell_tool: false },
+      web_search: "disabled",
     },
     ephemeral: false,
     environments: [],
@@ -74,6 +75,7 @@ test("experimental initialization and no-environment requests are exact", () => 
       model_provider: "openai",
       project_root_markers: [],
       features: { shell_tool: false },
+      web_search: "disabled",
     },
     excludeTurns: true,
     initialTurnsPage: {
@@ -133,7 +135,7 @@ test("thread and turn decoders expose only correlated identifiers", () => {
     cwd,
     approvalPolicy: "never",
     approvalsReviewer: "user",
-    sandbox: "read-only",
+    sandbox: { type: "readOnly", networkAccess: false },
     privateAccount: "SECRET",
   };
   assert.deepEqual(decodeThreadSession(raw, policy), { threadId: "thread-1" });

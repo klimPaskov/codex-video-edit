@@ -13,6 +13,11 @@ import type {
   MediaFrame,
   MediaSummary,
 } from "../../../packages/domain/src/library.ts";
+import type {
+  CodexThreadProjectRequest,
+  CodexThreadSendRequest,
+  CodexThreadView,
+} from "../../../packages/domain/src/codex-thread-view.ts";
 
 export type Reply<T> = { ok: true; value: T } | { ok: false; message: string };
 export interface DesktopBridge {
@@ -22,9 +27,22 @@ export interface DesktopBridge {
   cancelCodexLogin(): Promise<Reply<CodexView>>;
   logoutCodex(): Promise<Reply<CodexView>>;
   selectCodexModel(value: CodexSelection): Promise<Reply<CodexView>>;
+  getCodexThread(
+    request: CodexThreadProjectRequest,
+  ): Promise<Reply<CodexThreadView>>;
+  openCodexThread(
+    request: CodexThreadProjectRequest,
+  ): Promise<Reply<CodexThreadView>>;
+  sendCodexThread(
+    request: CodexThreadSendRequest,
+  ): Promise<Reply<CodexThreadView>>;
+  interruptCodexThread(
+    request: CodexThreadProjectRequest,
+  ): Promise<Reply<CodexThreadView>>;
   listProjects(): Promise<Reply<ProjectView[]>>;
   createProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
   openProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
+  closeProject(request: ProjectRequest): Promise<Reply<null>>;
   navigateProject(request: ProjectNavigation): Promise<Reply<ProjectView>>;
   getPreferences(): Promise<Reply<Preferences>>;
   setPreferences(value: Preferences): Promise<Reply<Preferences>>;
@@ -40,9 +58,14 @@ export const channels = Object.freeze({
   codexCancelLogin: "codex:cancel-login",
   codexLogout: "codex:logout",
   codexSelect: "codex:select",
+  codexThreadGet: "codex-thread:get",
+  codexThreadOpen: "codex-thread:open",
+  codexThreadSend: "codex-thread:send",
+  codexThreadInterrupt: "codex-thread:interrupt",
   projectList: "projects:list",
   projectCreate: "projects:create",
   projectOpen: "projects:open",
+  projectClose: "projects:close",
   projectNavigate: "projects:navigate",
   preferencesGet: "preferences:get",
   preferencesSet: "preferences:set",

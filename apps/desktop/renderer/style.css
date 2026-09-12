@@ -45,7 +45,8 @@ button:disabled {
   cursor: default;
 }
 button:focus-visible,
-input:focus-visible {
+input:focus-visible,
+textarea:focus-visible {
   outline: 3px solid #b7a5ff;
   outline-offset: 4px;
 }
@@ -281,6 +282,12 @@ header nav {
   margin-left: auto;
   white-space: nowrap;
 }
+#codex-drawer-button {
+  margin-left: auto;
+}
+.source-bar #codex-drawer-button:not([hidden]) + #source-details {
+  margin-left: 0;
+}
 #inspector {
   width: 250px;
   flex-shrink: 0;
@@ -288,6 +295,75 @@ header nav {
   border: 1px solid #323849;
   padding: 18px;
   border-radius: 10px;
+}
+#codex-drawer {
+  width: min(360px, 38vw);
+  min-width: 290px;
+  flex-shrink: 0;
+  background: #191d27;
+  border: 1px solid #323849;
+  padding: 18px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#codex-thread-status,
+#codex-thread-activity,
+#codex-thread-error {
+  color: #b6bac8;
+  font-size: 13px;
+}
+#codex-thread-messages {
+  flex: 1;
+  min-height: 90px;
+  overflow: auto;
+  margin: 8px 0 14px;
+}
+.codex-message {
+  display: grid;
+  gap: 5px;
+  margin: 0 0 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.codex-message strong {
+  color: #b8a7ff;
+  font-size: 12px;
+}
+.codex-message.user strong {
+  color: #a9aebe;
+}
+#codex-thread-activity {
+  padding-left: 18px;
+}
+#codex-thread-form label {
+  display: block;
+  color: #b6bac8;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+#codex-thread-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  max-height: 180px;
+  padding: 10px;
+  color: inherit;
+  background: #11151e;
+  border: 1px solid #515b73;
+  border-radius: 7px;
+  font: inherit;
+}
+.codex-thread-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+.codex-thread-actions button {
+  padding: 8px 14px;
 }
 .panel-header {
   display: flex;
