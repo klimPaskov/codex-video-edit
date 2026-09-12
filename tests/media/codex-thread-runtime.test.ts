@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import { CodexThreadProtocolError } from "../../packages/codex-bridge/src/thread-protocol.ts";
@@ -14,7 +13,9 @@ const policy = {
 };
 
 test("project runtime requires experimental negotiation and owns server IDs", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codex-thread-runtime-"));
+  const fixtures = resolve("test-results", "codex-thread-runtime");
+  await mkdir(fixtures, { recursive: true });
+  const root = await mkdtemp(join(fixtures, "fixture-"));
   try {
     const registry = await ProjectThreadRegistry.open(root);
     assert.throws(

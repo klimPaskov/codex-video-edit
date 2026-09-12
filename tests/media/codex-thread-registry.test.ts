@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import {
@@ -26,8 +32,14 @@ function response(threadId: string): unknown {
   };
 }
 
+async function fixtureRoot(): Promise<string> {
+  const fixtures = resolve("test-results", "codex-thread-registry");
+  await mkdir(fixtures, { recursive: true });
+  return mkdtemp(join(fixtures, "fixture-"));
+}
+
 test("project thread binding persists atomically and reopens without caller IDs", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codex-thread-registry-"));
+  const root = await fixtureRoot();
   try {
     const registry = await ProjectThreadRegistry.open(root);
     assert.equal(await registry.threadForProject("project-1"), null);
@@ -68,7 +80,7 @@ test("project thread binding persists atomically and reopens without caller IDs"
 });
 
 test("registry rejects divergent bindings and missing project resumes", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codex-thread-registry-"));
+  const root = await fixtureRoot();
   try {
     const registry = await ProjectThreadRegistry.open(root);
     await assert.rejects(
@@ -107,7 +119,7 @@ test("registry rejects divergent bindings and missing project resumes", async ()
 });
 
 test("registry fails closed on corruption and does not replace evidence", async () => {
-  const root = await mkdtemp(join(tmpdir(), "codex-thread-registry-"));
+  const root = await fixtureRoot();
   const path = join(root, "project-threads.json");
   const corrupt =
     '{"schemaVersion":1,"entries":[{"projectId":"pp","threadId":"same"},{"projectId":"qq","threadId":"same"}]}\n';
