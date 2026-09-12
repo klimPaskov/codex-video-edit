@@ -30,7 +30,7 @@
       "status": "pass",
       "command_or_method": "Generate schemas from Codex 0.142.3 without authentication or a runtime model turn",
       "evidence": [
-        ".astra/evidence/codex-protocol/0.142.3/generation-lbdkff_2/manifest.json"
+        "test-results/codex-protocol/0.142.3/generation-lbdkff_2/manifest.json"
       ]
     },
     {
@@ -38,7 +38,7 @@
       "status": "pass",
       "command_or_method": "npm run check; 26 Python and 17 TypeScript tests, 26 schema/example pairs; staged publication audit and full source review",
       "evidence": [
-        ".astra/evidence/P0-native-final/validation-review.json"
+        "test-results/P0-native-final/validation-review.json"
       ]
     },
     {
@@ -47,7 +47,7 @@
       "command_or_method": "Exact no-op and intentionally edited canonical FFV1/PCM samples; unsupported capture/precision/HDR and preview-as-master rejected",
       "evidence": [
         "tests/media/lossless.test.ts",
-        ".astra/evidence/P0-native-pixels/master-roundtrip.json"
+        "test-results/P0-native-pixels/master-roundtrip.json"
       ]
     },
     {
@@ -55,8 +55,8 @@
       "status": "pass",
       "command_or_method": "Playwright Electron with Chromium sandbox: import, complete opaque nonuniform canvas equality, seek, library reopen, immutable source, CSP and foreign-window IPC denial",
       "evidence": [
-        ".astra/evidence/P0-native-pixels/automated.json",
-        ".astra/evidence/P0-native-final/runtime-source-hashes.json"
+        "test-results/P0-native-pixels/automated.json",
+        "test-results/P0-native-final/runtime-source-hashes.json"
       ]
     },
     {
@@ -64,7 +64,7 @@
       "status": "pass",
       "command_or_method": "Computer use through native TigerVNC viewer of isolated Docker product: source selection and Next frame red0 to green0.500; same runtime source as automated test",
       "evidence": [
-        ".astra/evidence/P0-native-final/manual-review.json"
+        "test-results/P0-native-final/manual-review.json"
       ]
     },
     {
@@ -72,22 +72,22 @@
       "status": "pass",
       "command_or_method": "PR3 merged after Windows/Linux push and PR checks passed; git ls-remote origin refs/heads/main verified 8fe7c4bcbe8511ac8772c043ff023b15075ad823",
       "evidence": [
-        ".astra/evidence/P0-native-final/publication.json"
+        "test-results/P0-native-final/publication.json"
       ]
     }
   ],
   "artifacts": [
-    ".astra/evidence/P0-native-final/validation-review.json",
-    ".astra/evidence/P0-native-pixels/automated.json",
-    ".astra/evidence/P0-native-pixels/master-roundtrip.json"
+    "test-results/P0-native-final/validation-review.json",
+    "test-results/P0-native-pixels/automated.json",
+    "test-results/P0-native-pixels/master-roundtrip.json"
   ],
   "native_test": {
     "launched": true,
     "playwright": true,
     "computer_use": true,
     "screenshot_paths": [
-      ".astra/evidence/P0-native-pixels/playwright.png",
-      ".astra/evidence/P0-native-final/computer-use.png"
+      "test-results/P0-native-pixels/playwright.png",
+      "test-results/P0-native-final/computer-use.png"
     ],
     "recording_paths": []
   },

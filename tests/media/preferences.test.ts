@@ -14,7 +14,7 @@ import { PreferencesStore } from "../../apps/desktop/src/preferences.ts";
 import { assertPreferences } from "../../packages/domain/src/preferences.ts";
 
 async function directory(): Promise<string> {
-  const root = resolve(".astra/evidence/preferences");
+  const root = resolve("test-results/preferences");
   await mkdir(root, { recursive: true });
   return mkdtemp(join(root, "fixture-"));
 }

@@ -24,6 +24,8 @@ Stage actions appear only when implemented. No navigation action may fabricate A
 - Hash imported and recorded sources.
 - Never change source bytes.
 
+When the user selects multiple sequential recordings, preserve each as a distinct immutable source and build one draft timeline in selection order. Appending means the next clip starts at the preceding clip's committed timeline end; it does not create a lossy concatenated replacement or erase source boundaries. Project reopen must restore the source order and exact clip mapping. Mixed timing, precision, color, or audio formats require an explicit compatible project adapter or an actionable rejection; they must not trigger a silent downgrade.
+
 During ingestion, Importing video offers Cancel. After ingestion succeeds and project creation begins, show Creating project and hide the import-only Cancel control; it cannot cancel committed source ingestion or project creation. A project-creation failure preserves the imported source for a later Create project retry.
 
 ## Project folder

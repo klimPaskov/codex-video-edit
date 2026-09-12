@@ -32,7 +32,9 @@ P1's project bootstrap records an actual immutable baseline revision and initial
 
 The implemented P1 store retains an immutable baseline snapshot and a separate `project.json` for persisted stage metadata. Existing project, source, timeline and revision schema shapes remain unchanged. Reads validate those records, cross-references, canonical baseline integrity and the complete verified source probe. Stage persistence revalidates committed state before replacement and leaves baseline/source/timeline data intact on failure. The postcommit renderer mapping is pure, preventing a successful save from being reported as a failure due to a subsequent media read.
 
-Headless tests cover this prerequisite's creation/reopen, integrity, failure preservation and navigation boundaries. The current packaged native suite passed all five stages with unchanged baseline/source data, a permission-denied save preserving the stage, and reopen at Review. Guest visual inspection separately confirmed project/library identity and retained frame during navigation. No shared edit journal, undo implementation, complete crash recovery, power-loss guarantee or external concurrent-writer safety follows from this initial store.
+P2 adds an immutable `draft/meta.json`, an ordered `draft/journal/`, and `draft/checkpoints/`. Navigation and transactions share one root-wide in-process queue. Journal records contain strict request freshness, trusted origin, before/after state, generated operation identity, deterministic inverse data, prior-record hash and self hash. The active draft is reconstructed from baseline plus committed records; there is no mutable head file that can contradict the journal. Checkpoints bind passed verification records to an exact persisted head without mutating it. The draft schemas compose the canonical checked-in timeline schema; strict runtime validation additionally enforces the current baseline/reducer rules and unique checkpoint check IDs.
+
+Headless tests cover project creation/reopen, integrity, failure preservation, navigation/edit serialization, competing same-head edits, staged and postcommit failures, retry idempotence, deterministic undo, checkpoint scope, and unchanged baseline/project/source bytes. The current packaged native suite covers the earlier five-stage shell only. Multi-source projects, additional reducers, complete crash recovery, power-loss guarantee and external concurrent-writer safety remain incomplete.
 
 Each operation contains:
 
@@ -52,7 +54,7 @@ Each operation contains:
 
 Manual and AI edits use the same transaction journal. Undo reverses the newest applicable transaction. Redo reapplies it only when dependencies remain valid.
 
-P2 implements the minimum durable common engine, including stale-sequence rejection and deterministic inverse/undo, before its real authenticated fixture edit. P3/P6 retain full storage/recovery and editor/history acceptance. Reuse this engine as their features arrive rather than maintaining separate manual and AI histories.
+P2 now has the minimum common transaction foundation, including exact stale-state rejection, idempotent request IDs, deterministic inverse/undo, hash-chain replay and verified pass-checkpoint records. Each complete record is file-synced before an atomic rename, which supports process-crash recovery in the covered tests. The store does not yet claim persistence across power loss because Node cannot portably sync the containing directory on the supported Windows path, and it does not coordinate external writers. The guarded MCP adapter and authenticated fixture edit still have to consume it before P2 can pass. P3/P6 retain full multi-source storage/recovery and editor/history acceptance. Reuse this engine as their features arrive rather than maintaining separate manual and AI histories.
 
 ## Revision creation
 

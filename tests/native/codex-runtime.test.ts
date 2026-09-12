@@ -18,8 +18,8 @@ if (
 await access("/.dockerenv");
 const executable = process.argv[2];
 assert.ok(executable && isAbsolute(executable));
-await mkdir(resolve(".astra/evidence"), { recursive: true });
-const evidence = await mkdtemp(resolve(".astra/evidence/codex-runtime-"));
+await mkdir(resolve("test-results"), { recursive: true });
+const evidence = await mkdtemp(resolve("test-results/codex-runtime-"));
 const cwd = join(evidence, "context");
 const codexHome = join(evidence, "account");
 const skill = join(cwd, ".agents/skills/fixture-guide/SKILL.md");

@@ -50,7 +50,7 @@ await access(guestInput).catch(() => {
     "Copy the guarded guest-input.py helper into this guest workspace before lifecycle tests.",
   );
 });
-const evidenceRoot = resolve(".astra/evidence");
+const evidenceRoot = resolve("test-results");
 await mkdir(evidenceRoot, { recursive: true });
 const evidence = await mkdtemp(join(evidenceRoot, "native-lifecycle-"));
 const config = join(evidence, "config");

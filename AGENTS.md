@@ -10,7 +10,7 @@ Before implementation, read:
 - `WORKFLOW.md`
 - `TASKS.md`
 - accepted files in `adr/`
-- the active prompt in `.astra/active-phase.md`
+- the active prompt in `docs/workflow/active-phase.md`
 - relevant files in `.agents/skills/`
 - schemas touched by the phase
 
@@ -18,7 +18,7 @@ State directly when a required source could not be read. Do not imply completion
 
 ## Execution rule
 
-Find the first incomplete dependency-safe phase. Record its task IDs. Implement the smallest complete slice. Add or update tests before claiming it works. Launch and inspect the native app in the isolated test environment whenever UI or media behavior changes. Write `.astra/results/PHASE_ID.json` after all acceptance checks pass.
+Find the first incomplete dependency-safe phase. Record its task IDs. Implement the smallest complete slice. Add or update tests before claiming it works. Launch and inspect the native app in the isolated test environment whenever UI or media behavior changes. Write `docs/workflow/results/PHASE_ID.json` after all acceptance checks pass.
 
 Do not stop at planning. Do not replace the product with a browser app, static mockup, command-line demo, or fake AI transcript.
 

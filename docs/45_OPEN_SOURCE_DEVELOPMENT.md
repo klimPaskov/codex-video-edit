@@ -25,7 +25,7 @@ Never force-push shared history or commit broken state just to show activity. Un
 
 ## Never publish by default
 
-User recordings, project media, exported videos, authentication files, local Codex history, model checkpoints, device identifiers, unredacted logs, crash dumps, or example-video evidence. Keep synthetic public fixtures separate from private acceptance data. .gitignore is only a first barrier: inspect staged paths and content too.
+User recordings, project media, exported videos, authentication files, local Codex history, model checkpoints, device identifiers, unredacted logs, crash dumps, or example-video evidence. Keep synthetic public fixtures separate from private acceptance data. Generated run evidence belongs in ignored `test-results/`; user-media locators and other machine-local inputs belong in ignored `local-data/`. Neither directory is a publication source. `.gitignore` is only a first barrier: inspect staged paths and content too.
 
 ## CI and releases
 

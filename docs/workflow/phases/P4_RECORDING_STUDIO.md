@@ -12,6 +12,6 @@ Acceptance:
 - offsets and drift stay within policy or create a blocking finding
 - interrupted recording recovers usable complete chunks
 - take review and retry work in the native UI
-- `.astra/results/P4.json` validates
+- `docs/workflow/results/P4.json` validates
 
 Use `lossless-media` and `docs/44_LOSSLESS_MEDIA_POLICY.md`. Validate the sample boundary, not only successful decode. Never feed preview or transcription proxies to master output. Publish reviewed working changes under `docs/45_OPEN_SOURCE_DEVELOPMENT.md`.

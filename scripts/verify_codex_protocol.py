@@ -82,7 +82,7 @@ def main() -> None:
     if not match:
         raise ValueError('Unrecognized Codex version format')
     version = match.group(1)
-    version_root = ROOT / '.astra' / 'evidence' / 'codex-protocol' / version
+    version_root = ROOT / 'test-results' / 'codex-protocol' / version
     version_root.mkdir(parents=True, exist_ok=True)
     directory = Path(tempfile.mkdtemp(prefix='generation-', dir=version_root))
     run(executable, ['app-server', 'generate-json-schema', '--out', str(directory)])

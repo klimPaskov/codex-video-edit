@@ -19,7 +19,7 @@ import { runProcess } from "../../packages/media-engine/src/process.ts";
 import { ProjectStore } from "../../packages/project-store/src/store.ts";
 
 async function fixture() {
-  const base = resolve(".astra/evidence/project-store");
+  const base = resolve("test-results/project-store");
   await mkdir(base, { recursive: true });
   const root = await mkdtemp(join(base, "fixture-"));
   const source = join(root, "source.mkv");
@@ -157,6 +157,15 @@ test("verified source accessor and project reopen reject changed managed bytes",
   await assert.rejects(library.verifiedSource(media.id), /changed/u);
   await assert.rejects(store.open(created.project.project_id));
   await assert.rejects(store.createFromMedia(media.id));
+});
+test("Windows case aliases reopen the same verified project root", async () => {
+  const { store, projects, library, media } = await fixture();
+  const created = await store.createFromMedia(media.id);
+  if (process.platform !== "win32") return;
+  const reopened = await new ProjectStore(projects.toLowerCase(), library).open(
+    created.project.project_id,
+  );
+  assert.equal(reopened.project.project_id, created.project.project_id);
 });
 test("failure after staging navigation preserves committed metadata and baseline", async (context) => {
   const { store, projects, library, media } = await fixture();

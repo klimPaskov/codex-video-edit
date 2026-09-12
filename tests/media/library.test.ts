@@ -12,7 +12,7 @@ import { MediaLibrary } from "../../packages/media-engine/src/library.ts";
 import { runProcess } from "../../packages/media-engine/src/process.ts";
 
 async function fixture(pixel = "bgra") {
-  const root = resolve(".astra/evidence/library");
+  const root = resolve("test-results/library");
   await mkdir(root, { recursive: true });
   const dir = await mkdtemp(join(root, "fixture-"));
   const raw = Buffer.alloc(16 * 16 * 4 * 2);

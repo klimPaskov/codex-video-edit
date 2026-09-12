@@ -12,4 +12,4 @@ Acceptance:
 - zoom target, scale, easing, and range are directly adjustable
 - speed range, rate, and audio mode are directly adjustable
 - vertical and square reframing preserves important content
-- `.astra/results/P7.json` validates
+- `docs/workflow/results/P7.json` validates

@@ -19,7 +19,7 @@ import type {
   PixelFormat,
 } from "../../packages/media-engine/src/profiles.ts";
 
-const evidenceRoot = resolve(".astra/evidence/media");
+const evidenceRoot = resolve("test-results/media");
 const formatFor = (
   pixelFormat: PixelFormat,
   audioFormat: AudioFormat,

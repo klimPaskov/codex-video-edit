@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PRIVATE_PARTS = frozenset({
     'node_modules', 'private', 'projects', 'recordings', 'exports', 'models',
     'checkpoints', 'credentials', '.codex', '.venv', '__pycache__',
+    'test-results', 'local-data',
 })
 MEDIA_SUFFIXES = frozenset({
     '.mp4', '.mov', '.mkv', '.webm', '.wav', '.flac', '.mp3', '.avi', '.raw',
@@ -28,7 +29,7 @@ def audit_blob(path: str, data: bytes, mode: str):
         raise ValueError('Symlink/submodule or unsupported Git mode: ' + path)
     if any(part in PRIVATE_PARTS for part in parsed.parts) and not is_agent_source(policy_path):
         raise ValueError('Private/generated path staged: ' + path)
-    if policy_path.startswith(('.astra/evidence/', '.astra/private/')):
+    if policy_path.startswith(('test-results/', 'local-data/')):
         raise ValueError('Private evidence staged: ' + path)
     if policy_path.startswith('fixtures/user-example/') and policy_path != 'fixtures/user-example/readme.md':
         raise ValueError('User example staged: ' + path)

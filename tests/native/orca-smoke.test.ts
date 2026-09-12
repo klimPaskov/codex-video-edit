@@ -31,7 +31,7 @@ assert.ok(isAbsolute(executablePath), "Packaged executable must be absolute");
 await access(executablePath);
 const forced = process.argv[3] === "--forced-accessibility";
 assert.ok(process.argv.length <= 4 && (!process.argv[3] || forced));
-const root = resolve(".astra/evidence");
+const root = resolve("test-results");
 await mkdir(root, { recursive: true });
 const evidence = await mkdtemp(
   join(root, forced ? "orca-forced-" : "orca-natural-"),

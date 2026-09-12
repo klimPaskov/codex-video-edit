@@ -58,9 +58,9 @@ Computer use must inspect the real native app and rendered media. Review at leas
 
 ## User example acceptance
 
-The user-provided example video is the final end-to-end fixture. Save:
+The ordered pair of user-provided example videos is the final end-to-end fixture. Save:
 
-- source hash
+- both source hashes, probes, immutable-copy checks, and append order
 - Magic Wand configuration
 - operation summary
 - before and after duration

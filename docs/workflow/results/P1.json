@@ -19,8 +19,8 @@
       "status": "pass",
       "command_or_method": "Playwright Electron inside isolated Linux Docker: packaged local protocol/CSP, sandbox/preload/sender boundary; all five stages persist; actual baseline/source/frame preservation, failed-save preservation and reopen.",
       "evidence": [
-        ".astra/evidence/P1-native-resume/native-product-result.json",
-        ".astra/evidence/P1-native-resume/provenance.json"
+        "test-results/P1-native-resume/native-product-result.json",
+        "test-results/P1-native-resume/provenance.json"
       ]
     },
     {
@@ -28,9 +28,9 @@
       "status": "pass",
       "command_or_method": "Real packaged startup failure, missing assets, normal shutdown, second instance, process kill/reopen, corrupt preferences and one explicit renderer reopen; subsequent crash closes.",
       "evidence": [
-        ".astra/evidence/P1-lifecycle-accessibility/lifecycle.json",
-        ".astra/evidence/P1-lifecycle-accessibility/native-dialogs.json",
-        ".astra/evidence/P1-lifecycle-accessibility/parent-recovery-visual.json"
+        "test-results/P1-lifecycle-accessibility/lifecycle.json",
+        "test-results/P1-lifecycle-accessibility/native-dialogs.json",
+        "test-results/P1-lifecycle-accessibility/parent-recovery-visual.json"
       ]
     },
     {
@@ -38,8 +38,8 @@
       "status": "pass",
       "command_or_method": "Packaged 100/125/150/200 percent checks, modal isolation/focus, one panel, contrast, non-color selection and emulated forced-colors/reduced-motion; guest-only input independently inspected full window at100/200 percent and Next frame.",
       "evidence": [
-        ".astra/evidence/P1-native-resume/accessibility-result.json",
-        ".astra/evidence/P1-native-resume/parent-contrast-visual.json"
+        "test-results/P1-native-resume/accessibility-result.json",
+        "test-results/P1-native-resume/parent-contrast-visual.json"
       ]
     },
     {
@@ -47,12 +47,12 @@
       "status": "pass",
       "command_or_method": "Natural Orca50.2/AT-SPI2.56.8 activation; seven genuine braille-output events paired with app-owned focus, settings API readback, immutable fixture and committed Edit UI/disk assertions; parent whole-guest screenshot inspection.",
       "evidence": [
-        ".astra/evidence/P1-orca50-accepted-candidate/result.json",
-        ".astra/evidence/P1-orca50-accepted-candidate/provenance.json",
-        ".astra/evidence/P1-orca50-accepted-candidate/reader-settings.json",
-        ".astra/evidence/P1-orca50-accepted-candidate/provision-result.json",
-        ".astra/evidence/P1-orca50-accepted-candidate/parent-visual.json",
-        ".astra/evidence/P1-orca50-accepted-candidate/isolation-review.json"
+        "test-results/P1-orca50-accepted-candidate/result.json",
+        "test-results/P1-orca50-accepted-candidate/provenance.json",
+        "test-results/P1-orca50-accepted-candidate/reader-settings.json",
+        "test-results/P1-orca50-accepted-candidate/provision-result.json",
+        "test-results/P1-orca50-accepted-candidate/parent-visual.json",
+        "test-results/P1-orca50-accepted-candidate/isolation-review.json"
       ]
     },
     {
@@ -60,7 +60,7 @@
       "status": "pass",
       "command_or_method": "Full npm run check:37 Python/44 TypeScript tests,28 schema pairs,20 reference images,10 invalid quality-contract rejections; final harness typecheck/lint/format and guest run. Source/contract review and staged privacy audit.",
       "evidence": [
-        ".astra/evidence/P1-orca50-accepted-candidate/validation-review.json"
+        "test-results/P1-orca50-accepted-candidate/validation-review.json"
       ]
     },
     {
@@ -68,29 +68,29 @@
       "status": "pass",
       "command_or_method": "Verified public owner/remote, reviewed slice commit, Windows/Linux CI and remote revision.",
       "evidence": [
-        ".astra/evidence/P1-orca50-accepted-candidate/publication.json"
+        "test-results/P1-orca50-accepted-candidate/publication.json"
       ]
     }
   ],
   "artifacts": [
-    ".astra/evidence/P1-native-resume/provenance.json",
-    ".astra/evidence/P1-orca50-accepted-candidate/validation-review.json",
-    ".astra/evidence/P1-orca50-accepted-candidate/parent-visual.json"
+    "test-results/P1-native-resume/provenance.json",
+    "test-results/P1-orca50-accepted-candidate/validation-review.json",
+    "test-results/P1-orca50-accepted-candidate/parent-visual.json"
   ],
   "native_test": {
     "launched": true,
     "playwright": true,
     "computer_use": true,
     "screenshot_paths": [
-      ".astra/private/contrast-project100.png",
-      ".astra/private/contrast-project200-settled.png",
-      ".astra/private/contrast-settings200.png",
-      ".astra/private/contrast-next200.png",
-      ".astra/private/parent-recovery-dialog.png",
-      ".astra/private/parent-recovery-reopened.png",
-      ".astra/evidence/P1-orca50-accepted-candidate/0-import-focus.png",
-      ".astra/evidence/P1-orca50-accepted-candidate/2-settings-scale.png",
-      ".astra/evidence/P1-orca50-accepted-candidate/5-source-details.png"
+      "local-data/contrast-project100.png",
+      "local-data/contrast-project200-settled.png",
+      "local-data/contrast-settings200.png",
+      "local-data/contrast-next200.png",
+      "local-data/parent-recovery-dialog.png",
+      "local-data/parent-recovery-reopened.png",
+      "test-results/P1-orca50-accepted-candidate/0-import-focus.png",
+      "test-results/P1-orca50-accepted-candidate/2-settings-scale.png",
+      "test-results/P1-orca50-accepted-candidate/5-source-details.png"
     ],
     "recording_paths": []
   },

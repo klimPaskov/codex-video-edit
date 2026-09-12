@@ -1,0 +1,429 @@
+import { isAbsolute } from "node:path";
+
+const MAX_IDENTIFIER_LENGTH = 256;
+const MAX_INSTRUCTION_LENGTH = 128 * 1024;
+const reasoningPattern = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u;
+
+export class CodexThreadProtocolError extends Error {
+  readonly code: "configuration" | "protocol" | "forbidden";
+
+  constructor(code: "configuration" | "protocol" | "forbidden") {
+    const messages = {
+      configuration: "The Codex thread configuration is invalid.",
+      protocol: "The Codex thread response is unsupported.",
+      forbidden: "Codex attempted an operation outside the editor boundary.",
+    } as const;
+    super(messages[code]);
+    this.name = "CodexThreadProtocolError";
+    this.code = code;
+  }
+}
+
+function record(value: unknown): value is Record<string, unknown> {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype &&
+    Object.getOwnPropertySymbols(value).length === 0
+  );
+}
+
+function exact(
+  value: unknown,
+  allowed: readonly string[],
+): Record<string, unknown> {
+  if (
+    !record(value) ||
+    Object.keys(value).some((key) => !allowed.includes(key))
+  ) {
+    throw new CodexThreadProtocolError("configuration");
+  }
+  return value;
+}
+
+function identifier(
+  value: unknown,
+  code: "configuration" | "protocol",
+): string {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > MAX_IDENTIFIER_LENGTH ||
+    /[\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    throw new CodexThreadProtocolError(code);
+  }
+  return value;
+}
+
+function instruction(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (
+    value.length === 0 ||
+    value.length > MAX_INSTRUCTION_LENGTH ||
+    value.includes("\0")
+  ) {
+    throw new CodexThreadProtocolError("configuration");
+  }
+  return value;
+}
+
+export interface ExperimentalInitializeRequest {
+  clientInfo: {
+    name: "codex_video_edit";
+    title: "codex-video-edit";
+    version: string;
+  };
+  capabilities: {
+    experimentalApi: true;
+    requestAttestation: false;
+    mcpServerOpenaiFormElicitation: false;
+    optOutNotificationMethods: [];
+  };
+}
+
+/**
+ * Application-owned initialize payload. The official 0.142.3 stable generated
+ * schema contains this capability; live experimental acceptance is a separate gate.
+ */
+export function buildExperimentalInitialize(
+  applicationVersion: string,
+): ExperimentalInitializeRequest {
+  const version = identifier(applicationVersion, "configuration");
+  return {
+    clientInfo: {
+      name: "codex_video_edit",
+      title: "codex-video-edit",
+      version,
+    },
+    capabilities: {
+      experimentalApi: true,
+      requestAttestation: false,
+      mcpServerOpenaiFormElicitation: false,
+      optOutNotificationMethods: [],
+    },
+  };
+}
+
+export interface ThreadRuntimePolicy {
+  /** Canonical application-owned context directory. */
+  cwd: string;
+  /** A model ID returned by the connected runtime. */
+  model: string;
+  /** A reasoning value returned for the selected runtime model. */
+  effort: string;
+  baseInstructions?: string;
+  developerInstructions?: string;
+}
+
+function validatePolicy(policy: ThreadRuntimePolicy): ThreadRuntimePolicy {
+  exact(policy, [
+    "cwd",
+    "model",
+    "effort",
+    "baseInstructions",
+    "developerInstructions",
+  ]);
+  if (
+    !isAbsolute(policy.cwd) ||
+    policy.cwd.includes("\0") ||
+    policy.cwd.length > 4096
+  ) {
+    throw new CodexThreadProtocolError("configuration");
+  }
+  if (!reasoningPattern.test(policy.effort)) {
+    throw new CodexThreadProtocolError("configuration");
+  }
+  const baseInstructions = instruction(policy.baseInstructions);
+  const developerInstructions = instruction(policy.developerInstructions);
+  return {
+    cwd: policy.cwd,
+    model: identifier(policy.model, "configuration"),
+    effort: policy.effort,
+    ...(baseInstructions === undefined ? {} : { baseInstructions }),
+    ...(developerInstructions === undefined ? {} : { developerInstructions }),
+  };
+}
+
+export interface ThreadStartRequest {
+  model: string;
+  modelProvider: "openai";
+  cwd: string;
+  runtimeWorkspaceRoots: [];
+  approvalPolicy: "never";
+  approvalsReviewer: "user";
+  sandbox: "read-only";
+  config: {
+    forced_login_method: "chatgpt";
+    model_provider: "openai";
+    project_root_markers: [];
+    features: { shell_tool: false };
+  };
+  ephemeral: false;
+  environments: [];
+  selectedCapabilityRoots: [];
+  experimentalRawEvents: false;
+  baseInstructions?: string;
+  developerInstructions?: string;
+}
+
+export function buildThreadStartRequest(
+  suppliedPolicy: ThreadRuntimePolicy,
+): ThreadStartRequest {
+  const policy = validatePolicy(suppliedPolicy);
+  return {
+    model: policy.model,
+    modelProvider: "openai",
+    cwd: policy.cwd,
+    runtimeWorkspaceRoots: [],
+    approvalPolicy: "never",
+    approvalsReviewer: "user",
+    sandbox: "read-only",
+    config: {
+      forced_login_method: "chatgpt",
+      model_provider: "openai",
+      project_root_markers: [],
+      features: { shell_tool: false },
+    },
+    ephemeral: false,
+    environments: [],
+    selectedCapabilityRoots: [],
+    experimentalRawEvents: false,
+    ...(policy.baseInstructions === undefined
+      ? {}
+      : { baseInstructions: policy.baseInstructions }),
+    ...(policy.developerInstructions === undefined
+      ? {}
+      : { developerInstructions: policy.developerInstructions }),
+  };
+}
+
+export interface ThreadResumeRequest {
+  threadId: string;
+  model: string;
+  modelProvider: "openai";
+  cwd: string;
+  runtimeWorkspaceRoots: [];
+  approvalPolicy: "never";
+  approvalsReviewer: "user";
+  sandbox: "read-only";
+  config: ThreadStartRequest["config"];
+  excludeTurns: true;
+  initialTurnsPage: {
+    limit: 100;
+    sortDirection: "desc";
+    itemsView: "full";
+  };
+  baseInstructions?: string;
+  developerInstructions?: string;
+}
+
+/** 0.142.3 thread/resume has no environments property. */
+export function buildThreadResumeRequest(
+  trustedThreadId: string,
+  suppliedPolicy: ThreadRuntimePolicy,
+): ThreadResumeRequest {
+  const policy = validatePolicy(suppliedPolicy);
+  return {
+    threadId: identifier(trustedThreadId, "configuration"),
+    model: policy.model,
+    modelProvider: "openai",
+    cwd: policy.cwd,
+    runtimeWorkspaceRoots: [],
+    approvalPolicy: "never",
+    approvalsReviewer: "user",
+    sandbox: "read-only",
+    config: {
+      forced_login_method: "chatgpt",
+      model_provider: "openai",
+      project_root_markers: [],
+      features: { shell_tool: false },
+    },
+    excludeTurns: true,
+    initialTurnsPage: {
+      limit: 100,
+      sortDirection: "desc",
+      itemsView: "full",
+    },
+    ...(policy.baseInstructions === undefined
+      ? {}
+      : { baseInstructions: policy.baseInstructions }),
+    ...(policy.developerInstructions === undefined
+      ? {}
+      : { developerInstructions: policy.developerInstructions }),
+  };
+}
+
+export interface TurnTextInput {
+  type: "text";
+  text: string;
+  text_elements: [];
+}
+
+export interface TurnSkillInput {
+  type: "skill";
+  name: string;
+  /** Main-owned runtime skill path. Never renderer supplied or projected back. */
+  path: string;
+}
+
+export interface TurnStartRequest {
+  threadId: string;
+  clientUserMessageId: string;
+  input: Array<TurnTextInput | TurnSkillInput>;
+  environments: [];
+  cwd: string;
+  runtimeWorkspaceRoots: [];
+  approvalPolicy: "never";
+  approvalsReviewer: "user";
+  sandboxPolicy: { type: "readOnly"; networkAccess: false };
+  model: string;
+  effort: string;
+}
+
+export interface TurnStartInput {
+  text: string;
+  skills?: ReadonlyArray<{ name: string; path: string }>;
+}
+
+export function buildTurnStartRequest(
+  trustedThreadId: string,
+  trustedClientMessageId: string,
+  supplied: TurnStartInput,
+  suppliedPolicy: ThreadRuntimePolicy,
+): TurnStartRequest {
+  const policy = validatePolicy(suppliedPolicy);
+  exact(supplied, ["text", "skills"]);
+  if (
+    typeof supplied.text !== "string" ||
+    supplied.text.trim().length === 0 ||
+    supplied.text.length > MAX_INSTRUCTION_LENGTH ||
+    supplied.text.includes("\0") ||
+    (supplied.skills?.length ?? 0) > 32
+  ) {
+    throw new CodexThreadProtocolError("configuration");
+  }
+  const input: Array<TurnTextInput | TurnSkillInput> = [
+    { type: "text", text: supplied.text, text_elements: [] },
+  ];
+  for (const skill of supplied.skills ?? []) {
+    exact(skill, ["name", "path"]);
+    if (
+      !isAbsolute(skill.path) ||
+      skill.path.includes("\0") ||
+      skill.path.length > 4096
+    ) {
+      throw new CodexThreadProtocolError("configuration");
+    }
+    input.push({
+      type: "skill",
+      name: identifier(skill.name, "configuration"),
+      path: skill.path,
+    });
+  }
+  return {
+    threadId: identifier(trustedThreadId, "configuration"),
+    clientUserMessageId: identifier(trustedClientMessageId, "configuration"),
+    input,
+    environments: [],
+    cwd: policy.cwd,
+    runtimeWorkspaceRoots: [],
+    approvalPolicy: "never",
+    approvalsReviewer: "user",
+    sandboxPolicy: { type: "readOnly", networkAccess: false },
+    model: policy.model,
+    effort: policy.effort,
+  };
+}
+
+export interface TurnInterruptRequest {
+  threadId: string;
+  turnId: string;
+}
+
+export function buildTurnInterruptRequest(
+  trustedThreadId: string,
+  trustedTurnId: string,
+): TurnInterruptRequest {
+  return {
+    threadId: identifier(trustedThreadId, "configuration"),
+    turnId: identifier(trustedTurnId, "configuration"),
+  };
+}
+
+export interface ThreadSession {
+  threadId: string;
+}
+
+export function decodeThreadSession(
+  value: unknown,
+  expectedPolicy: ThreadRuntimePolicy,
+): ThreadSession {
+  const policy = validatePolicy(expectedPolicy);
+  if (!record(value) || !record(value.thread)) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  const thread = value.thread;
+  if (
+    value.model !== policy.model ||
+    value.modelProvider !== "openai" ||
+    value.cwd !== policy.cwd ||
+    value.approvalPolicy !== "never" ||
+    value.approvalsReviewer !== "user" ||
+    value.sandbox !== "read-only" ||
+    thread.ephemeral !== false ||
+    (thread.parentThreadId ?? null) !== null ||
+    (value.runtimeWorkspaceRoots !== undefined &&
+      (!Array.isArray(value.runtimeWorkspaceRoots) ||
+        value.runtimeWorkspaceRoots.length !== 0)) ||
+    (value.instructionSources !== undefined &&
+      (!Array.isArray(value.instructionSources) ||
+        value.instructionSources.length !== 0)) ||
+    (value.activePermissionProfile ?? null) !== null ||
+    (value.multiAgentMode !== undefined &&
+      value.multiAgentMode !== "explicitRequestOnly") ||
+    (value.reasoningEffort !== undefined &&
+      value.reasoningEffort !== null &&
+      value.reasoningEffort !== policy.effort)
+  ) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  return { threadId: identifier(thread.id, "protocol") };
+}
+
+export type TurnStatus = "completed" | "interrupted" | "failed" | "inProgress";
+
+function turn(value: unknown): { id: string; status: TurnStatus } {
+  if (!record(value)) throw new CodexThreadProtocolError("protocol");
+  const status = value.status;
+  if (
+    status !== "completed" &&
+    status !== "interrupted" &&
+    status !== "failed" &&
+    status !== "inProgress"
+  ) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  if (!Array.isArray(value.items)) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  return { id: identifier(value.id, "protocol"), status };
+}
+
+export function decodeTurnStart(value: unknown): {
+  turnId: string;
+  status: TurnStatus;
+} {
+  if (!record(value)) throw new CodexThreadProtocolError("protocol");
+  const decoded = turn(value.turn);
+  return { turnId: decoded.id, status: decoded.status };
+}
+
+export function decodeTurnInterrupt(value: unknown): void {
+  if (!record(value) || Object.keys(value).length !== 0) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+}
+
+export const threadProtocolInternals = { record, identifier, turn };

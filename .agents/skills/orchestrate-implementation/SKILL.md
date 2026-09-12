@@ -12,7 +12,7 @@ Starting or continuing any implementation session.
 ## Procedure
 
 1. Read the authoritative order and all mandatory sources in `AGENTS.md`.
-2. Inspect `.astra/results/`, repository state, tests, fixtures, and active phase.
+2. Inspect `docs/workflow/results/`, repository state, tests, fixtures, and active phase.
 3. Find the first incomplete phase whose dependencies are complete.
 4. State exact task IDs and the smallest complete product result.
 5. Route bounded specialist work through `SUBAGENT_ROUTING.md`.

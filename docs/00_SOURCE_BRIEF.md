@@ -18,4 +18,4 @@ Build a new standalone desktop video creation application. It must combine recor
 
 ## Supplied acceptance media
 
-The user will provide an example video after the app is ready for full acceptance. The implementation must also create synthetic and virtual-device fixtures so development does not depend on that file.
+The user supplied two example videos for final acceptance and specified their order. The implementation must also create synthetic and virtual-device fixtures so development does not depend on those private files.

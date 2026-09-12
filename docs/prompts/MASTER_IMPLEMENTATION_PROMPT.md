@@ -4,7 +4,7 @@ Implement the native codex-video-edit described by this package.
 
 At the start of every session:
 
-1. Read `AGENTS.md`, `AUTHORITATIVE_ORDER.md`, `GOAL_PROMPT.md`, `PLANNING_PACKAGE.md`, `WORKFLOW.md`, `TASKS.md`, accepted ADRs, `.astra/active-phase.md`, relevant skills, and touched schemas.
+1. Read `AGENTS.md`, `AUTHORITATIVE_ORDER.md`, `GOAL_PROMPT.md`, `PLANNING_PACKAGE.md`, `WORKFLOW.md`, `TASKS.md`, accepted ADRs, `docs/workflow/active-phase.md`, relevant skills, and touched schemas.
 2. Inspect the repository, current tests, phase results, and exact installed tool versions.
 3. Find the first incomplete dependency-safe phase and record its task IDs.
 4. Research current primary documentation when an external contract may have changed.
@@ -22,7 +22,7 @@ For every slice:
 - inspect motion and audio, not only stills
 - review security, privacy, accessibility, and source immutability
 - update specs, prompts, skills, routing, and traceability
-- write `.astra/results/PHASE_ID.json` only after every phase acceptance check passes and the reviewed source revision is verified remotely; otherwise retain truthful progress separately
+- write `docs/workflow/results/PHASE_ID.json` only after every phase acceptance check passes and the reviewed source revision is verified remotely; otherwise retain truthful progress under `docs/workflow/progress/`
 
 Use browser tools only for research. Never launch or install on the user's host. Never replace the desktop product with a web app. Never fabricate Codex login, capture, render, test, screenshot, or review evidence.
 

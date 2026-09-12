@@ -12,6 +12,6 @@ Acceptance:
 - the user can correct the Magic Wand draft completely inside the app
 - a Codex request can alter the current selection live and be undone
 - revision compare and crash recovery pass
-- `.astra/results/P6.json` validates
+- `docs/workflow/results/P6.json` validates
 
 Use `reference-fidelity`. Read current full-page references and `docs/references/IMPLEMENTATION_NOTES.md`. Remove debug badges, persistent readiness, duplicate headings, and excessive explanations. Default to one relevant panel. Keep working capture indicators, errors, and accessible controls.

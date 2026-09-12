@@ -11,8 +11,8 @@ assert.equal(process.env.DISPLAY, ":99");
 await access("/.dockerenv");
 const executablePath = process.argv[2];
 assert.ok(executablePath);
-await mkdir(resolve(".astra/evidence"), { recursive: true });
-const evidence = await mkdtemp(resolve(".astra/evidence/native-codex-"));
+await mkdir(resolve("test-results"), { recursive: true });
+const evidence = await mkdtemp(resolve("test-results/native-codex-"));
 const hash = (bytes: Buffer) =>
   createHash("sha256").update(bytes).digest("hex");
 await writeFile(

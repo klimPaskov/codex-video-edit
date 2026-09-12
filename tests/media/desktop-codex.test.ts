@@ -131,14 +131,14 @@ function harness(
   const opened: string[] = [];
   let selection: CodexSelection | null = null;
   const controller = new DesktopCodex(
-    resolve(".astra/test-resources"),
-    resolve(".astra/test-userdata"),
+    resolve("test-results/test-resources"),
+    resolve("test-results/test-userdata"),
     open ??
       (async (url) => {
         opened.push(url);
       }),
     {
-      resolveRuntime: async () => resolve(".astra/test-only-runtime"),
+      resolveRuntime: async () => resolve("test-results/test-only-runtime"),
       directory: async () => {},
       settings: {
         read: async () => selection,
@@ -339,7 +339,7 @@ test("close waits for runtime resolution and prevents a late startup from constr
   });
   await tick();
   assert.equal(closed, false);
-  runtime.resolve(resolve(".astra/test-runtime"));
+  runtime.resolve(resolve("test-results/test-runtime"));
   await Promise.all([opening, closing]);
   assert.equal(clients.length, 0);
   assert.equal((await controller.get()).connection, "disconnected");

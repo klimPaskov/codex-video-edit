@@ -1,7 +1,8 @@
 # Example video acceptance checklist
 
-- [ ] Source hash and probe are recorded.
-- [ ] Import occurs through the native file picker.
+- [ ] Both source hashes and probes are recorded.
+- [ ] Both imports occur through the native file picker in the requested order.
+- [ ] The second source starts after the first in one editable draft, and both original source hashes remain unchanged.
 - [ ] Balanced Magic Wand runs with real Codex.
 - [ ] Live edits appear in the draft history.
 - [ ] All cut classes are reviewed.

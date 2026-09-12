@@ -9,6 +9,7 @@ from workspace_files import source_files
 
 try:
     from jsonschema import Draft202012Validator, FormatChecker
+    from referencing import Registry, Resource
 except ImportError as exc:
     raise SystemExit('Install jsonschema to validate this package: python -m pip install jsonschema') from exc
 
@@ -36,7 +37,7 @@ def load_json(path: Path) -> object:
 required_paths = [
     'GOAL_PROMPT.md', 'AGENTS.md', 'AUTHORITATIVE_ORDER.md', 'PLANNING_PACKAGE.md',
     'WORKFLOW.md', 'TASKS.md', 'SUBAGENT_ROUTING.md', 'CHANGE_CONTROL.md',
-    '.astra/active-phase.md', 'docs/00_SOURCE_BRIEF.md', 'docs/03_NATIVE_APP_ARCHITECTURE.md',
+    'docs/workflow/active-phase.md', 'docs/00_SOURCE_BRIEF.md', 'docs/03_NATIVE_APP_ARCHITECTURE.md',
     'docs/08_CODEX_INTEGRATION.md', 'docs/09_MAGIC_WAND_AND_AUTOMATIONS.md',
     'docs/10_TIMELINE_EDITOR.md', 'docs/19_QA_AND_ACCEPTANCE.md',
     'docs/20_NATIVE_COMPUTER_USE_TESTING.md', 'docs/26_REFERENCE_SCREENSHOT_PROCESS.md',
@@ -69,6 +70,16 @@ pairs = index.get('pairs', []) if isinstance(index, dict) else []
 if len(pairs) < 20:
     fail(f'Expected at least 20 schema/example pairs, found {len(pairs)}')
 format_checker = FormatChecker()
+registry = Registry()
+for reusable_schema_path in (ROOT / 'docs/schemas').glob('*.json'):
+    reusable_schema = load_json(reusable_schema_path)
+    if not isinstance(reusable_schema, dict):
+        continue
+    resource = Resource.from_contents(reusable_schema)
+    registry = registry.with_resource(reusable_schema_path.resolve().as_uri(), resource)
+    schema_id = reusable_schema.get('$id')
+    if isinstance(schema_id, str):
+        registry = registry.with_resource(schema_id, resource)
 for pair in pairs:
     if not isinstance(pair, dict):
         fail('docs/examples/index.json contains a non-object pair')
@@ -85,7 +96,7 @@ for pair in pairs:
     example = load_json(example_path)
     try:
         Draft202012Validator.check_schema(schema)
-        validator = Draft202012Validator(schema, format_checker=format_checker)
+        validator = Draft202012Validator(schema, format_checker=format_checker, registry=registry)
         for issue in validator.iter_errors(example):
             location = '.'.join(str(x) for x in issue.absolute_path) or '<root>'
             fail(f'{example_path.relative_to(ROOT)} at {location}: {issue.message}')
@@ -105,7 +116,7 @@ for data_rel, schema_rel in live_pairs:
     if not data_path.exists() or not schema_path.exists():
         continue
     data, schema = load_json(data_path), load_json(schema_path)
-    validator = Draft202012Validator(schema, format_checker=format_checker)
+    validator = Draft202012Validator(schema, format_checker=format_checker, registry=registry)
     for issue in validator.iter_errors(data):
         location = '.'.join(str(x) for x in issue.absolute_path) or '<root>'
         fail(f'{data_rel} at {location}: {issue.message}')
@@ -113,7 +124,7 @@ for data_rel, schema_rel in live_pairs:
 # Public checkouts validate records and safe artifact references, not absent private evidence.
 # The result writer separately requires all actual local artifacts before acceptance.
 from write_phase_result import validate_record
-for result_path in (ROOT / '.astra/results').glob('P*.json'):
+for result_path in (ROOT / 'docs/workflow/results').glob('P*.json'):
     try:
         result = load_json(result_path)
         validate_record(result, ROOT)
@@ -132,7 +143,7 @@ if len(task_ids) != len(set(task_ids)):
 for phase in [f'P{i}' for i in range(11)]:
     if not any(task.startswith(phase + '-') for task in task_ids):
         fail(f'TASKS.md has no tasks for {phase}')
-    phase_files = list((ROOT / '.astra/phases').glob(f'{phase}_*.md'))
+    phase_files = list((ROOT / 'docs/workflow/phases').glob(f'{phase}_*.md'))
     if len(phase_files) != 1:
         fail(f'Expected one phase prompt for {phase}, found {len(phase_files)}')
     elif phase not in phase_files[0].read_text(encoding='utf-8'):

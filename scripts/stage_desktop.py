@@ -30,7 +30,7 @@ destination = '/home/node/workspaces/' + str(uuid.uuid4())
 subprocess.run(['docker', 'exec', NAME, 'mkdir', '-p', destination], check=True)
 subprocess.run(['docker', 'exec', '-i', NAME, 'tar', '-x', '--no-same-owner', '-C', destination],
                input=bundle.getvalue(), check=True)
-private = ROOT / '.astra/private/desktop'
+private = ROOT / 'local-data/desktop'
 private.mkdir(parents=True, exist_ok=True)
 (private / 'workspace.json').write_text(json.dumps({'container': NAME, 'path': destination}), encoding='utf-8')
 print(destination)

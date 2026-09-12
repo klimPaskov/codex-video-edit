@@ -27,7 +27,7 @@ Any user-facing or workflow behavior changes.
 
 Write a short spec-sync section in the phase result listing every changed contract and every intentionally unchanged contract.
 
-Use the phase-result writer only after acceptance and remote revision verification. It requires a clean source/index, all phase tasks, passing checks, and native evidence. Keep partial work and blockers under `.astra/progress/`; ignored evidence may remain local. Public progress records must not contain private source paths or transcripts.
+Use the phase-result writer only after acceptance and remote revision verification. It requires a clean source/index, all phase tasks, passing checks, and native evidence. Keep partial work and blockers under `docs/workflow/progress/`; ignored evidence may remain local in `test-results/`. Public progress records must not contain private source paths or transcripts.
 
 When fidelity, native UI, or publishing changes, include docs/44_LOSSLESS_MEDIA_POLICY.md, docs/45_OPEN_SOURCE_DEVELOPMENT.md, docs/references/IMPLEMENTATION_NOTES.md, their tasks, skill routes, and contract examples in the sync pass.
 

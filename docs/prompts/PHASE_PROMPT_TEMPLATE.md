@@ -34,4 +34,4 @@ List missing access, licence, hardware, auth, or uncertain output conditions.
 
 ## Completion
 
-Update all contracts, run `spec-sync`, and write `.astra/results/PHASE_ID.json` only after acceptance passes.
+Update all contracts, run `spec-sync`, and write `docs/workflow/results/PHASE_ID.json` only after acceptance passes.
