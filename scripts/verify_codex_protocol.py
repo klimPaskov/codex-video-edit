@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate and inspect schemas without starting a server or reading account data."""
+"""Generate and inspect the consumed experimental schemas without account access."""
 from __future__ import annotations
 
 import hashlib
@@ -13,7 +13,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 METHODS = ('initialize', 'model/list', 'skills/list', 'thread/start',
-           'turn/start', 'turn/interrupt', 'account/login/start')
+           'turn/start', 'turn/interrupt', 'account/login/start',
+           'thread/resume', 'thread/turns/list')
 
 
 def resolve_local(document: dict, reference: str) -> dict:
@@ -85,13 +86,14 @@ def main() -> None:
     version_root = ROOT / 'test-results' / 'codex-protocol' / version
     version_root.mkdir(parents=True, exist_ok=True)
     directory = Path(tempfile.mkdtemp(prefix='generation-', dir=version_root))
-    run(executable, ['app-server', 'generate-json-schema', '--out', str(directory)])
+    run(executable, ['app-server', 'generate-json-schema', '--experimental',
+                     '--out', str(directory)])
     document = json.loads((directory / 'ClientRequest.json').read_text(encoding='utf-8'))
     methods = inspect_requests(document)
     hashes = {path.relative_to(directory).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
               for path in sorted(directory.rglob('*.json')) if path.name != 'manifest.json'}
     report = {'checked_at': datetime.now(timezone.utc).isoformat(), 'codex_version': version,
-              'generator_experimental_flag': False, 'methods': methods, 'schema_sha256': hashes,
+              'generator_experimental_flag': True, 'methods': methods, 'schema_sha256': hashes,
               'runtime_smoke_test': False, 'authentication_attempted': False}
     (directory / 'manifest.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     print(json.dumps({'codex_version': version, 'schema_count': len(hashes),

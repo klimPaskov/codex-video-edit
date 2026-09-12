@@ -5,10 +5,12 @@ import {
   buildExperimentalInitialize,
   buildThreadResumeRequest,
   buildThreadStartRequest,
+  buildThreadTurnsListRequest,
   buildTurnInterruptRequest,
   buildTurnStartRequest,
   CodexThreadProtocolError,
   decodeThreadSession,
+  decodeThreadResumeHistoryPage,
   decodeTurnInterrupt,
   decodeTurnStart,
 } from "../../packages/codex-bridge/src/thread-protocol.ts";
@@ -87,6 +89,12 @@ test("experimental initialization and no-environment requests are exact", () => 
     developerInstructions: policy.developerInstructions,
   });
   assert.equal("environments" in resume, false);
+  assert.deepEqual(buildThreadTurnsListRequest("thread-1"), {
+    threadId: "thread-1",
+    limit: 100,
+    sortDirection: "desc",
+    itemsView: "full",
+  });
 
   assert.deepEqual(
     buildTurnStartRequest(
@@ -138,7 +146,38 @@ test("thread and turn decoders expose only correlated identifiers", () => {
     sandbox: { type: "readOnly", networkAccess: false },
     privateAccount: "SECRET",
   };
-  assert.deepEqual(decodeThreadSession(raw, policy), { threadId: "thread-1" });
+  assert.deepEqual(decodeThreadSession(raw, policy), {
+    threadId: "thread-1",
+    active: null,
+  });
+  assert.throws(
+    () => decodeThreadSession(raw, policy, true),
+    (error: unknown) =>
+      error instanceof CodexThreadProtocolError && error.code === "protocol",
+  );
+  assert.deepEqual(
+    decodeThreadSession(
+      {
+        ...raw,
+        thread: {
+          ...raw.thread,
+          status: { type: "active", activeFlags: [] },
+        },
+      },
+      policy,
+    ),
+    { threadId: "thread-1", active: true },
+  );
+  assert.equal(decodeThreadResumeHistoryPage(raw), null);
+  const initialTurnsPage = {
+    data: [],
+    nextCursor: null,
+    backwardsCursor: null,
+  };
+  assert.equal(
+    decodeThreadResumeHistoryPage({ ...raw, initialTurnsPage }),
+    initialTurnsPage,
+  );
   assert.deepEqual(
     decodeTurnStart({
       turn: {
@@ -161,6 +200,13 @@ test("thread and turn decoders expose only correlated identifiers", () => {
     { ...raw, sandbox: "workspace-write" },
     { ...raw, approvalsReviewer: "auto_review" },
     { ...raw, thread: { id: "thread-1", ephemeral: true } },
+    {
+      ...raw,
+      thread: {
+        ...raw.thread,
+        status: { type: "active", activeFlags: ["waitingOnApproval"] },
+      },
+    },
   ]) {
     assert.throws(
       () => decodeThreadSession(response, policy),

@@ -3,12 +3,37 @@ import {
   threadProtocolInternals,
   type TurnStatus,
 } from "./thread-protocol.ts";
+import type { ThreadTurnsListResponse } from "./generated/v2/ThreadTurnsListResponse.ts";
 
 const MAX_DELTA_LENGTH = 16 * 1024;
 const MAX_MESSAGE_LENGTH = 64 * 1024;
 const MAX_TRACKED_TERMINALS = 32;
+const MAX_HISTORY_TURNS = 100;
+const MAX_HISTORY_ITEMS = 1000;
+const MAX_HISTORY_TEXT_BYTES = 512 * 1024;
 
 type SafeItemKind = "message" | "activity" | "subagent" | "edit";
+
+export interface ThreadHistoryMessage {
+  itemId: string;
+  role: "user" | "codex";
+  text: string;
+  complete: boolean;
+}
+
+export interface ThreadHistoryActivity {
+  itemId: string;
+  kind: Exclude<SafeItemKind, "message">;
+  label: string;
+  complete: boolean;
+}
+
+/** Main-only projection. Source item/turn IDs are replaced before renderer IPC. */
+export interface ThreadHistorySnapshot {
+  activeTurnId: string | null;
+  messages: ThreadHistoryMessage[];
+  activities: ThreadHistoryActivity[];
+}
 
 interface CorrelatedEvent {
   generation: number;
@@ -109,6 +134,132 @@ function redactText(value: unknown, maximum = MAX_DELTA_LENGTH): string {
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu, "");
 }
 
+function exactHistoryRecord(
+  value: unknown,
+  keys: readonly string[],
+): Record<string, unknown> {
+  if (
+    !threadProtocolInternals.record(value) ||
+    Object.keys(value).length !== keys.length ||
+    keys.some((key) => !Object.hasOwn(value, key))
+  ) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  return value;
+}
+
+function historyCursor(value: unknown): string | null {
+  if (value === null) return null;
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > 4096 ||
+    /[\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  return value;
+}
+
+function historyPage(value: unknown): ThreadTurnsListResponse {
+  if (
+    !threadProtocolInternals.record(value) ||
+    Object.keys(value).some(
+      (key) => !["data", "nextCursor", "backwardsCursor"].includes(key),
+    ) ||
+    !Object.hasOwn(value, "data")
+  ) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  const page = value;
+  if (!Array.isArray(page.data) || page.data.length > MAX_HISTORY_TURNS) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  const nextCursor = historyCursor(page.nextCursor ?? null),
+    backwardsCursor = historyCursor(page.backwardsCursor ?? null);
+  return {
+    data: page.data,
+    nextCursor,
+    backwardsCursor,
+  } as ThreadTurnsListResponse;
+}
+
+function historyTurn(value: unknown): Record<string, unknown> {
+  if (!threadProtocolInternals.record(value)) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  const allowed = [
+    "id",
+    "items",
+    "itemsView",
+    "status",
+    "error",
+    "startedAt",
+    "completedAt",
+    "durationMs",
+  ];
+  if (
+    Object.keys(value).some((key) => !allowed.includes(key)) ||
+    !Object.hasOwn(value, "id") ||
+    !Object.hasOwn(value, "items") ||
+    !Object.hasOwn(value, "status") ||
+    (value.itemsView !== undefined && value.itemsView !== "full")
+  ) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  return value;
+}
+
+function historicalUserText(item: Record<string, unknown>): string {
+  if (!Array.isArray(item.content) || item.content.length > 33) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  const text: string[] = [];
+  for (const raw of item.content) {
+    if (!threadProtocolInternals.record(raw)) {
+      throw new CodexThreadProtocolError("protocol");
+    }
+    if (raw.type === "text") {
+      if (
+        Object.keys(raw).some(
+          (key) => !["type", "text", "text_elements"].includes(key),
+        ) ||
+        !Object.hasOwn(raw, "text")
+      ) {
+        throw new CodexThreadProtocolError("protocol");
+      }
+      const textElements = raw.text_elements ?? [];
+      if (!Array.isArray(textElements) || textElements.length !== 0) {
+        throw new CodexThreadProtocolError("forbidden");
+      }
+      text.push(redactText(raw.text, MAX_MESSAGE_LENGTH));
+    } else if (raw.type === "skill") {
+      exactHistoryRecord(raw, ["type", "name", "path"]);
+      threadProtocolInternals.identifier(raw.name, "protocol");
+      if (
+        typeof raw.path !== "string" ||
+        raw.path.length === 0 ||
+        raw.path.length > 4096 ||
+        raw.path.includes("\0")
+      ) {
+        throw new CodexThreadProtocolError("protocol");
+      }
+    } else {
+      throw new CodexThreadProtocolError("forbidden");
+    }
+  }
+  const combined = text.join("\n");
+  if (!combined || combined.length > MAX_MESSAGE_LENGTH) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  return combined;
+}
+
+function historicalAgentText(item: Record<string, unknown>): string {
+  if (item.text === "") return "";
+  return redactText(item.text, MAX_MESSAGE_LENGTH);
+}
+
 function itemProjection(
   item: Record<string, unknown>,
   options: ThreadStreamProjectorOptions,
@@ -135,6 +286,14 @@ function itemProjection(
     case "exitedReviewMode":
       return { id, type, kind: "activity", label: "Working on the edit" };
     case "collabAgentToolCall":
+      if (
+        item.status !== "inProgress" &&
+        item.status !== "completed" &&
+        item.status !== "failed"
+      ) {
+        throw new CodexThreadProtocolError("protocol");
+      }
+      return { id, type, kind: "subagent", label: "Codex subagent" };
     case "subAgentActivity":
       return { id, type, kind: "subagent", label: "Codex subagent" };
     case "mcpToolCall": {
@@ -161,6 +320,18 @@ function itemProjection(
     default:
       throw new CodexThreadProtocolError("forbidden");
   }
+}
+
+function historicalItemComplete(
+  item: Record<string, unknown>,
+  turnStatus: TurnStatus,
+): boolean {
+  if (turnStatus !== "inProgress") return true;
+  if (item.type === "userMessage") return true;
+  if (item.type === "mcpToolCall" || item.type === "collabAgentToolCall") {
+    return item.status === "completed" || item.status === "failed";
+  }
+  return false;
 }
 
 /**
@@ -202,6 +373,118 @@ export class ThreadStreamProjector {
 
   currentGeneration(): number {
     return this.generation;
+  }
+
+  /** Restore one requested newest-first page before buffered live events flush. */
+  restoreHistory(value: unknown): ThreadHistorySnapshot {
+    this.assertHealthy();
+    if (this.active || this.terminals.size) {
+      throw new CodexThreadProtocolError("configuration");
+    }
+    try {
+      const page = historyPage(value),
+        turns = page.data,
+        turnIds = new Set<string>(),
+        itemIds = new Set<string>(),
+        messages: ThreadHistoryMessage[] = [],
+        activities: ThreadHistoryActivity[] = [];
+      let activeTurnId: string | null = null,
+        itemCount = 0,
+        textBytes = 0;
+      for (let index = 0; index < turns.length; index++) {
+        const raw = historyTurn(turns[index]),
+          decoded = threadProtocolInternals.turn(raw);
+        if (
+          turnIds.has(decoded.id) ||
+          (decoded.status === "inProgress" && index !== 0)
+        ) {
+          throw new CodexThreadProtocolError("protocol");
+        }
+        turnIds.add(decoded.id);
+        if (decoded.status === "inProgress") {
+          if (activeTurnId !== null) {
+            throw new CodexThreadProtocolError("protocol");
+          }
+          activeTurnId = decoded.id;
+        }
+        itemCount += (raw.items as unknown[]).length;
+        if (itemCount > MAX_HISTORY_ITEMS) {
+          throw new CodexThreadProtocolError("protocol");
+        }
+      }
+      for (const rawTurn of [...turns].reverse()) {
+        const decoded = threadProtocolInternals.turn(rawTurn);
+        if (decoded.status === "inProgress") {
+          this.active = {
+            id: decoded.id,
+            terminal: undefined,
+            interruptRequested: false,
+            items: new Map(),
+          };
+        } else {
+          this.rememberTerminal(decoded.id, decoded.status);
+        }
+        for (const rawItem of rawTurn.items) {
+          if (!threadProtocolInternals.record(rawItem)) {
+            throw new CodexThreadProtocolError("protocol");
+          }
+          const projected = itemProjection(rawItem, this.options);
+          if (itemIds.has(projected.id)) {
+            throw new CodexThreadProtocolError("protocol");
+          }
+          itemIds.add(projected.id);
+          const complete = historicalItemComplete(rawItem, decoded.status);
+          let activeText = "";
+          if (projected.type === "userMessage") {
+            const text = historicalUserText(rawItem);
+            activeText = text;
+            textBytes += Buffer.byteLength(text);
+            messages.push({
+              itemId: projected.id,
+              role: "user",
+              text,
+              complete: true,
+            });
+          } else if (projected.type === "agentMessage") {
+            const text = historicalAgentText(rawItem);
+            activeText = text;
+            textBytes += Buffer.byteLength(text);
+            messages.push({
+              itemId: projected.id,
+              role: "codex",
+              text,
+              complete,
+            });
+          } else {
+            activities.push({
+              itemId: projected.id,
+              kind: projected.kind as Exclude<SafeItemKind, "message">,
+              label: projected.label,
+              complete,
+            });
+          }
+          if (decoded.status === "inProgress") {
+            this.active!.items.set(projected.id, {
+              type: projected.type,
+              kind: projected.kind,
+              completed: complete,
+              text: activeText,
+            });
+          }
+          if (textBytes > MAX_HISTORY_TEXT_BYTES) {
+            throw new CodexThreadProtocolError("protocol");
+          }
+        }
+      }
+      return {
+        activeTurnId,
+        messages: messages.slice(-200),
+        activities: activities.slice(-32),
+      };
+    } catch (error) {
+      this.poisoned = true;
+      throw error;
+    }
   }
 
   beginTurn(
@@ -376,14 +659,16 @@ export class ThreadStreamProjector {
         label: projected.label,
       });
     }
-    if (!existing || existing.type !== projected.type || existing.completed) {
+    if (!existing || existing.type !== projected.type) {
       return this.failProtocol();
     }
-    existing.completed = true;
+    if (projected.type === "userMessage") historicalUserText(params.item);
     const text =
       projected.type === "agentMessage"
         ? redactText(params.item.text, MAX_MESSAGE_LENGTH)
         : null;
+    if (existing.completed) return null;
+    existing.completed = true;
     return this.event(turnId, {
       type: "item_completed",
       itemId: projected.id,

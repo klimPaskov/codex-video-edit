@@ -44,6 +44,8 @@ Renderer project frames are bound to the exact draft ID, baseline revision, sequ
 
 The dedicated app-server process starts with fixed ChatGPT/OpenAI settings and disables web search, shell, unified execution, JavaScript, browser/computer use, apps, connectors, plugins, remote plugins, and image generation. Every turn supplies an empty environment set plus read-only/no-network sandbox policy. Command/file approval and MCP elicitation requests are denied and quarantine the connection. These controls constrain the integrated surface; authenticated model behavior still requires isolated negative tests.
 
+Thread resume consumes at most one validated page of 100 newest full turns and 1,000 unique items. Main reverses that page for chronological display and exposes only up to 200 redacted user/Codex messages and 32 generic activities under fresh application IDs. Skill paths, cursors, raw server IDs, tool inputs/results, reasoning, and unsupported content stay out of renderer state. Command, file, web, image, dynamic-tool, foreign-MCP, unknown, approval-waiting, or an inline page that contradicts its same-response thread status quarantines the connection before it opens. A separately fetched fallback page is later authority and safely absorbs buffered completion races.
+
 ## Secrets
 
 Let the official Codex client own ChatGPT credentials. Do not copy tokens into project files, logs, crash reports, or renderer state. The MCP broker credential is inherited through the restricted process environment and never appears in command arguments, thread instructions, project data, or IPC.

@@ -3,6 +3,7 @@ import type { ThreadResumeParams as GeneratedThreadResumeParams } from "./genera
 import type { ThreadStartParams as GeneratedThreadStartParams } from "./generated/v2/ThreadStartParams.ts";
 import type { ThreadUnsubscribeParams as GeneratedThreadUnsubscribeParams } from "./generated/v2/ThreadUnsubscribeParams.ts";
 import type { ThreadUnsubscribeResponse as GeneratedThreadUnsubscribeResponse } from "./generated/v2/ThreadUnsubscribeResponse.ts";
+import type { ThreadTurnsListParams as GeneratedThreadTurnsListParams } from "./generated/v2/ThreadTurnsListParams.ts";
 import type { TurnInterruptParams as GeneratedTurnInterruptParams } from "./generated/v2/TurnInterruptParams.ts";
 import type { TurnInterruptResponse as GeneratedTurnInterruptResponse } from "./generated/v2/TurnInterruptResponse.ts";
 import type { TurnStartParams as GeneratedTurnStartParams } from "./generated/v2/TurnStartParams.ts";
@@ -229,6 +230,13 @@ export interface ThreadResumeRequest {
   developerInstructions?: string;
 }
 
+export interface ThreadTurnsListRequest {
+  threadId: string;
+  limit: 100;
+  sortDirection: "desc";
+  itemsView: "full";
+}
+
 /** 0.142.3 thread/resume has no environments property. */
 export function buildThreadResumeRequest(
   trustedThreadId: string,
@@ -265,6 +273,24 @@ export function buildThreadResumeRequest(
       : { developerInstructions: policy.developerInstructions }),
   };
   return request satisfies GeneratedThreadResumeParams;
+}
+
+export function buildThreadTurnsListRequest(
+  trustedThreadId: string,
+): ThreadTurnsListRequest {
+  const request: ThreadTurnsListRequest = {
+    threadId: identifier(trustedThreadId, "configuration"),
+    limit: 100,
+    sortDirection: "desc",
+    itemsView: "full",
+  };
+  return request satisfies GeneratedThreadTurnsListParams;
+}
+
+/** The pinned response permits a null inline page; callers then use the list fallback. */
+export function decodeThreadResumeHistoryPage(value: unknown): unknown | null {
+  if (!record(value)) throw new CodexThreadProtocolError("protocol");
+  return value.initialTurnsPage ?? null;
 }
 
 export interface TurnTextInput {
@@ -395,17 +421,50 @@ export function buildTurnInterruptRequest(
 
 export interface ThreadSession {
   threadId: string;
+  active: boolean | null;
+}
+
+function threadActiveState(thread: Record<string, unknown>): boolean | null {
+  if (thread.status === undefined) return null;
+  if (!record(thread.status)) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  const status = thread.status;
+  if (status.type === "active") {
+    if (
+      Object.keys(status).length !== 2 ||
+      !Object.hasOwn(status, "activeFlags") ||
+      !Array.isArray(status.activeFlags) ||
+      status.activeFlags.some(
+        (flag) => flag !== "waitingOnApproval" && flag !== "waitingOnUserInput",
+      )
+    ) {
+      throw new CodexThreadProtocolError("protocol");
+    }
+    if (status.activeFlags.length) {
+      throw new CodexThreadProtocolError("forbidden");
+    }
+    return true;
+  }
+  if (status.type !== "idle" || Object.keys(status).length !== 1) {
+    throw new CodexThreadProtocolError("protocol");
+  }
+  return false;
 }
 
 export function decodeThreadSession(
   value: unknown,
   expectedPolicy: ThreadRuntimePolicy,
+  requireThreadStatus = false,
 ): ThreadSession {
   const policy = validatePolicy(expectedPolicy);
   if (!record(value) || !record(value.thread)) {
     throw new CodexThreadProtocolError("protocol");
   }
   const thread = value.thread;
+  if (requireThreadStatus && thread.status === undefined) {
+    throw new CodexThreadProtocolError("protocol");
+  }
   if (
     value.model !== policy.model ||
     value.modelProvider !== "openai" ||
@@ -435,7 +494,10 @@ export function decodeThreadSession(
   ) {
     throw new CodexThreadProtocolError("protocol");
   }
-  return { threadId: identifier(thread.id, "protocol") };
+  return {
+    threadId: identifier(thread.id, "protocol"),
+    active: threadActiveState(thread),
+  };
 }
 
 export type TurnStatus = "completed" | "interrupted" | "failed" | "inProgress";

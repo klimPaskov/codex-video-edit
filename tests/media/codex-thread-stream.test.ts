@@ -206,3 +206,314 @@ test("disconnect makes a running turn uncertain and rejects stale reconnect traf
   assert.equal(stream.currentGeneration(), 8);
   assert.equal(stream.beginTurn(8, "turn-2"), null);
 });
+
+test("recent history restores redacted messages and seeds the active turn", () => {
+  const stream = projector();
+  const history = stream.restoreHistory({
+    data: [
+      {
+        id: "turn-active",
+        items: [
+          {
+            type: "userMessage",
+            id: "user-active",
+            clientId: "client-active",
+            content: [
+              { type: "text", text: "Continue the edit", text_elements: [] },
+            ],
+          },
+          {
+            type: "agentMessage",
+            id: "agent-active",
+            text: "Working from /home/person/private.mov",
+            phase: null,
+            memoryCitation: null,
+          },
+          {
+            type: "mcpToolCall",
+            id: "edit-active",
+            server: "codex-video-edit",
+            tool: "draft.trim",
+            status: "inProgress",
+            arguments: { token: "SECRET" },
+          },
+        ],
+        itemsView: "full",
+        status: "inProgress",
+        error: null,
+        startedAt: 2,
+        completedAt: null,
+        durationMs: null,
+      },
+      {
+        id: "turn-complete",
+        items: [
+          {
+            type: "userMessage",
+            id: "user-complete",
+            clientId: "client-complete",
+            content: [
+              {
+                type: "text",
+                text: "Trim C:\\Users\\person\\source.mov",
+                text_elements: [],
+              },
+              { type: "skill", name: "timeline-editor", path: "/private" },
+            ],
+          },
+          {
+            type: "agentMessage",
+            id: "agent-complete",
+            text: "Done for private@example.test",
+            phase: null,
+            memoryCitation: null,
+          },
+          {
+            type: "mcpToolCall",
+            id: "edit-complete",
+            server: "codex-video-edit",
+            tool: "draft.trim",
+            status: "completed",
+            arguments: { source: "C:\\private" },
+          },
+        ],
+        itemsView: "full",
+        status: "completed",
+        error: null,
+        startedAt: 1,
+        completedAt: 2,
+        durationMs: 1000,
+      },
+    ],
+    nextCursor: "older-page",
+    backwardsCursor: "newer-page",
+  });
+  assert.equal(history.activeTurnId, "turn-active");
+  assert.deepEqual(
+    history.messages.map(({ role, complete }) => ({ role, complete })),
+    [
+      { role: "user", complete: true },
+      { role: "codex", complete: true },
+      { role: "user", complete: true },
+      { role: "codex", complete: false },
+    ],
+  );
+  assert.deepEqual(
+    history.activities.map(({ kind, complete }) => ({ kind, complete })),
+    [
+      { kind: "edit", complete: true },
+      { kind: "edit", complete: false },
+    ],
+  );
+  assert.ok(!JSON.stringify(history).includes("Users"));
+  assert.ok(!JSON.stringify(history).includes("example.test"));
+  assert.ok(!JSON.stringify(history).includes("SECRET"));
+  assert.deepEqual(
+    stream.observe(7, "item/agentMessage/delta", {
+      threadId: "thread-1",
+      turnId: "turn-active",
+      itemId: "agent-active",
+      delta: " and continuing",
+    }),
+    {
+      type: "message_delta",
+      generation: 7,
+      threadId: "thread-1",
+      turnId: "turn-active",
+      itemId: "agent-active",
+      text: " and continuing",
+    },
+  );
+});
+
+test("history rejects non-app inputs, forbidden tools and divergent pagination", () => {
+  for (const value of [
+    { data: [], nextCursor: null, backwardsCursor: null, private: true },
+    {
+      data: [
+        {
+          id: "turn-1",
+          items: [
+            {
+              type: "userMessage",
+              id: "user-1",
+              content: [{ type: "localImage", path: "/private" }],
+            },
+          ],
+          itemsView: "full",
+          status: "completed",
+          error: null,
+          startedAt: 1,
+          completedAt: 2,
+          durationMs: 1,
+        },
+      ],
+      nextCursor: null,
+      backwardsCursor: null,
+    },
+    {
+      data: [
+        {
+          id: "turn-1",
+          items: [
+            {
+              type: "mcpToolCall",
+              id: "mcp-1",
+              server: "other-server",
+              tool: "draft.trim",
+              status: "completed",
+            },
+          ],
+          itemsView: "full",
+          status: "completed",
+          error: null,
+          startedAt: 1,
+          completedAt: 2,
+          durationMs: 1,
+        },
+      ],
+      nextCursor: null,
+      backwardsCursor: null,
+    },
+  ]) {
+    const stream = projector();
+    assert.throws(
+      () => stream.restoreHistory(value),
+      (error: unknown) => error instanceof CodexThreadProtocolError,
+    );
+    assert.throws(
+      () => stream.beginTurn(7, "later-turn"),
+      (error: unknown) =>
+        error instanceof CodexThreadProtocolError && error.code === "forbidden",
+    );
+  }
+});
+
+test("history accepts omitted wire defaults and preserves completed active items", () => {
+  const stream = projector();
+  const history = stream.restoreHistory({
+    data: [
+      {
+        id: "turn-active",
+        items: [
+          {
+            type: "userMessage",
+            id: "user-complete",
+            content: [{ type: "text", text: "Keep editing" }],
+          },
+          {
+            type: "mcpToolCall",
+            id: "edit-complete",
+            server: "codex-video-edit",
+            tool: "draft.trim",
+            status: "completed",
+          },
+          {
+            type: "collabAgentToolCall",
+            id: "subagent-complete",
+            status: "failed",
+          },
+        ],
+        status: "inProgress",
+      },
+    ],
+  });
+  assert.deepEqual(
+    history.activities.map(({ kind, complete }) => ({ kind, complete })),
+    [
+      { kind: "edit", complete: true },
+      { kind: "subagent", complete: true },
+    ],
+  );
+  assert.equal(
+    stream.observe(7, "item/completed", {
+      threadId: "thread-1",
+      turnId: "turn-active",
+      completedAtMs: 2,
+      item: {
+        type: "userMessage",
+        id: "user-complete",
+        content: [{ type: "text", text: "Keep editing" }],
+      },
+    }),
+    null,
+  );
+  assert.equal(
+    stream.observe(7, "item/completed", {
+      threadId: "thread-1",
+      turnId: "turn-active",
+      completedAtMs: 3,
+      item: {
+        type: "mcpToolCall",
+        id: "edit-complete",
+        server: "codex-video-edit",
+        tool: "draft.trim",
+        status: "completed",
+      },
+    }),
+    null,
+  );
+});
+
+test("history enforces turn, item, identity and aggregate text bounds", () => {
+  const invalidPages = [
+    {
+      data: Array.from({ length: 101 }, (_, index) => ({
+        id: `turn-${index}`,
+        items: [],
+        status: "completed",
+      })),
+    },
+    {
+      data: [
+        {
+          id: "turn-items",
+          items: Array.from({ length: 1001 }, (_, index) => ({
+            type: "agentMessage",
+            id: `item-${index}`,
+            text: "bounded",
+          })),
+          status: "completed",
+        },
+      ],
+    },
+    {
+      data: [
+        { id: "turn-duplicate", items: [], status: "completed" },
+        { id: "turn-duplicate", items: [], status: "completed" },
+      ],
+    },
+    {
+      data: [
+        {
+          id: "turn-duplicate-items",
+          items: [
+            { type: "agentMessage", id: "item-duplicate", text: "one" },
+            { type: "agentMessage", id: "item-duplicate", text: "two" },
+          ],
+          status: "completed",
+        },
+      ],
+    },
+    {
+      data: [
+        {
+          id: "turn-text-budget",
+          items: Array.from({ length: 9 }, (_, index) => ({
+            type: "agentMessage",
+            id: `large-item-${index}`,
+            text: "x".repeat(64 * 1024),
+          })),
+          status: "completed",
+        },
+      ],
+    },
+  ];
+  for (const page of invalidPages) {
+    assert.throws(
+      () => projector().restoreHistory(page),
+      (error: unknown) =>
+        error instanceof CodexThreadProtocolError && error.code === "protocol",
+    );
+  }
+});

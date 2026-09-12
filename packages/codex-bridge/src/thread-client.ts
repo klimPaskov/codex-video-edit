@@ -4,7 +4,10 @@ import { CodexThreadProtocolError } from "./thread-protocol.ts";
 import type { ThreadRuntimePolicy, TurnStartInput } from "./thread-protocol.ts";
 import type { ProjectThreadRegistry } from "./thread-registry.ts";
 import { ProjectThreadRuntime } from "./thread-runtime.ts";
-import type { ThreadStreamEvent } from "./thread-stream.ts";
+import type {
+  ThreadHistorySnapshot,
+  ThreadStreamEvent,
+} from "./thread-stream.ts";
 
 const MAX_BUFFERED_NOTIFICATIONS = 64;
 const MAX_BUFFERED_NOTIFICATION_BYTES = 256 * 1024;
@@ -22,6 +25,7 @@ export interface CodexProjectThreadClientOptions {
   allowedMcpServer: string;
   allowedMcpTools: ReadonlySet<string>;
   onEvent?: (event: ThreadStreamEvent) => void;
+  onHistory?: (history: ThreadHistorySnapshot) => void;
   onPolicyViolation?: () => void;
   clientMessageId?: () => string;
 }
@@ -86,11 +90,28 @@ export class CodexProjectThreadClient {
         request.method,
         request.params,
       );
-      await this.runtime.acceptThreadResponse(response);
+      const resumed = request.method === "thread/resume",
+        inlineHistory = await this.runtime.acceptThreadResponse(
+          response,
+          resumed,
+        );
+      if (resumed) {
+        const inline = inlineHistory !== null;
+        const history = this.runtime.acceptHistoryPage(
+          inlineHistory ??
+            (await this.options.rpc.request(
+              "thread/turns/list",
+              await this.runtime.historyRequest(),
+            )),
+          inline,
+        );
+        this.options.onHistory?.(structuredClone(history));
+      }
       this.opened = true;
       this.flush();
     } catch (error) {
       this.pending = [];
+      if (error instanceof CodexThreadProtocolError) this.quarantine();
       throw error;
     } finally {
       this.inFlight = false;
