@@ -5,6 +5,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
@@ -49,7 +50,10 @@ async function fixture() {
 test("packaged resolver uses fixed resources and verifies content without launching", async () => {
   const files = await fixture();
   try {
-    assert.equal(await resolveCodexRuntime(files.root), files.executable);
+    assert.equal(
+      await resolveCodexRuntime(files.root),
+      await realpath(files.executable),
+    );
     await writeFile(files.executable, "modified binary bytes, never executed");
     await assert.rejects(resolveCodexRuntime(files.root), CodexRuntimeError);
     await assert.rejects(resolveCodexRuntime("relative"), CodexRuntimeError);
