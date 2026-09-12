@@ -1,3 +1,4 @@
+import { setupCodexSettings } from "./codex-settings.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import type { DesktopBridge } from "../src/bridge.ts";
 import type { MediaSummary } from "../../../packages/domain/src/library.ts";
@@ -428,6 +429,7 @@ const detailsButton = element<HTMLButtonElement>("source-details");
 const settingsButton = element<HTMLButtonElement>("settings");
 const settingsDialog = element<HTMLDialogElement>("settings-dialog");
 const scaleSelect = element<HTMLSelectElement>("interface-scale");
+const resetSettingsSection = setupCodexSettings(settingsDialog);
 let savingPreferences = false;
 let settingsLoad = 0;
 let restoreInspector = false;
@@ -483,6 +485,7 @@ async function openSettings(): Promise<void> {
   const message = element("settings-error");
   message.hidden = true;
   element<HTMLButtonElement>("save-settings").disabled = true;
+  resetSettingsSection();
   settingsDialog.showModal();
   scaleSelect.disabled = true;
   element("close-settings").focus();
@@ -493,7 +496,7 @@ async function openSettings(): Promise<void> {
     scaleSelect.value = String(reply.value.interfaceScale);
     scaleSelect.disabled = false;
     element<HTMLButtonElement>("save-settings").disabled = false;
-    scaleSelect.focus();
+    if (!element("appearance-settings").hidden) scaleSelect.focus();
   } catch {
     if (settingsDialog.open && load === settingsLoad) {
       message.textContent =
@@ -525,7 +528,12 @@ settingsDialog.addEventListener("close", () => {
 });
 element("settings-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  if (savingPreferences || scaleSelect.disabled) return;
+  if (
+    savingPreferences ||
+    scaleSelect.disabled ||
+    !element("codex-settings").hidden
+  )
+    return;
   void savePreferences();
 });
 async function savePreferences(): Promise<void> {

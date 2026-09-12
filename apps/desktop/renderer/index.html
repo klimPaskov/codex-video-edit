@@ -90,15 +90,55 @@
             ×
           </button>
         </div>
-        <label for="interface-scale">Interface size</label
-        ><select id="interface-scale">
-          <option value="1">100%</option>
-          <option value="1.25">125%</option>
-          <option value="1.5">150%</option>
-          <option value="2">200%</option>
-        </select>
+        <nav class="settings-sections" aria-label="Settings sections">
+          <button type="button" id="settings-appearance" aria-pressed="true">
+            Appearance
+          </button>
+          <button type="button" id="settings-codex" aria-pressed="false">
+            Codex
+          </button>
+        </nav>
+        <div id="appearance-settings">
+          <label for="interface-scale">Interface size</label
+          ><select id="interface-scale">
+            <option value="1">100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="2">200%</option>
+          </select>
+        </div>
+        <section id="codex-settings" aria-label="Codex account" hidden>
+          <p id="codex-account" role="status"></p>
+          <p id="codex-disclosure">
+            Codex may receive project instructions, transcript excerpts,
+            timeline state, requested preview frames and local tool results.
+            Original recordings are not sent by default.
+          </p>
+          <div class="codex-actions">
+            <button type="button" id="codex-login" hidden>
+              Sign in with ChatGPT
+            </button>
+            <button type="button" id="codex-cancel-login" hidden>
+              Cancel sign-in
+            </button>
+            <button type="button" id="codex-logout" hidden>Sign out</button>
+            <button type="button" id="codex-reconnect" hidden>Reconnect</button>
+          </div>
+          <p id="codex-error" role="alert" hidden></p>
+          <div id="codex-model-settings" hidden>
+            <label for="codex-model">Default model</label
+            ><select id="codex-model"></select>
+            <label for="codex-reasoning">Reasoning</label
+            ><select id="codex-reasoning"></select>
+          </div>
+          <ul id="codex-limits" aria-label="Usage remaining" hidden></ul>
+          <details id="codex-advanced" hidden>
+            <summary>Available skills</summary>
+            <ul id="codex-skills"></ul>
+          </details>
+        </section>
         <p id="settings-error" role="alert" hidden></p>
-        <div class="dialog-actions">
+        <div class="dialog-actions" id="appearance-actions">
           <button type="button" id="cancel-settings">Cancel</button
           ><button type="submit" class="primary" id="save-settings">
             Save

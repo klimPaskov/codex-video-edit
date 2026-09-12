@@ -33,6 +33,14 @@ test("account metadata accepts ChatGPT account type and strips private fields", 
     { requiresOpenaiAuth: false },
     { requiresOpenaiAuth: true, account: { type: "apiKey" } },
     { requiresOpenaiAuth: true, account: { type: "amazonBedrock" } },
+    {
+      requiresOpenaiAuth: true,
+      account: {
+        type: "chatgpt",
+        email: null,
+        planType: "PRIVATE_UNKNOWN_PLAN",
+      },
+    },
   ])
     assert.throws(() => decodeAccount(value), CodexTransportError);
 });
@@ -132,6 +140,15 @@ test("client rejects non-Codex executable versions and supports safe close durin
   });
   try {
     await assert.rejects(client.account(), CodexTransportError);
+    await assert.rejects(client.startLogin(), CodexTransportError);
+    await assert.rejects(client.cancelLogin(), CodexTransportError);
+    await assert.rejects(client.logout(), CodexTransportError);
+    await assert.rejects(client.rateLimits(), CodexTransportError);
+    assert.deepEqual(client.authState(), {
+      status: "idle",
+      account: null,
+      error: null,
+    });
     await assert.rejects(
       client.connect(),
       (error: unknown) =>

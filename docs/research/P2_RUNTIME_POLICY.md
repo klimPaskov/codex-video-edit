@@ -48,3 +48,7 @@ The experimental `multiAgentMode` request property is deprecated and ignored in 
 - Complete an authenticated reversible fixture edit, stale sequence rejection, interruption, reconnect, durable commit recovery, and shared undo. Source review and unauthenticated discovery cannot substitute for these checks.
 
 Until those checks pass, empty-environment confinement, MCP usability, subagent inheritance, and the real edit workflow remain unproven in the product. No phase completion is claimed here.
+
+## Account-settings skill discovery
+
+The settings client now sets `project_root_markers=[]` so the pinned [skill root finder](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/core-skills/src/loader.rs#L405) stops repository-scope discovery at its app-owned context. A dedicated HOME alone does not restrict ancestor repository skills. The native test also keeps its account/context outside the source workspace. Runtime home, system and configured extra skill roots remain separate mechanisms; this does not establish a complete skill allowlist or authenticated conversation confinement.

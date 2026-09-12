@@ -486,3 +486,36 @@ select:focus-visible {
     scroll-behavior: auto;
   }
 }
+
+.settings-sections,
+.codex-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-block: 0.75rem;
+}
+.settings-sections [aria-pressed="true"] {
+  border-color: var(--accent, #a99aff);
+}
+#codex-settings p {
+  line-height: 1.45;
+}
+#codex-disclosure {
+  font-size: 0.9rem;
+  color: #b6bdca;
+}
+#codex-error {
+  color: #ffb4b4;
+}
+#codex-model-settings {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 1rem;
+}
+#codex-advanced {
+  margin-block: 1rem;
+}
+#codex-skills,
+#codex-limits {
+  padding-inline-start: 1.25rem;
+}
