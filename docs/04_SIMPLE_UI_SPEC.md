@@ -59,7 +59,7 @@ Tracks can collapse. The default view shows only tracks with content.
 
 ### Codex drawer
 
-A bottom-right drawer contains natural-language editing, a model selector, current selection context, concise activity, and recent applied actions. Raw reasoning and full command logs are not shown.
+A bottom-right drawer contains natural-language editing, a model selector, current selection context, concise activity, and recent applied actions. Reopening a project restores a bounded, redacted recent conversation from the real project thread; an authoritative in-progress turn reopens as running and remains stoppable. Raw reasoning, server identifiers, cursors, skill paths, and full command logs are not shown.
 
 The P2 conversation slice implements a compact drawer beside the preview. Opening it closes the source inspector so only one panel is visible. A real selected project and signed-in runtime selection are required before a conversation can open. The renderer shows only projected user/Codex text, generic work/subagent/edit activity, Stop while a turn runs, and actionable failure or uncertainty. It never seeds sample conversation text or invents an edit result. Leaving a project first performs an idle thread unsubscribe and refuses while a turn is active.
 

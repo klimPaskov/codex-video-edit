@@ -19,7 +19,7 @@ Implement the official initialization handshake. Use generated types from the in
 - account read, login, logout, and rate limits
 - model list
 - skills list and skills changed
-- thread start, resume, read, and list
+- thread start, resume, and bounded recent-turn list
 - turn start and interrupt
 - idle thread unsubscribe
 - owned MCP server status and exact tool inventory
@@ -87,11 +87,13 @@ The native account/settings source is implemented as described below. The common
 
 The P2 thread continuation wires exact application-owned experimental requests into the real app-server client. A project-thread registry owns create/resume identity. Lifecycle calls are serialized, racing notifications are bounded and ordered, terminal notifications remain authoritative, and idle project close performs `thread/unsubscribe`. Known remote turn rejection permits a new request identity; an uncertain transport outcome remains visible and is never replayed. Server requests for command, file, legacy execution, or MCP elicitation are declined or cancelled and quarantine the connection. Native projection contains only compact messages and activity; raw identifiers, paths, tool arguments, reasoning, command output, and protocol errors do not cross IPC.
 
+Resume restores at most 100 recent full turns from the inline `initialTurnsPage`, with one exact `thread/turns/list` fallback when that page is absent. The fallback is newest-first and uses the main-owned thread ID; cursors are validated but never followed or exposed. Main accepts at most 1,000 unique items, then projects at most 200 redacted user/Codex messages and 32 generic activities in chronological order. Skill paths and server item IDs stay in main. Command, file, web, image, dynamic-tool, foreign-MCP, unknown, or approval-waiting history fails closed and quarantines the session. A newest in-progress turn is restored before buffered notifications are reduced and remains interruptible. Resume must report a supported thread status; an inline page must agree with it. A fallback page is the later authoritative observation because a turn may finish between the two RPCs.
+
 Electron main owns an authenticated local broker. The packaged MCP child exposes exactly `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, and `timeline.undo`; it forwards bounded tool name/input to main and never opens the transaction store. The random broker credential is process-environment only, absent from app-server arguments, thread configuration, renderer state, logs, and persistent files. Startup fails unless `mcpServerStatus/list` returns exactly the owned server, four reviewed tool names and input schemas, no resources/templates, and the expected server version. The app-server process also disables shell, unified execution, JavaScript, browser/computer use, apps/connectors/plugins, remote plugins, image generation, and web search through fixed main-owned configuration.
 
 Project summaries read project metadata and the draft head atomically under the shared root queue. After every settled trim or undo call, including an uncertain response after journal promotion, main rereads that authority and emits a validated path-free draft update independently of model text or streamed MCP activity. Delivery failure never changes the tool result. The renderer reconciles sequence/hash monotonically and requests project frames with the exact committed head; main maps timeline time to source time and withholds pixels if the head changes during decode.
 
-The 0.142.3 experimental generator output is retained privately and a reviewed 205-type dependency closure is pinned by source hashes. Request objects compile against those generated inputs; consumed responses are checked against the supported security invariants before their safe projection. Signed-out packaged startup proves experimental initialization and MCP inventory negotiation. It cannot prove authenticated turns, model-side tool invocation, server-supported subagent activity, or a reversible real Codex edit; those P2 acceptance gates remain blocked on a guest ChatGPT sign-in.
+The 0.142.3 experimental generator output is retained privately and a reviewed 207-type dependency closure is pinned by source hashes. Request objects compile against those generated inputs; consumed responses are checked against the supported security invariants before their safe projection. Signed-out packaged startup proves experimental initialization and MCP inventory negotiation. It cannot prove authenticated turns, persisted authenticated history, model-side tool invocation, server-supported subagent activity, or a reversible real Codex edit; those P2 acceptance gates remain blocked on a guest ChatGPT sign-in.
 
 ## Draft authorization
 
@@ -99,7 +101,7 @@ Apply already authorized reversible edits while the turn runs; no repeated mater
 
 ## Native account/settings (partial P2)
 
-The bridge includes managed browser-login start/cancel/logout handling, completion/account reconciliation and rate-limit mapping. The reviewed generated dependency closure contains 205 types from the experimental output of the same official 0.142.3 binary. Sign-in completion alone does not establish refreshed account metadata; reconcile the runtime account update/read before exposing signed-in controls.
+The bridge includes managed browser-login start/cancel/logout handling, completion/account reconciliation and rate-limit mapping. The reviewed generated dependency closure contains 207 types from the experimental output of the same official 0.142.3 binary. Sign-in completion alone does not establish refreshed account metadata; reconcile the runtime account update/read before exposing signed-in controls.
 
 The isolated desktop build now copies the official native binary and Apache licence into `resources/codex` outside ASAR, with a version/platform/architecture/content-hash manifest. Main resolves only this fixed packaged resource, checks file type, paths, manifest and hashes, then the client verifies the executable version before starting stdio. The hash manifest detects inconsistent or damaged packaged content; it is not a release signature against replacement of the whole installation. Missing or damaged resources produce actionable reinstall guidance. No environment or renderer executable override is accepted.
 

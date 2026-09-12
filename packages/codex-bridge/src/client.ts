@@ -25,7 +25,10 @@ import { buildExperimentalInitialize } from "./thread-protocol.ts";
 import type { TurnStartInput } from "./thread-protocol.ts";
 import { ProjectThreadRegistry } from "./thread-registry.ts";
 import { CodexProjectThreadClient } from "./thread-client.ts";
-import type { ThreadStreamEvent } from "./thread-stream.ts";
+import type {
+  ThreadHistorySnapshot,
+  ThreadStreamEvent,
+} from "./thread-stream.ts";
 import { codexVideoEditToolNames } from "../../codex-tools/src/service.ts";
 import { codexVideoEditMcpTools } from "../../codex-tools/src/mcp-tools.ts";
 import type { CodexMcpRuntime } from "../../codex-tools/src/broker.ts";
@@ -169,6 +172,7 @@ export interface CodexClientOptions {
   onAuthStateChanged?: (state: AuthState) => void;
   onRateLimitsChanged?: () => void;
   onThreadEvent?: (event: ThreadStreamEvent) => void;
+  onThreadHistory?: (history: ThreadHistorySnapshot) => void;
   mcp?: CodexMcpRuntime;
 }
 
@@ -458,6 +462,13 @@ export class CodexClient {
       onEvent: (event) => {
         if (this.conversation === conversation)
           this.options.onThreadEvent?.(event);
+      },
+      onHistory: (history) => {
+        if (this.conversation === conversation)
+          this.options.onThreadHistory?.(history);
+      },
+      onPolicyViolation: () => {
+        if (this.transport === transport) void transport.close();
       },
     });
     this.conversation = conversation;

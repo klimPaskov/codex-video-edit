@@ -5,7 +5,10 @@ import {
   type CodexClientOptions,
 } from "../../../packages/codex-bridge/src/client.ts";
 import type { AuthState } from "../../../packages/codex-bridge/src/auth.ts";
-import type { ThreadStreamEvent } from "../../../packages/codex-bridge/src/thread-stream.ts";
+import type {
+  ThreadHistorySnapshot,
+  ThreadStreamEvent,
+} from "../../../packages/codex-bridge/src/thread-stream.ts";
 import { CodexTransportError } from "../../../packages/codex-bridge/src/transport.ts";
 import {
   resolveCodexRuntime,
@@ -269,6 +272,32 @@ export class DesktopCodex {
         break;
     }
   }
+  private applyThreadHistory(history: ThreadHistorySnapshot): void {
+    if (this.thread.status === "closed") return;
+    this.threadItems.clear();
+    this.thread.messages = history.messages.map((message) => {
+      const id = this.viewId("message");
+      this.threadItems.set(message.itemId, id);
+      return {
+        id,
+        role: message.role,
+        text: message.text,
+        complete: message.complete,
+      };
+    });
+    this.thread.activities = history.activities.map((activity) => {
+      const id = this.viewId("activity");
+      this.threadItems.set(activity.itemId, id);
+      return {
+        id,
+        kind: activity.kind,
+        label: activity.label,
+        complete: activity.complete,
+      };
+    });
+    this.thread.status = history.activeTurnId ? "running" : "ready";
+    this.thread.message = null;
+  }
   async get(): Promise<CodexView> {
     if (!this.attempted && !this.stopped) return this.reconnect();
     return this.snapshot();
@@ -341,6 +370,10 @@ export class DesktopCodex {
         onRateLimitsChanged: update,
         onThreadEvent: (event) => {
           if (this.current(generation, client)) this.applyThreadEvent(event);
+        },
+        onThreadHistory: (history) => {
+          if (this.current(generation, client))
+            this.applyThreadHistory(history);
         },
         ...(this.dependencies.mcpRuntime
           ? { mcp: this.dependencies.mcpRuntime }

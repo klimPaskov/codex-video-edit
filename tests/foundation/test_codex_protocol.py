@@ -14,7 +14,8 @@ def fixture():
         document['definitions'][key] = {'type': 'object', 'properties': {'test': {'type': 'string'}}}
         document['oneOf'].append({'required': ['id', 'method', 'params'], 'properties': {
             'method': {'enum': [method]}, 'params': {'$ref': f'#/definitions/{key}'}}})
-    document['definitions']['Params6'] = {'oneOf': [
+    login_index = METHODS.index('account/login/start')
+    document['definitions'][f'Params{login_index}'] = {'oneOf': [
         {'required': ['type'], 'properties': {'type': {'enum': ['chatgpt']}}}]}
     return document
 
@@ -40,7 +41,8 @@ class CodexProtocolTests(unittest.TestCase):
             elif change == 'envelope':
                 document['oneOf'][0]['required'].remove('params')
             elif change == 'login':
-                document['definitions']['Params6']['oneOf'][0]['properties']['type']['enum'] = ['apiKey']
+                login_index = METHODS.index('account/login/start')
+                document['definitions'][f'Params{login_index}']['oneOf'][0]['properties']['type']['enum'] = ['apiKey']
             else:
                 document['oneOf'].append(copy.deepcopy(document['oneOf'][0]))
             with self.subTest(change=change), self.assertRaises(ValueError):

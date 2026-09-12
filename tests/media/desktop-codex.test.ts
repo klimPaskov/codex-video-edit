@@ -11,7 +11,10 @@ import type {
   OpenProjectThreadInput,
 } from "../../packages/codex-bridge/src/client.ts";
 import type { TurnStartInput } from "../../packages/codex-bridge/src/thread-protocol.ts";
-import type { ThreadStreamEvent } from "../../packages/codex-bridge/src/thread-stream.ts";
+import type {
+  ThreadHistorySnapshot,
+  ThreadStreamEvent,
+} from "../../packages/codex-bridge/src/thread-stream.ts";
 import { CodexTransportError } from "../../packages/codex-bridge/src/transport.ts";
 import type { AuthState } from "../../packages/codex-bridge/src/auth.ts";
 import type {
@@ -151,6 +154,9 @@ class FakeClient {
   }
   emitThread(event: ThreadStreamEvent): void {
     this.options.onThreadEvent?.(structuredClone(event));
+  }
+  emitHistory(history: ThreadHistorySnapshot): void {
+    this.options.onThreadHistory?.(structuredClone(history));
   }
 }
 function harness(
@@ -517,6 +523,85 @@ test("project conversation uses runtime model identity and exposes only compact 
     assert.equal(finished.messages.at(-1)?.role, "codex");
     assert.equal(finished.activities[0]?.complete, true);
     assert.ok(!JSON.stringify(finished).includes("server-private"));
+  } finally {
+    await controller.close();
+  }
+});
+
+test("resumed history replaces server identities before the drawer receives it", async () => {
+  const fake = new FakeClient();
+  fake.auth = signedIn();
+  fake.onOpenThread = async () => {
+    fake.emitHistory({
+      activeTurnId: "server-active-turn",
+      messages: [
+        {
+          itemId: "server-user-item",
+          role: "user",
+          text: "Tighten the opening.",
+          complete: true,
+        },
+        {
+          itemId: "server-agent-item",
+          role: "codex",
+          text: "Applying the saved trim.",
+          complete: false,
+        },
+      ],
+      activities: [
+        {
+          itemId: "server-tool-item",
+          kind: "edit",
+          label: "Applying an edit",
+          complete: false,
+        },
+      ],
+    });
+  };
+  const { controller } = harness(fake);
+  try {
+    await controller.get();
+    await controller.select({ modelId: model.id, reasoning: "medium" });
+    const restored = await controller.openThread("project-1");
+    assert.equal(restored.status, "running");
+    assert.deepEqual(
+      restored.messages.map(({ role, text, complete }) => ({
+        role,
+        text,
+        complete,
+      })),
+      [
+        { role: "user", text: "Tighten the opening.", complete: true },
+        {
+          role: "codex",
+          text: "Applying the saved trim.",
+          complete: false,
+        },
+      ],
+    );
+    assert.ok(!JSON.stringify(restored).includes("server-"));
+    fake.emitThread({
+      generation: 1,
+      threadId: "server-thread",
+      turnId: "server-active-turn",
+      type: "message_delta",
+      itemId: "server-agent-item",
+      text: " Done.",
+    });
+    fake.emitThread({
+      generation: 1,
+      threadId: "server-thread",
+      turnId: "server-active-turn",
+      type: "turn_terminal",
+      status: "completed",
+    });
+    const completed = controller.getThread("project-1");
+    assert.equal(completed.status, "ready");
+    assert.equal(
+      completed.messages.at(-1)?.text,
+      "Applying the saved trim. Done.",
+    );
+    assert.equal(completed.activities[0]?.complete, true);
   } finally {
     await controller.close();
   }

@@ -1,10 +1,12 @@
 import {
   buildExperimentalInitialize,
   buildThreadStartRequest,
+  buildThreadTurnsListRequest,
   buildThreadUnsubscribeRequest,
   buildTurnInterruptRequest,
   buildTurnStartRequest,
   CodexThreadProtocolError,
+  decodeThreadResumeHistoryPage,
   decodeThreadSession,
   decodeThreadUnsubscribe,
   decodeTurnInterrupt,
@@ -14,6 +16,7 @@ import {
   type ThreadResumeRequest,
   type ThreadRuntimePolicy,
   type ThreadStartRequest,
+  type ThreadTurnsListRequest,
   type ThreadUnsubscribeRequest,
   type TurnInterruptRequest,
   type TurnStartInput,
@@ -21,7 +24,10 @@ import {
 } from "./thread-protocol.ts";
 import type { ProjectThreadRegistry } from "./thread-registry.ts";
 import { ThreadStreamProjector } from "./thread-stream.ts";
-import type { ThreadStreamEvent } from "./thread-stream.ts";
+import type {
+  ThreadHistorySnapshot,
+  ThreadStreamEvent,
+} from "./thread-stream.ts";
 
 export interface ProjectThreadRuntimeOptions {
   /** Must come from the successful initialize negotiation for this connection. */
@@ -51,6 +57,7 @@ export class ProjectThreadRuntime {
   private currentTurnId: string | undefined;
   private turnStarting = false;
   private lastTerminalTurnId: string | undefined;
+  private expectedHistoryActive: boolean | null = null;
   private readonly clientMessageId: () => string;
 
   constructor(options: ProjectThreadRuntimeOptions) {
@@ -90,8 +97,14 @@ export class ProjectThreadRuntime {
     };
   }
 
-  async acceptThreadResponse(response: unknown): Promise<void> {
-    const session = decodeThreadSession(response, this.options.policy);
+  async acceptThreadResponse(
+    response: unknown,
+    resumed = false,
+  ): Promise<unknown | null> {
+    const session = decodeThreadSession(response, this.options.policy, resumed);
+    const historyPage = resumed
+      ? decodeThreadResumeHistoryPage(response)
+      : null;
     await this.options.registry.bindFromThreadResponse(
       this.options.projectId,
       response,
@@ -108,6 +121,31 @@ export class ProjectThreadRuntime {
     this.currentTurnId = undefined;
     this.turnStarting = false;
     this.lastTerminalTurnId = undefined;
+    this.expectedHistoryActive = resumed ? session.active : null;
+    return historyPage;
+  }
+
+  async historyRequest(): Promise<ThreadTurnsListRequest> {
+    this.requireProjector();
+    return buildThreadTurnsListRequest(await this.requireThreadId());
+  }
+
+  acceptHistoryPage(
+    response: unknown,
+    requireActivityAgreement: boolean,
+  ): ThreadHistorySnapshot {
+    const history = this.requireProjector().restoreHistory(response);
+    if (
+      requireActivityAgreement &&
+      this.expectedHistoryActive !== null &&
+      this.expectedHistoryActive !== (history.activeTurnId !== null)
+    ) {
+      throw new CodexThreadProtocolError("protocol");
+    }
+    this.currentTurnId = history.activeTurnId ?? undefined;
+    this.turnStarting = false;
+    this.expectedHistoryActive = null;
+    return history;
   }
 
   async turnStartRequest(input: TurnStartInput): Promise<TurnStartRequest> {
@@ -187,6 +225,7 @@ export class ProjectThreadRuntime {
     this.currentTurnId = undefined;
     this.turnStarting = false;
     this.lastTerminalTurnId = undefined;
+    this.expectedHistoryActive = null;
   }
 
   /** A correlated RPC error proves that no turn was accepted; timeouts use disconnect(). */
