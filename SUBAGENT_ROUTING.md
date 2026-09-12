@@ -23,9 +23,11 @@ For the ADR 0013 project shell, keep domain/store/complete-probe verification, m
 
 For P2, the Codex bridge engineer may own a bounded guarded-tool or thread-runtime file set,
 but the main agent owns the active project/draft scope, transaction integration, and final
-protocol review. Handwritten experimental request/decoder types must stay clearly
-application-owned until the pinned binary's experimental schemas are generated and their
-provenance is retained.
+protocol review. Generate the consumed experimental protocol from the pinned binary, retain
+its private provenance, compile request objects against the reviewed generated closure, and
+validate security-relevant response fields before projection. The packaged MCP child may
+only forward the fixed tool name and bounded input to the authenticated main-owned broker;
+it never becomes a second transaction writer.
 
 - Delegate only a clear file or evidence boundary.
 - Give the subagent exact task IDs, inputs, outputs, and stop conditions.

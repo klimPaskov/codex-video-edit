@@ -1,6 +1,7 @@
 # Prompt index
 
 - `MASTER_IMPLEMENTATION_PROMPT.md`: long implementation entry point
+- `CODEX_IN_APP_EDITOR_PROMPT.md`: fixed developer instruction for the bounded live project thread
 - `EDITORIAL_FIRST_CUT_PROMPT.md`: adapted Codex editorial policy for later implemented tools; graphics suggestions only, no automatic export
 - `PHASE_PROMPT_TEMPLATE.md`: template for phase work
 - `EXAMPLE_VIDEO_ACCEPTANCE_PROMPT.md`: final user-video proof

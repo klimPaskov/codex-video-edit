@@ -2,6 +2,15 @@ import { DesktopCodex } from "./codex.ts";
 import { assertCodexView } from "../../../packages/domain/src/codex-view.ts";
 import { PreferencesStore } from "./preferences.ts";
 import { ProjectStore } from "../../../packages/project-store/src/store.ts";
+import { DraftTransactionStore } from "../../../packages/project-store/src/transactions.ts";
+import {
+  CodexMcpBroker,
+  resolveCodexMcpScript,
+} from "../../../packages/codex-tools/src/broker.ts";
+import {
+  CodexVideoEditToolError,
+  CodexVideoEditToolService,
+} from "../../../packages/codex-tools/src/service.ts";
 import type { InitialProjectSnapshot } from "../../../packages/domain/src/project.ts";
 import {
   assertProjectRequest,
@@ -31,24 +40,31 @@ import {
   assertMediaSummary,
 } from "../../../packages/domain/src/library.ts";
 import {
+  assertCodexThreadProjectRequest,
+  assertCodexThreadSendRequest,
+  assertCodexThreadView,
+} from "../../../packages/domain/src/codex-thread-view.ts";
+import {
   MediaLibrary,
   mediaMeasurements,
 } from "../../../packages/media-engine/src/library.ts";
 
 const origin = "codex-video-edit://app";
 const page = `${origin}/index.html`;
+class UserFacingError extends Error {}
 let window: BrowserWindow | undefined;
 let importing: AbortController | undefined;
 const frameRequests = new Set<AbortController>();
 let quitting = false;
 let codex: DesktopCodex | undefined;
-let codexClosed = false;
+let mcpBroker: CodexMcpBroker | undefined;
+let servicesClosed = false;
 app.on("before-quit", (event) => {
   quitting = true;
-  if (codex && !codexClosed) {
+  if (!servicesClosed && (codex || mcpBroker)) {
     event.preventDefault();
-    void codex.close().finally(() => {
-      codexClosed = true;
+    void Promise.all([codex?.close(), mcpBroker?.close()]).finally(() => {
+      servicesClosed = true;
       app.quit();
     });
   }
@@ -80,11 +96,13 @@ function register(
     assertSender(event);
     try {
       return { ok: true, value: await work(request) };
-    } catch {
+    } catch (error) {
       return {
         ok: false,
         message:
-          "This operation could not finish. Check the file is available and try again.",
+          error instanceof UserFacingError
+            ? error.message
+            : "This operation could not finish. Check the file is available and try again.",
       };
     }
   });
@@ -145,10 +163,33 @@ async function start(): Promise<void> {
     window?.webContents.setZoomFactor(value.interfaceScale);
     return value;
   });
+  const userData = app.getPath("userData");
+  const library = new MediaLibrary(path.join(userData, "media-library"));
+  const projectRoot = path.join(userData, "project-store");
+  const projects = new ProjectStore(projectRoot, library);
+  const drafts = new DraftTransactionStore(projectRoot, projects);
+  let activeProjectId: string | undefined;
+  mcpBroker = await CodexMcpBroker.open(
+    path.join(userData, "mcp-runtime"),
+    async (name, input) => {
+      if (!activeProjectId)
+        throw new CodexVideoEditToolError("inactive_project");
+      return new CodexVideoEditToolService(
+        activeProjectId,
+        projects,
+        drafts,
+      ).invoke(name, input);
+    },
+  );
+  const mcpRuntime = mcpBroker.runtime(
+    process.execPath,
+    await resolveCodexMcpScript(process.resourcesPath),
+  );
   codex = new DesktopCodex(
     process.resourcesPath,
-    app.getPath("userData"),
+    userData,
     (url) => shell.openExternal(url),
+    { mcpRuntime },
   );
   for (const [channel, operation] of [
     [channels.codexGet, () => codex!.get()],
@@ -168,13 +209,6 @@ async function start(): Promise<void> {
     assertCodexView(value);
     return value;
   });
-  const library = new MediaLibrary(
-    path.join(app.getPath("userData"), "media-library"),
-  );
-  const projects = new ProjectStore(
-    path.join(app.getPath("userData"), "project-store"),
-    library,
-  );
   function projectView(snapshot: InitialProjectSnapshot): ProjectView {
     const source = {
       id: snapshot.source.source_id,
@@ -204,15 +238,75 @@ async function start(): Promise<void> {
   });
   register(channels.projectCreate, async (request) => {
     assertProjectRequest(request);
-    return projectView(await projects.createFromMedia(request.id));
+    const value = projectView(await projects.createFromMedia(request.id));
+    activeProjectId = value.id;
+    return value;
   });
   register(channels.projectOpen, async (request) => {
     assertProjectRequest(request);
-    return projectView(await projects.open(request.id));
+    const value = projectView(await projects.open(request.id));
+    activeProjectId = value.id;
+    return value;
+  });
+  register(channels.projectClose, async (request) => {
+    assertProjectRequest(request);
+    if (activeProjectId === request.id) {
+      if (
+        ["opening", "starting", "running", "interrupting"].includes(
+          codex!.getThread(request.id).status,
+        )
+      )
+        throw new UserFacingError(
+          "Stop the running Codex turn before leaving this project.",
+        );
+      await codex!.closeThread(request.id);
+      activeProjectId = undefined;
+    }
+    return null;
   });
   register(channels.projectNavigate, async (request) => {
     assertProjectNavigation(request);
+    if (activeProjectId !== request.id) throw new Error("Inactive project");
     return projectView(await projects.navigate(request.id, request.stage));
+  });
+  const activeCodexProject = async (projectId: string) => {
+    if (activeProjectId !== projectId) throw new Error("Inactive project");
+    await projects.open(projectId);
+  };
+  register(channels.codexThreadGet, async (request) => {
+    assertCodexThreadProjectRequest(request);
+    await activeCodexProject(request.project_id);
+    const value = codex!.getThread(request.project_id);
+    assertCodexThreadView(value);
+    return value;
+  });
+  register(channels.codexThreadOpen, async (request) => {
+    assertCodexThreadProjectRequest(request);
+    await activeCodexProject(request.project_id);
+    const state = await codex!.get();
+    if (state.account !== "signed_in")
+      throw new UserFacingError("Sign in to Codex in Settings to continue.");
+    if (!state.selection)
+      throw new UserFacingError(
+        "Choose a Codex model and reasoning level in Settings to continue.",
+      );
+    const value = await codex!.openThread(request.project_id);
+    assertCodexThreadView(value);
+    return value;
+  });
+  register(channels.codexThreadSend, async (request) => {
+    assertCodexThreadSendRequest(request);
+    await activeCodexProject(request.project_id);
+    const value = await codex!.sendThread(request.project_id, request.text);
+    assertCodexThreadView(value);
+    return value;
+  });
+  register(channels.codexThreadInterrupt, async (request) => {
+    assertCodexThreadProjectRequest(request);
+    await activeCodexProject(request.project_id);
+    const value = await codex!.interruptThread(request.project_id);
+    assertCodexThreadView(value);
+    return value;
   });
   register(channels.list, async (request) => {
     assertEmptyRequest(request);
@@ -407,6 +501,8 @@ async function showStartupFailure(): Promise<void> {
     });
   } finally {
     quitting = true;
+    await Promise.all([codex?.close(), mcpBroker?.close()]);
+    servicesClosed = true;
     app.exit(1);
   }
 }

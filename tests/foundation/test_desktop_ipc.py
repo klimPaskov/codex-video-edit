@@ -204,6 +204,43 @@ class DesktopIpcContractTests(unittest.TestCase):
         selection['payload']['command'] = 'unsafe'
         self.invalid(selection)
 
+    def test_project_close_and_codex_conversation_channels_are_explicit(self):
+        project_id = '11111111-1111-4111-8111-111111111111'
+        self.valid({
+            'channel': 'projects:close',
+            'payload': {'id': project_id},
+            'response': {'ok': True, 'value': None},
+        })
+        thread = json.loads(
+            (ROOT / 'docs/examples/codex_thread_view.example.json').read_text(encoding='utf-8')
+        )
+        request = {'schema_version': '1.0', 'project_id': 'project-1'}
+        for channel in ('codex-thread:get', 'codex-thread:open', 'codex-thread:interrupt'):
+            self.valid({
+                'channel': channel,
+                'payload': request,
+                'response': {'ok': True, 'value': thread},
+            })
+        self.valid({
+            'channel': 'codex-thread:send',
+            'payload': dict(request, text='Trim the false start.'),
+            'response': {'ok': True, 'value': thread},
+        })
+        for key in ('path', 'threadId', 'command', 'token'):
+            bad = dict(request, **{key: 'PRIVATE'})
+            self.invalid({
+                'channel': 'codex-thread:open',
+                'payload': bad,
+                'response': {'ok': True, 'value': thread},
+            })
+        leaked = deepcopy(thread)
+        leaked['messages'][1]['path'] = '/private/project'
+        self.invalid({
+            'channel': 'codex-thread:get',
+            'payload': request,
+            'response': {'ok': True, 'value': leaked},
+        })
+
 
 if __name__ == '__main__':
     unittest.main()

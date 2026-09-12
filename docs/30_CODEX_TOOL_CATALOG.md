@@ -18,7 +18,7 @@ Every project tool request includes:
 
 Mutating calls also include a user-readable reason and, where relevant, a pass-group identity. The trusted manual, Codex, or Magic Wand entrypoint injects origin, operation IDs, transaction ID, timestamp, and inverse data. Stale sequence, baseline revision, draft, or timeline hash values fail without partial mutation.
 
-The current P2 foundation implements only `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, and newest-transaction `timeline.undo` behind a main-owned active-project service. They are not available to the model until the owned stdio MCP adapter is connected and verified. The remaining catalog entries retain their later-phase dependencies.
+The current P2 runtime exposes only `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, and newest-transaction `timeline.undo` through the packaged owned stdio MCP adapter. Electron main remains the only transaction writer. App-server startup verifies that this is the exact MCP inventory before any project thread can open. The remaining catalog entries retain their later-phase dependencies.
 
 ## Read-only tools
 

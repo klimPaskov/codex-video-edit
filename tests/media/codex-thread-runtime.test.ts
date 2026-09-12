@@ -54,7 +54,7 @@ test("project runtime requires experimental negotiation and owns server IDs", as
       cwd: policy.cwd,
       approvalPolicy: "never",
       approvalsReviewer: "user",
-      sandbox: "read-only",
+      sandbox: { type: "readOnly", networkAccess: false },
     });
     const turnRequest = runtime.turnStartRequest({ text: "Trim the pause." });
     await assert.rejects(

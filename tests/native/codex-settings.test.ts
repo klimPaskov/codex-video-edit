@@ -27,6 +27,11 @@ await writeFile(
           join(dirname(executablePath), "resources/codex/manifest.json"),
         ),
       ),
+      mcpManifestHash: hash(
+        await readFile(
+          join(dirname(executablePath), "resources/mcp/manifest.json"),
+        ),
+      ),
       testHash: hash(
         await readFile(resolve("tests/native/codex-settings.test.ts")),
       ),
@@ -173,6 +178,7 @@ try {
         status: "pass",
         packagedNativeWindow: true,
         realSignedOutRuntime: true,
+        ownedMcpVerifiedAtStartup: true,
         managedLoginStartedAndCanceled: true,
         browserLaunchSuppressedForTest: true,
         browserOpened: false,

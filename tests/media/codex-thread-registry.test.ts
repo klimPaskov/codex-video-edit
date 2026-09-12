@@ -28,7 +28,7 @@ function response(threadId: string): unknown {
     cwd: policy.cwd,
     approvalPolicy: "never",
     approvalsReviewer: "user",
-    sandbox: "read-only",
+    sandbox: { type: "readOnly", networkAccess: false },
   };
 }
 

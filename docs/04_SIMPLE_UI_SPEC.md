@@ -61,6 +61,8 @@ Tracks can collapse. The default view shows only tracks with content.
 
 A bottom-right drawer contains natural-language editing, a model selector, current selection context, concise activity, and recent applied actions. Raw reasoning and full command logs are not shown.
 
+The P2 conversation slice implements a compact drawer beside the preview. Opening it closes the source inspector so only one panel is visible. A real selected project and signed-in runtime selection are required before a conversation can open. The renderer shows only projected user/Codex text, generic work/subagent/edit activity, Stop while a turn runs, and actionable failure or uncertainty. It never seeds sample conversation text or invents an edit result. Leaving a project first performs an idle thread unsubscribe and refuses while a turn is active.
+
 ## Interface settings and focus
 
 The P1 settings/focus slice implements persistent interface scale choices of 100%, 125%, 150%, and 200%. Main owns preference storage behind strict typed get/set IPC; renderer state and a success toast update only after an actual successful save. Cancel or Escape dismisses unsaved choices, and load/save failures provide actionable messages without claiming success or discarding the prior saved scale. The modal traps keyboard focus and returns it to its invoking control when closed. Ctrl+, opens Settings.
@@ -75,7 +77,7 @@ The extension to 200% addresses P1-05's full scaling range. Prior native evidenc
 
 The implemented P1 project shell shows real Projects separately from the retained Source library. Import creates a project after successful ingestion; legacy sources offer Create project. Project views have compact five-stage navigation, with a five-choice select at narrower widths. Update selected stage only after main confirms persistence; failures retain the previous stage. Home returns focus to the originating project/source when applicable, and asynchronous replies must not override later navigation or focus choices.
 
-The current source preview, playhead and one inspector remain available across stage navigation. A concise unavailable-stage message may describe unimplemented actions, but no fake Magic Wand, editing, review findings, or export controls appear. Current packaged native tests passed sizing, keyboard/focus and five-stage persistence. Guest-only visual review confirmed the compact five-choice selector, retained frame across navigation, and one scrollable source inspector. Publication/review and the P1 result remain pending.
+The current source preview, playhead and one inspector remain available across stage navigation. Unimplemented stages do not add filler descriptions, fake Magic Wand output, editing controls, review findings, or export controls. Packaged native tests passed sizing, keyboard/focus and five-stage persistence. Guest-only visual review confirmed the compact five-choice selector, retained frame across navigation, and one scrollable source inspector; P1 is accepted in its result record.
 
 Every empty state offers one clear next action. Do not show disabled tool grids before media exists.
 

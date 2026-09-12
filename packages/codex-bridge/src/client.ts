@@ -1,9 +1,10 @@
 import { execFile } from "node:child_process";
 import { realpath, stat } from "node:fs/promises";
-import { dirname, isAbsolute, normalize } from "node:path";
-import { promisify } from "node:util";
-import type { InitializeParams } from "./generated/InitializeParams.ts";
+import { dirname, isAbsolute, join, normalize } from "node:path";
+import { isDeepStrictEqual, promisify } from "node:util";
 import type { GetAccountParams } from "./generated/v2/GetAccountParams.ts";
+import type { ListMcpServerStatusParams } from "./generated/v2/ListMcpServerStatusParams.ts";
+import type { ListMcpServerStatusResponse } from "./generated/v2/ListMcpServerStatusResponse.ts";
 import type { ModelListParams } from "./generated/v2/ModelListParams.ts";
 import type { SkillsListParams } from "./generated/v2/SkillsListParams.ts";
 import { CodexAuthController, type AuthState } from "./auth.ts";
@@ -20,10 +21,142 @@ import {
   type RateLimitsSummary,
 } from "./metadata.ts";
 import { CodexStdioTransport, CodexTransportError } from "./transport.ts";
+import { buildExperimentalInitialize } from "./thread-protocol.ts";
+import type { TurnStartInput } from "./thread-protocol.ts";
+import { ProjectThreadRegistry } from "./thread-registry.ts";
+import { CodexProjectThreadClient } from "./thread-client.ts";
+import type { ThreadStreamEvent } from "./thread-stream.ts";
+import { codexVideoEditToolNames } from "../../codex-tools/src/service.ts";
+import { codexVideoEditMcpTools } from "../../codex-tools/src/mcp-tools.ts";
+import type { CodexMcpRuntime } from "../../codex-tools/src/broker.ts";
 
 export const CODEX_VERSION = "0.142.3";
 const execute = promisify(execFile);
 const environmentKeys = ["PATH", "SystemRoot", "WINDIR", "TMP", "TEMP"];
+const fixedAppServerArguments = [
+  "app-server",
+  "--listen",
+  "stdio://",
+  "-c",
+  'forced_login_method="chatgpt"',
+  "-c",
+  'model_provider="openai"',
+  "-c",
+  'web_search="disabled"',
+  "-c",
+  "features.shell_tool=false",
+  "-c",
+  "features.unified_exec=false",
+  "-c",
+  "features.js_repl=false",
+  "-c",
+  "features.browser_use=false",
+  "-c",
+  "features.computer_use=false",
+  "-c",
+  "features.apps=false",
+  "-c",
+  "features.connectors=false",
+  "-c",
+  "features.plugins=false",
+  "-c",
+  "features.remote_plugin=false",
+  "-c",
+  "features.image_generation=false",
+  "-c",
+  "project_root_markers=[]",
+] as const;
+
+export function buildCodexAppServerArguments(mcp?: CodexMcpRuntime): string[] {
+  const args: string[] = [...fixedAppServerArguments];
+  if (!mcp) return args;
+  const quoted = (value: string) => JSON.stringify(value);
+  args.push(
+    "-c",
+    "mcp_servers={}",
+    "-c",
+    `mcp_servers.codex-video-edit.command=${quoted(mcp.command)}`,
+    "-c",
+    `mcp_servers.codex-video-edit.args=[${quoted(mcp.script)}]`,
+    "-c",
+    'mcp_servers.codex-video-edit.env_vars=["ELECTRON_RUN_AS_NODE","CODEX_VIDEO_EDIT_MCP_ENDPOINT","CODEX_VIDEO_EDIT_MCP_TOKEN"]',
+    "-c",
+    `mcp_servers.codex-video-edit.enabled_tools=${JSON.stringify(codexVideoEditToolNames)}`,
+    "-c",
+    'mcp_servers.codex-video-edit.default_tools_approval_mode="approve"',
+    "-c",
+    "mcp_servers.codex-video-edit.enabled=true",
+    "-c",
+    "mcp_servers.codex-video-edit.required=true",
+    "-c",
+    "mcp_servers.codex-video-edit.supports_parallel_tool_calls=false",
+    "-c",
+    "mcp_servers.codex-video-edit.startup_timeout_sec=10",
+    "-c",
+    "mcp_servers.codex-video-edit.tool_timeout_sec=40",
+  );
+  return args;
+}
+
+function protocolRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
+function validateOwnedMcpStatus(
+  value: unknown,
+): asserts value is ListMcpServerStatusResponse {
+  if (
+    !protocolRecord(value) ||
+    !Array.isArray(value.data) ||
+    value.data.length !== 1 ||
+    value.nextCursor !== null
+  )
+    throw new CodexTransportError("protocol");
+  const server = value.data[0];
+  if (
+    !protocolRecord(server) ||
+    server.name !== "codex-video-edit" ||
+    server.authStatus !== "unsupported" ||
+    !Array.isArray(server.resources) ||
+    server.resources.length !== 0 ||
+    !Array.isArray(server.resourceTemplates) ||
+    server.resourceTemplates.length !== 0 ||
+    !protocolRecord(server.serverInfo) ||
+    server.serverInfo.name !== "codex-video-edit" ||
+    server.serverInfo.version !== "0.0.1" ||
+    !protocolRecord(server.tools)
+  )
+    throw new CodexTransportError("protocol");
+  const names = Object.keys(server.tools).sort();
+  const tools = server.tools;
+  const expected = [...codexVideoEditToolNames].sort();
+  const definitions = new Map<string, (typeof codexVideoEditMcpTools)[number]>(
+    codexVideoEditMcpTools.map((tool) => [tool.name, tool]),
+  );
+  if (
+    names.length !== expected.length ||
+    names.some((name, index) => name !== expected[index]) ||
+    names.some((name) => {
+      const tool = tools[name];
+      return (
+        !protocolRecord(tool) ||
+        tool.name !== name ||
+        !protocolRecord(tool.inputSchema) ||
+        !isDeepStrictEqual(tool.inputSchema, definitions.get(name)?.inputSchema)
+      );
+    })
+  )
+    throw new CodexTransportError("protocol");
+}
+
+export const codexClientInternals: {
+  validateOwnedMcpStatus: typeof validateOwnedMcpStatus;
+} = { validateOwnedMcpStatus };
 
 export interface CodexClientOptions {
   executable: string;
@@ -35,7 +168,24 @@ export interface CodexClientOptions {
   onSkillsChanged?: () => void;
   onAuthStateChanged?: (state: AuthState) => void;
   onRateLimitsChanged?: () => void;
+  onThreadEvent?: (event: ThreadStreamEvent) => void;
+  mcp?: CodexMcpRuntime;
 }
+
+export interface OpenProjectThreadInput {
+  projectId: string;
+  model: string;
+  effort: string;
+  baseInstructions?: string;
+  developerInstructions?: string;
+}
+
+const threadNotification = (method: string) =>
+  method.startsWith("thread/") ||
+  method.startsWith("turn/") ||
+  method.startsWith("item/") ||
+  method === "error" ||
+  method === "warning";
 
 /** Main-process-only bootstrap client. No arbitrary RPC, turns or edit tools exposed. */
 export class CodexClient {
@@ -46,6 +196,10 @@ export class CodexClient {
   private startupFinished: Promise<void> | undefined;
   private closing: Promise<void> | undefined;
   private auth: CodexAuthController | undefined;
+  private threadRegistry: ProjectThreadRegistry | undefined;
+  private conversation: CodexProjectThreadClient | undefined;
+  private generation = 0;
+  private resolvedCwd: string | undefined;
 
   constructor(options: CodexClientOptions) {
     for (const path of [options.executable, options.cwd, options.codexHome]) {
@@ -72,11 +226,27 @@ export class CodexClient {
       const executable = await realpath(this.options.executable);
       const cwd = await realpath(this.options.cwd);
       const codexHome = await realpath(this.options.codexHome);
+      let mcp: CodexMcpRuntime | undefined;
+      if (this.options.mcp) {
+        const command = await realpath(this.options.mcp.command);
+        const script = await realpath(this.options.mcp.script);
+        if (!(await stat(command)).isFile() || !(await stat(script)).isFile())
+          throw new CodexTransportError("configuration");
+        if (
+          !this.options.mcp.endpoint ||
+          this.options.mcp.endpoint.length > 4096 ||
+          /[\u0000-\u001f\u007f]/u.test(this.options.mcp.endpoint) ||
+          !/^[a-f0-9]{64}$/u.test(this.options.mcp.token)
+        )
+          throw new CodexTransportError("configuration");
+        mcp = { ...this.options.mcp, command, script };
+      }
       if (
         !(await stat(cwd)).isDirectory() ||
         !(await stat(codexHome)).isDirectory()
       )
         throw new CodexTransportError("configuration");
+      const registry = await ProjectThreadRegistry.open(join(cwd, "threads"));
       const env: NodeJS.ProcessEnv = {
         HOME: dirname(codexHome),
         USERPROFILE: dirname(codexHome),
@@ -85,6 +255,11 @@ export class CodexClient {
       for (const key of environmentKeys) {
         const value = this.options.environment[key];
         if (value !== undefined) env[key] = value;
+      }
+      if (mcp) {
+        env.ELECTRON_RUN_AS_NODE = "1";
+        env.CODEX_VIDEO_EDIT_MCP_ENDPOINT = mcp.endpoint;
+        env.CODEX_VIDEO_EDIT_MCP_TOKEN = mcp.token;
       }
       const version = await execute(executable, ["--version"], {
         cwd,
@@ -100,19 +275,7 @@ export class CodexClient {
         throw new CodexTransportError("protocol");
       transport = new CodexStdioTransport({
         executable,
-        args: [
-          "app-server",
-          "--listen",
-          "stdio://",
-          "-c",
-          'forced_login_method="chatgpt"',
-          "-c",
-          'model_provider="openai"',
-          "-c",
-          "features.shell_tool=false",
-          "-c",
-          "project_root_markers=[]",
-        ],
+        args: buildCodexAppServerArguments(mcp),
         cwd,
         env,
         onNotification: (method, params) => {
@@ -122,8 +285,23 @@ export class CodexClient {
             validateRateLimitsUpdate(params);
             this.options.onRateLimitsChanged?.();
           }
+          if (threadNotification(method))
+            this.conversation?.notification(method, params);
         },
-        onDisconnect: () => auth?.close(),
+        onServerRequest: async (request) => {
+          try {
+            if (!this.conversation) throw new CodexTransportError("protocol");
+            return this.conversation.serverRequest(request);
+          } finally {
+            setImmediate(() => {
+              if (this.transport === transport) void transport?.close();
+            });
+          }
+        },
+        onDisconnect: () => {
+          auth?.close();
+          this.conversation?.disconnect();
+        },
       });
       this.transport = transport;
       const connectedTransport = transport;
@@ -134,23 +312,33 @@ export class CodexClient {
         },
       });
       this.auth = auth;
-      const params: InitializeParams = {
-        clientInfo: {
-          name: "codex_video_edit",
-          title: "codex-video-edit",
-          version: "0.0.0",
-        },
-        capabilities: null,
-      };
+      const params = buildExperimentalInitialize("0.0.0");
       const response = decodeInitialization(await transport.start(params));
       if (normalize(response.codexHome) !== normalize(codexHome))
         throw new CodexTransportError("protocol");
       if (startupAbort.signal.aborted) throw new CodexTransportError("closed");
+      if (mcp) {
+        const mcpStatusRequest = {
+          cursor: null,
+          detail: "full",
+          limit: 10,
+          threadId: null,
+        } satisfies ListMcpServerStatusParams;
+        validateOwnedMcpStatus(
+          await transport.request("mcpServerStatus/list", mcpStatusRequest),
+        );
+      }
+      this.threadRegistry = registry;
+      this.resolvedCwd = cwd;
+      if (mcp) this.options.mcp = mcp;
+      this.generation++;
     } catch (error) {
       auth?.close();
       if (this.auth === auth) this.auth = undefined;
       await transport?.close();
       if (this.transport === transport) this.transport = undefined;
+      this.threadRegistry = undefined;
+      this.resolvedCwd = undefined;
       if (startupAbort.signal.aborted) throw new CodexTransportError("closed");
       if (error instanceof CodexTransportError) throw error;
       throw new CodexTransportError("process_failed");
@@ -239,6 +427,68 @@ export class CodexClient {
     return decodeSkills(await this.ready().request("skills/list", params), cwd);
   }
 
+  async openProjectThread(input: OpenProjectThreadInput): Promise<void> {
+    const transport = this.ready();
+    if (
+      this.conversation ||
+      !this.threadRegistry ||
+      !this.resolvedCwd ||
+      this.authState().account?.status !== "chatgpt" ||
+      !this.options.mcp
+    )
+      throw new CodexTransportError("not_ready");
+    const conversation = new CodexProjectThreadClient({
+      rpc: transport,
+      generation: this.generation,
+      projectId: input.projectId,
+      policy: {
+        cwd: this.resolvedCwd,
+        model: input.model,
+        effort: input.effort,
+        ...(input.baseInstructions === undefined
+          ? {}
+          : { baseInstructions: input.baseInstructions }),
+        ...(input.developerInstructions === undefined
+          ? {}
+          : { developerInstructions: input.developerInstructions }),
+      },
+      registry: this.threadRegistry,
+      allowedMcpServer: "codex-video-edit",
+      allowedMcpTools: new Set(codexVideoEditToolNames),
+      onEvent: (event) => {
+        if (this.conversation === conversation)
+          this.options.onThreadEvent?.(event);
+      },
+    });
+    this.conversation = conversation;
+    try {
+      await conversation.open();
+    } catch (error) {
+      if (this.conversation === conversation) this.conversation = undefined;
+      throw error;
+    }
+  }
+
+  async startProjectTurn(input: TurnStartInput): Promise<void> {
+    this.ready();
+    if (!this.conversation) throw new CodexTransportError("not_ready");
+    await this.conversation.startTurn(input);
+  }
+
+  async interruptProjectTurn(): Promise<void> {
+    this.ready();
+    if (!this.conversation) throw new CodexTransportError("not_ready");
+    await this.conversation.interrupt();
+  }
+
+  async closeProjectThread(): Promise<void> {
+    this.ready();
+    const conversation = this.conversation;
+    if (!conversation) return;
+    await conversation.close();
+    if (this.conversation === conversation) this.conversation = undefined;
+  }
+
   close(): Promise<void> {
     if (this.closing) return this.closing;
     const startupFinished = this.startupFinished;
@@ -246,6 +496,10 @@ export class CodexClient {
     this.auth?.close();
     this.auth = undefined;
     const transport = this.transport;
+    this.conversation?.disconnect();
+    this.conversation = undefined;
+    this.threadRegistry = undefined;
+    this.resolvedCwd = undefined;
     this.transport = undefined;
     this.closing = Promise.all([transport?.close(), startupFinished])
       .then(() => {})
