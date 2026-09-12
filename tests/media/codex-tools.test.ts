@@ -58,7 +58,6 @@ async function fixture(
   );
   const service = new CodexVideoEditToolService(
     active.project.project_id,
-    projects,
     drafts,
   );
   return { source, active, other, drafts, service };
@@ -278,27 +277,22 @@ test("inactive, stale, excess, path, source-mutation, and arbitrary tools fail c
 
 test("unexpected backend details are replaced with a fixed safe error", async () => {
   const activeProjectId = "active-project-001";
-  const service = new CodexVideoEditToolService(
-    activeProjectId,
-    {
-      open: async () => {
-        throw new Error(
-          "C:\\Users\\private\\recording.mp4 transcript=private protocol=raw token=secret-123",
-        );
-      },
+  const service = new CodexVideoEditToolService(activeProjectId, {
+    snapshotWithProject: async () => {
+      throw new Error(
+        "C:\\Users\\private\\recording.mp4 transcript=private protocol=raw token=secret-123",
+      );
     },
-    {
-      snapshot: async () => {
-        throw new Error("probe stderr /private/source.mp4");
-      },
-      applyCodex: async () => {
-        throw new Error("unreachable");
-      },
-      undoCodex: async () => {
-        throw new Error("unreachable");
-      },
+    snapshot: async () => {
+      throw new Error("probe stderr /private/source.mp4");
     },
-  );
+    applyCodex: async () => {
+      throw new Error("unreachable");
+    },
+    undoCodex: async () => {
+      throw new Error("unreachable");
+    },
+  });
   await assert.rejects(
     service.invoke("project.get_summary", readInput(activeProjectId)),
     (error: unknown) => {

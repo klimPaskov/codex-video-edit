@@ -112,6 +112,8 @@ Direct canvas handles appear for the selected zoom, camera, or B-roll item.
 
 The current P2 conversation slice implements the compact Codex drawer beside the existing project preview. Opening it closes the source inspector so only one panel is visible. It renders only projected user/Codex text, generic work/subagent/edit activity, Stop while a turn runs, and an actionable failure or uncertainty. It requires a real selected project and signed-in runtime selection, contains no sample messages, and updates from the authoritative thread view returned through typed IPC. Leaving a project performs an idle unsubscribe and refuses while a turn is active.
 
+The project preview shows current and total output time. Its frame and seek bounds come from the current committed draft head. A committed trim refreshes the project duration and remaps output time through the retained immutable source; stale decoded pixels are discarded. Source library inspection remains clearly labelled as source position.
+
 ## S09: revision compare (Review stage)
 
 Visible:

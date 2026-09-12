@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   assertProjectList,
+  assertProjectDraftView,
+  assertProjectFrameRequest,
+  assertProjectFrameResult,
   assertProjectNavigation,
   assertProjectRequest,
   assertProjectView,
@@ -15,6 +18,13 @@ function view(): ProjectView {
     name: "Synthetic project",
     stage: "record_import",
     revisionId: "22222222-2222-4222-8222-222222222222",
+    draft: {
+      id: "draft-22222222-2222-4222-8222-222222222222",
+      baseRevisionId: "22222222-2222-4222-8222-222222222222",
+      sequence: 0,
+      timelineSha256: "a".repeat(64),
+      undoTransactionId: null,
+    },
     source: {
       id: "33333333-3333-4333-8333-333333333333",
       name: "Fixture.mkv",
@@ -66,6 +76,43 @@ test("project requests reject paths, malformed IDs, unknown stages and excess fi
   ]) {
     assert.throws(() => assertProjectNavigation(value));
   }
+});
+test("project frame exchanges bind decoded pixels to one committed draft head", () => {
+  const project = view();
+  const request = {
+    projectId: project.id,
+    draftId: project.draft.id,
+    baseRevisionId: project.revisionId,
+    expectedSequence: project.draft.sequence,
+    expectedTimelineSha256: project.draft.timelineSha256,
+    timelineTimeUs: 0,
+  };
+  assertProjectFrameRequest(request);
+  assertProjectFrameResult({
+    status: "ready",
+    projectId: project.id,
+    draftId: project.draft.id,
+    baseRevisionId: project.revisionId,
+    draftSequence: project.draft.sequence,
+    timelineSha256: project.draft.timelineSha256,
+    timelineTimeUs: 0,
+    frame: { width: 1, height: 1, rgbaBase64: "AAAAAA==" },
+  });
+  assertProjectFrameResult({
+    status: "stale",
+    draft: {
+      projectId: project.id,
+      draft: project.draft,
+      timeline: project.timeline,
+    },
+  });
+  for (const extra of [
+    { ...request, path: "/private/source" },
+    { ...request, expectedSequence: -1 },
+    { ...request, expectedTimelineSha256: "bad" },
+    { ...request, timelineTimeUs: 0.5 },
+  ])
+    assert.throws(() => assertProjectFrameRequest(extra));
 });
 test("project views reject unsafe numeric formats, private fields and malformed shapes", () => {
   for (const bad of [
@@ -125,9 +172,10 @@ test("project views reject unsafe numeric formats, private fields and malformed 
   }
 });
 test("runtime rejects shared role identities and duplicate project IDs even if views differ", () => {
-  for (const role of ["revision", "source", "timeline"]) {
+  for (const role of ["revision", "draft", "source", "timeline"]) {
     const value = view();
     if (role === "revision") value.revisionId = value.id;
+    else if (role === "draft") value.draft.id = value.id;
     else if (role === "source") value.source.id = value.id;
     else value.timeline.id = value.id;
     assert.throws(() => assertProjectView(value));
@@ -139,4 +187,14 @@ test("runtime rejects shared role identities and duplicate project IDs even if v
   assert.throws(() => assertProjectList(Array.from({ length: 1001 }, view)));
   for (const value of [null, {}, [null]])
     assert.throws(() => assertProjectList(value));
+  const staleBase = view();
+  staleBase.draft.baseRevisionId = staleBase.source.id;
+  assert.throws(() => assertProjectView(staleBase));
+  assert.throws(() =>
+    assertProjectDraftView({
+      projectId: view().id,
+      draft: { ...view().draft, sequence: 0.5 },
+      timeline: view().timeline,
+    }),
+  );
 });

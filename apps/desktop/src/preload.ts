@@ -4,6 +4,9 @@ import {
 } from "../../../packages/domain/src/codex-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
+  assertProjectDraftView,
+  assertProjectFrameRequest,
+  assertProjectFrameResult,
   assertProjectRequest,
   assertProjectNavigation,
   assertProjectView,
@@ -30,6 +33,12 @@ async function invoke<T>(
   validate: (value: unknown) => void,
 ): Promise<Reply<T>> {
   const result: unknown = await ipcRenderer.invoke(channel, request);
+  return reply(result, validate);
+}
+function reply<T>(
+  result: unknown,
+  validate: (value: unknown) => void,
+): Reply<T> {
   if (!result || typeof result !== "object" || !("ok" in result))
     throw new Error("Invalid desktop response");
   if (
@@ -102,6 +111,20 @@ const bridge: DesktopBridge = {
   navigateProject: (request) => {
     assertProjectNavigation(request);
     return invoke(channels.projectNavigate, request, assertProjectView);
+  },
+  readProjectFrame: (request) => {
+    assertProjectFrameRequest(request);
+    return invoke(channels.projectFrame, request, assertProjectFrameResult);
+  },
+  onProjectDraftChanged: (listener) => {
+    if (typeof listener !== "function")
+      throw new Error("Invalid project listener");
+    const receive = (_event: Electron.IpcRendererEvent, value: unknown) => {
+      listener(reply(value, assertProjectDraftView));
+    };
+    ipcRenderer.on(channels.projectDraftChanged, receive);
+    return () =>
+      ipcRenderer.removeListener(channels.projectDraftChanged, receive);
   },
   getPreferences: () =>
     invoke(channels.preferencesGet, undefined, assertPreferences),

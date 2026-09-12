@@ -30,7 +30,9 @@ The first real reducer moves one edge of the single imported baseline clip and s
 
 ## Live Codex changes
 
-During a Codex turn, valid transactions may be committed to the active draft as tools complete. The timeline, transcript, preview markers, inspector values, and history update immediately after each transaction event. The user sees a short activity label and a visible Undo action.
+During a Codex turn, valid transactions may be committed to the active draft as tools complete. The current bounded trim/undo slice rereads the atomic draft after every settled mutation and immediately updates project duration, seek bounds and preview source mapping from that committed sequence/hash. It also reconciles a transaction that committed before an uncertain tool response. Transcript, marker, inspector, broader history and visible manual Undo updates remain dependent on their later editor surfaces.
+
+Project frame reads include the expected committed head. Main maps output time through the current clip, decodes the immutable source, and checks the head again. A concurrent edit returns the newer path-free draft without stale pixels. Duplicate events at the same sequence/hash are ignored; a lower sequence is stale and an equal sequence with a different hash is an integrity failure.
 
 The UI must not stream raw protocol traffic into ordinary screens. Diagnostics can show the full event sequence.
 

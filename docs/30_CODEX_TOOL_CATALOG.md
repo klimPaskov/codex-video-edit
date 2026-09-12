@@ -20,6 +20,8 @@ Mutating calls also include a user-readable reason and, where relevant, a pass-g
 
 The current P2 runtime exposes only `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, and newest-transaction `timeline.undo` through the packaged owned stdio MCP adapter. Electron main remains the only transaction writer. App-server startup verifies that this is the exact MCP inventory before any project thread can open. The remaining catalog entries retain their later-phase dependencies.
 
+For the two current mutations, main refreshes the atomic project/draft authority after the tool settles rather than trusting model prose or MCP activity. This covers a journal commit followed by an uncertain response. The native project duration, seek bounds and preview mapping update only from that validated state; notification failure preserves the original tool outcome and asks the user to reopen.
+
 ## Read-only tools
 
 ### `project.get_summary`

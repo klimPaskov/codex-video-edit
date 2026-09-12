@@ -93,8 +93,10 @@
           </aside>
         </div>
         <div id="frame-controls">
-          <label for="seek">Frame preview</label
-          ><output id="time" for="seek"></output>
+          <label id="preview-label" for="seek">Frame preview</label>
+          <div id="preview-time">
+            <output id="time" for="seek"></output><span id="duration"></span>
+          </div>
           <input
             id="seek"
             type="range"

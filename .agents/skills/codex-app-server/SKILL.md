@@ -37,6 +37,8 @@ network, shell, or permission expansion. Read tools return compact editor state.
 tools call the same transaction service as manual and Magic Wand edits, and return the
 committed draft sequence and timeline hash. Errors are stable, redacted application errors.
 
+Read project metadata and the active draft in one transaction-store serialization. After every settled mutation, reread and publish the authoritative path-free draft even when journal promotion preceded an uncertain response. Do not derive editor state from model text or MCP activity. Bind project preview requests to draft ID, baseline revision, sequence and timeline hash; map output time to source time only in main, recheck the head after decode, and return no stale pixels.
+
 For the pinned experimental thread protocol, request experimental capability during
 initialize, send the reviewed main-owned environment/tool policy on thread and turn start,
 and omit start-only fields on resume. Treat streamed terminal events as authoritative,

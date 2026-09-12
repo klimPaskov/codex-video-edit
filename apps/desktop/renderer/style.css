@@ -237,9 +237,10 @@ canvas {
 .transport button {
   min-width: 50px;
 }
-#time {
+#preview-time {
   font-variant-numeric: tabular-nums;
   color: #b6bac8;
+  white-space: nowrap;
 }
 #progress {
   display: flex;

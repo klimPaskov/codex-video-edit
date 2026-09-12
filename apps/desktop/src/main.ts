@@ -11,14 +11,12 @@ import {
   CodexVideoEditToolError,
   CodexVideoEditToolService,
 } from "../../../packages/codex-tools/src/service.ts";
-import type { InitialProjectSnapshot } from "../../../packages/domain/src/project.ts";
 import {
+  assertProjectFrameRequest,
   assertProjectRequest,
   assertProjectNavigation,
-  assertProjectView,
   assertProjectList,
 } from "../../../packages/domain/src/project-view.ts";
-import type { ProjectView } from "../../../packages/domain/src/project-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
   app,
@@ -44,10 +42,12 @@ import {
   assertCodexThreadSendRequest,
   assertCodexThreadView,
 } from "../../../packages/domain/src/codex-thread-view.ts";
+import { MediaLibrary } from "../../../packages/media-engine/src/library.ts";
 import {
-  MediaLibrary,
-  mediaMeasurements,
-} from "../../../packages/media-engine/src/library.ts";
+  DesktopProjectRuntime,
+  invokeWithProjectDraftRefresh,
+} from "./project-runtime.ts";
+import type { ProjectDraftNotice } from "./project-runtime.ts";
 
 const origin = "codex-video-edit://app";
 const page = `${origin}/index.html`;
@@ -168,17 +168,27 @@ async function start(): Promise<void> {
   const projectRoot = path.join(userData, "project-store");
   const projects = new ProjectStore(projectRoot, library);
   const drafts = new DraftTransactionStore(projectRoot, projects);
+  const projectRuntime = new DesktopProjectRuntime(drafts, library);
   let activeProjectId: string | undefined;
+  const publishDraftNotice = (notice: ProjectDraftNotice): void => {
+    if (!window || window.isDestroyed()) return;
+    window.webContents.send(channels.projectDraftChanged, notice);
+  };
   mcpBroker = await CodexMcpBroker.open(
     path.join(userData, "mcp-runtime"),
     async (name, input) => {
       if (!activeProjectId)
         throw new CodexVideoEditToolError("inactive_project");
-      return new CodexVideoEditToolService(
-        activeProjectId,
-        projects,
+      const projectId = activeProjectId;
+      return invokeWithProjectDraftRefresh({
+        toolName: name,
+        projectId,
+        activeProjectId: () => activeProjectId,
+        work: () =>
+          new CodexVideoEditToolService(projectId, drafts).invoke(name, input),
         drafts,
-      ).invoke(name, input);
+        notify: publishDraftNotice,
+      });
     },
   );
   const mcpRuntime = mcpBroker.runtime(
@@ -209,42 +219,27 @@ async function start(): Promise<void> {
     assertCodexView(value);
     return value;
   });
-  function projectView(snapshot: InitialProjectSnapshot): ProjectView {
-    const source = {
-      id: snapshot.source.source_id,
-      name: path.basename(snapshot.source.original_path),
-      ...mediaMeasurements(snapshot.source_probe),
-    };
-    const value: ProjectView = {
-      id: snapshot.project.project_id,
-      name: snapshot.project.name,
-      stage: snapshot.project.workflow_step,
-      revisionId: snapshot.revision.revision_id,
-      source,
-      timeline: {
-        id: snapshot.timeline.timeline_id,
-        durationUs: snapshot.timeline.duration_us,
-        frameRate: snapshot.timeline.frame_rate,
-      },
-    };
-    assertProjectView(value);
-    return value;
-  }
   register(channels.projectList, async (request) => {
     assertEmptyRequest(request);
-    const value = (await projects.list()).map(projectView);
+    const value = await Promise.all(
+      (await projects.list()).map((snapshot) =>
+        projectRuntime.view(snapshot.project.project_id),
+      ),
+    );
     assertProjectList(value);
     return value;
   });
   register(channels.projectCreate, async (request) => {
     assertProjectRequest(request);
-    const value = projectView(await projects.createFromMedia(request.id));
+    const created = await projects.createFromMedia(request.id),
+      value = await projectRuntime.view(created.project.project_id);
     activeProjectId = value.id;
     return value;
   });
   register(channels.projectOpen, async (request) => {
     assertProjectRequest(request);
-    const value = projectView(await projects.open(request.id));
+    await projects.open(request.id);
+    const value = await projectRuntime.view(request.id);
     activeProjectId = value.id;
     return value;
   });
@@ -267,11 +262,12 @@ async function start(): Promise<void> {
   register(channels.projectNavigate, async (request) => {
     assertProjectNavigation(request);
     if (activeProjectId !== request.id) throw new Error("Inactive project");
-    return projectView(await projects.navigate(request.id, request.stage));
+    await projects.navigate(request.id, request.stage);
+    return projectRuntime.view(request.id);
   });
   const activeCodexProject = async (projectId: string) => {
     if (activeProjectId !== projectId) throw new Error("Inactive project");
-    await projects.open(projectId);
+    await drafts.snapshotWithProject(projectId);
   };
   register(channels.codexThreadGet, async (request) => {
     assertCodexThreadProjectRequest(request);
@@ -359,6 +355,23 @@ async function start(): Promise<void> {
         controller.signal,
       );
       assertMediaFrame(value);
+      return value;
+    } finally {
+      frameRequests.delete(controller);
+    }
+  });
+  register(channels.projectFrame, async (request) => {
+    assertProjectFrameRequest(request);
+    if (activeProjectId !== request.projectId)
+      throw new Error("Inactive project");
+    if (frameRequests.size >= 2)
+      throw new Error("Frame request already running");
+    const controller = new AbortController();
+    frameRequests.add(controller);
+    try {
+      const value = await projectRuntime.frame(request, controller.signal);
+      if (activeProjectId !== request.projectId)
+        throw new Error("Inactive project");
       return value;
     } finally {
       frameRequests.delete(controller);
