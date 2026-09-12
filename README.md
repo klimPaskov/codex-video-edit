@@ -2,7 +2,7 @@
 
 A standalone desktop recorder and video editor with live Codex editing, a simple timeline, optional camera, captions, B-roll, automatic zooms, and lossless-first media handling.
 
-**Status: P0 foundation accepted; P1 native shell is next. This is not yet a usable recorder or editor.** The actual packaged Electron bootstrap imports media into an immutable local library and supports bounded frame inspection. Its synthetic import, seek, reopen, security, and frame-equality checks passed in the isolated Linux desktop, with native computer-use inspection. The reviewed foundation is published at `8fe7c4bcbe8511ac8772c043ff023b15075ad823`; [.astra/results/P0.json](.astra/results/P0.json) records its bounded acceptance. P1-P10 and the user-video workflow remain incomplete.
+**Status: P0 and P1 are accepted; P2 real Codex integration is active. This is not yet a usable recorder or editor.** The actual packaged Electron shell imports immutable media, creates and reopens projects, and persists the five workflow stages. Its synthetic native checks passed in the isolated Linux desktop. [P0](docs/workflow/results/P0.json) and [P1](docs/workflow/results/P1.json) record their bounded acceptance. P2-P10 and the ordered user-video workflow remain incomplete.
 
 ## Start
 
@@ -35,10 +35,10 @@ npm run check
 
 Prerequisites: Node 24.15 or later in the 24.x line, Python 3.9+, and FFmpeg/ffprobe on PATH. The single check command runs strict TypeScript, lint, formatting, Python foundation tests, synthetic media encode/decode comparisons, schemas, and reference validation. It does not launch a desktop window or touch capture devices. CI runs these checks on Windows and Linux; FFmpeg installed there is a test dependency and is not bundled for redistribution.
 
-Media fixtures are generated under ignored `.astra/evidence/`. The bounded P0 adapter verifies canonical raw samples up to 64 MiB per input, BT.709, and mono/stereo PCM. It rejects preview/analysis inputs and unsupported precision or HDR paths. These checks do not establish production capture, compositor, playback, or real-time throughput support.
+Media fixtures are generated under ignored `test-results/`. The bounded P0 adapter verifies canonical raw samples up to 64 MiB per input, BT.709, and mono/stereo PCM. It rejects preview/analysis inputs and unsupported precision or HDR paths. These checks do not establish production capture, compositor, playback, or real-time throughput support.
 
 The [isolated desktop setup](tests/desktop/README.md) runs native windows inside Docker and exposes only an authenticated loopback VNC connection. A native viewer displays the guest desktop; the product must never launch directly on the host. Separate from the infrastructure probe, the actual packaged product passed Playwright Electron checks and native source selection/Next frame inspection. Its frame path is limited to native-dimension BGRA full-range GBR BT.709 SDR within explicit bounds; other supported imports remain preserved with preview unavailable. This does not establish audio playback, Windows capture, installer support, Codex editing, or the user-video workflow.
 
-Before publishing, stage only reviewed source, run `npm run check:publication`, inspect the staged diff, and verify the pushed commit. `npm run phase:write -- path/to/result.json` accepts only complete, validated phase evidence tied to a published Git revision. Keep incomplete work under `.astra/progress/`. See `VALIDATION_REPORT.md` for the planning package's historical checks, and `.astra/progress/` for implementation progress.
+Before publishing, stage only reviewed source, run `npm run check:publication`, inspect the staged diff, and verify the pushed commit. `npm run phase:write -- path/to/result.json` accepts only complete, validated phase evidence tied to a published Git revision. Keep incomplete work under `docs/workflow/progress/`. See `VALIDATION_REPORT.md` for the planning package's historical checks and `docs/workflow/progress/` for implementation progress.
 
 `MANIFEST.sha256` covers source files using LF-normalized text and exact binary bytes, so Git's platform line endings do not invalidate it. Regenerate with `python scripts/build_integrity_manifest.py` and verify with `python scripts/validate_delivery.py --check-integrity`. Reference-image hashes always compare exact original bytes.

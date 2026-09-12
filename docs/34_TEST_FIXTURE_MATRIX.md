@@ -43,6 +43,6 @@ Use virtual screen, microphone, camera, and loopback devices. Record known sync 
 
 Use a fake protocol server for parser and recovery tests. Keep a separate real authenticated smoke test that proves current login, model discovery, skill discovery, streamed events, and one guarded draft edit. A fake transport cannot satisfy real integration acceptance.
 
-## User example video
+## User example sequence
 
-The user-supplied example is final product acceptance, not a unit-test fixture. Preserve its hash, keep it outside source control, and record every derived artifact used for acceptance.
+The two user-supplied videos form one ordered final-acceptance sequence, not a unit-test fixture. Preserve and verify both hashes, keep both files outside source control, append the second after the first without rewriting either source, and record every derived artifact used for acceptance.

@@ -6,7 +6,7 @@ from pathlib import Path, PurePosixPath
 EXCLUDED = frozenset({
     '.git', 'node_modules', '.venv', '__pycache__', 'dist', 'build', 'out',
     'coverage', 'private', 'projects', 'recordings', 'exports', 'models',
-    'checkpoints', 'credentials', '.codex',
+    'checkpoints', 'credentials', '.codex', 'test-results', 'local-data',
 })
 
 
@@ -23,7 +23,6 @@ def source_files(root: Path):
         policy_relative = relative.as_posix().casefold()
         directories[:] = sorted(d for d in directories if (d.casefold() not in EXCLUDED
                                 or (policy_relative == '.' and d.casefold() == '.codex'))
-                                and not (policy_relative == '.astra' and d.casefold() in {'evidence', 'private'})
                                 )
         if policy_relative == '.codex':
             directories[:] = [d for d in directories if d.casefold() == 'agents']

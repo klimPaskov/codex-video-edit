@@ -43,6 +43,8 @@ Deleting transcript text creates a linked cut operation. Restoring text restores
 
 Manual actions and Codex actions share one ordered history. Each item shows origin, short reason, affected time, and Undo. Batch operations can be expanded.
 
+P2's shared foundation currently implements strict start/end trimming for the one-clip imported baseline. It maps the requested timeline boundary back to source time, appends a generated operation to the canonical timeline, and persists exact before/after and inverse state in the common hash-chained journal. This is the first real reducer used to prove manual/Codex/Magic Wand convergence and deterministic undo. The remaining tools and multi-clip ripple semantics above remain P3/P6 implementation work.
+
 ## Preview
 
 Preview must match the timeline within declared tolerances. Proxy playback may use lower quality, but timing, crop, layout, and text placement must remain representative.

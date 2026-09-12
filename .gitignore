@@ -21,8 +21,8 @@ credentials/
 .codex/auth.json
 .codex/config.toml
 .codex/sessions/
-.astra/evidence/
-.astra/private/
+test-results/
+local-data/
 fixtures/user-example/*
 !fixtures/user-example/README.md
 *.mp4

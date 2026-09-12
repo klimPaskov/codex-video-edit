@@ -7,7 +7,7 @@ The main agent owns phase selection, integration, final judgment, and evidence. 
 | Current product and technical research | `researcher` | `research-product` |
 | Flow, visual hierarchy, and simple screens | `ux-designer` | `simple-desktop-ui` |
 | Electron process and IPC design | `desktop-architect` | `native-electron` |
-| Codex protocol, auth, threads, and tools | `codex-bridge-engineer` | `codex-app-server` |
+| Codex protocol, auth, threads, and tools | `codex-bridge-engineer` | `codex-app-server`, `timeline-editor` |
 | Screen, audio, camera, and sync capture | `recording-engineer` | `recording-capture` |
 | FFmpeg, transcription, rendering, and media QA | `media-engineer` | `media-engine` |
 | Timeline interactions and history | `editor-engineer` | `timeline-editor` |
@@ -20,6 +20,12 @@ The main agent owns phase selection, integration, final judgment, and evidence. 
 ## Routing rules
 
 For the ADR 0013 project shell, keep domain/store/complete-probe verification, main/preload IPC, renderer interaction, and spec/native evidence ownership bounded by explicit files. Renderer work consumes only the path-free committed `ProjectView`; it must not create its own persistence model or fake project/revision identities. The main agent verifies pure postcommit mapping, save-failure preservation, and native five-stage interaction before integration. Project/source/timeline/revision schema shapes remain authoritative; extended IPC, examples and tests must stay synchronized. P2 shared transactions remain a separate prerequisite and must serve manual and Codex edits alike.
+
+For P2, the Codex bridge engineer may own a bounded guarded-tool or thread-runtime file set,
+but the main agent owns the active project/draft scope, transaction integration, and final
+protocol review. Handwritten experimental request/decoder types must stay clearly
+application-owned until the pinned binary's experimental schemas are generated and their
+provenance is retained.
 
 - Delegate only a clear file or evidence boundary.
 - Give the subagent exact task IDs, inputs, outputs, and stop conditions.

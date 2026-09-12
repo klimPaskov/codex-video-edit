@@ -13,7 +13,7 @@ Complete phases in order. A task is complete only when its acceptance evidence e
 - [x] P0-07 Resolve the authenticated owner and create or verify the public `codex-video-edit` repository. Publish reviewed source, specs, licence, and CI without private media.
 - [x] P0-08 Establish tested capture, intermediate, preview, and master fidelity profiles and reject silent downgrades.
 
-Accepted: all eight tasks are recorded in `.astra/results/P0.json` against published revision `8fe7c4bcbe8511ac8772c043ff023b15075ad823`. P0 acceptance is retained; P1 acceptance is recorded below.
+Accepted: all eight tasks are recorded in `docs/workflow/results/P0.json` against published revision `8fe7c4bcbe8511ac8772c043ff023b15075ad823`. P0 acceptance is retained; P1 acceptance is recorded below.
 
 ADR 0012 moves only the minimum actual native shell and immutable media bootstrap into P0 to satisfy its native gate. The infrastructure probe is not product evidence. P1 shell/navigation/accessibility is independently accepted below. P2 Codex integration, P3 projects/drafts/A/V playback, P4 capture, and all later acceptance remain required.
 
@@ -26,7 +26,7 @@ ADR 0012 moves only the minimum actual native shell and immutable media bootstra
 - [x] P1-05 Add keyboard navigation, scaling, focus states, and visual regression fixtures.
 - [x] P1-06 Launch and inspect the native window with Playwright Electron and computer use.
 
-Accepted: all six tasks are recorded in `.astra/results/P1.json` against verified published revision `33d3fdc1d87787322c658fad88a1c4fa9787f2d1`. Actual packaged Linux guest tests and computer-use inspection cover the simple shell, real project navigation, recovery, focus/scaling and scoped Orca output. Windows/hardware and later editing acceptance remain required. P2 is the first incomplete dependency-safe phase.
+Accepted: all six tasks are recorded in `docs/workflow/results/P1.json` against verified published revision `33d3fdc1d87787322c658fad88a1c4fa9787f2d1`. Actual packaged Linux guest tests and computer-use inspection cover the simple shell, real project navigation, recovery, focus/scaling and scoped Orca output. Windows/hardware and later editing acceptance remain required. P2 is the first incomplete dependency-safe phase.
 
 ADR 0013 brings only the necessary project foundation forward from P3. Stage navigation persists actual project presentation state without executing features, modifying draft history, certifying review, or starting export. Verify all five transitions and reopen against the same project, source and draft state. Unimplemented stage actions remain absent or truthfully unavailable; navigation is not evidence that later features work.
 
@@ -126,7 +126,7 @@ Acceptance: the installed app creates and verifies the default lossless master a
 
 ## P10: user example video acceptance
 
-- [ ] P10-01 Import the supplied example video through the native UI.
+- [ ] P10-01 Import both supplied example videos through the native UI, preserve each immutable source, and append the second after the first in one editable draft sequence.
 - [ ] P10-02 Run Magic Wand with real Codex and inspect each automation class. Exercise the adapted editorial prompt, including conservative spoken instructions and suggestion-only graphics with no automatic export.
 - [ ] P10-03 Review the complete draft through computer use.
 - [ ] P10-04 Fix defects using manual tools and natural-language edits.
@@ -134,4 +134,4 @@ Acceptance: the installed app creates and verifies the default lossless master a
 - [ ] P10-06 Save screenshots, short recordings, logs, manifests, and a concise acceptance report. Include unresolved instructions, final-timed graphics prompts, measured layout/zoom purposes and targets, persisted/checkpoint state and remaining review.
 - [ ] P10-07 Update every affected spec, skill, task, schema, and reference entry.
 
-Acceptance: `.astra/results/P10.json` records the exact final evidence and known limits.
+Acceptance: `docs/workflow/results/P10.json` records the exact final evidence and known limits.

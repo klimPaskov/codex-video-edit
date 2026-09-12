@@ -12,6 +12,6 @@ Acceptance:
 - output fully decodes and matches the manifest
 - installer works in a clean supported Windows environment
 - security, privacy, accessibility, recovery, and performance checks pass
-- `.astra/results/P9.json` validates
+- `docs/workflow/results/P9.json` validates
 
 Use `lossless-media` and `docs/44_LOSSLESS_MEDIA_POLICY.md`. Validate the sample boundary, not only successful decode. Never feed preview or transcription proxies to master output. Publish reviewed working changes under `docs/45_OPEN_SOURCE_DEVELOPMENT.md`.

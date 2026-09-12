@@ -1,6 +1,7 @@
 """Validate phase evidence before atomically recording an accepted phase result.
 
-Incomplete work belongs in .astra/progress/, not in accepted .astra/results/.
+Incomplete work belongs in docs/workflow/progress/, not in accepted
+docs/workflow/results/.
 This checks evidence structure and existence; it cannot replace human review.
 """
 import argparse
@@ -22,7 +23,7 @@ def validate_record(result, root: Path):
     schema = json.loads((root / 'docs/schemas/phase_result.schema.json').read_text(encoding='utf-8'))
     Draft202012Validator(schema).validate(result)
     if result['status'] != 'complete':
-        raise ValueError('Only accepted complete phases belong in results; use .astra/progress for blockers')
+        raise ValueError('Only accepted complete phases belong in results; use docs/workflow/progress for blockers')
     if not result['checks'] or any(check['status'] != 'pass' for check in result['checks']):
         raise ValueError('All acceptance checks must pass')
     if datetime.fromisoformat(result['ended_at'].replace('Z', '+00:00')) < datetime.fromisoformat(result['started_at'].replace('Z', '+00:00')):
@@ -62,7 +63,7 @@ def validate_result(result, root: Path):
 
 def write_result(result, root: Path):
     validate_result(result, root)
-    destination = root / '.astra/results' / (result['phase_id'] + '.json')
+    destination = root / 'docs/workflow/results' / (result['phase_id'] + '.json')
     if destination.exists():
         raise ValueError('Phase result already exists; review it before replacement')
     dirty = subprocess.check_output(['git', 'status', '--porcelain=v1', '-z', '--untracked-files=all'], cwd=root)

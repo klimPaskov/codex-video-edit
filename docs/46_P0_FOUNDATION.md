@@ -1,6 +1,6 @@
 # P0 foundation slice
 
-P0-01 through P0-08 are accepted in [the guarded result](../.astra/results/P0.json), bound to published revision `8fe7c4bcbe8511ac8772c043ff023b15075ad823`. P1 is the first incomplete dependency-safe phase. This document preserves the accepted foundation scope and remaining product limits.
+P0-01 through P0-08 are accepted in [the guarded result](workflow/results/P0.json), bound to published revision `8fe7c4bcbe8511ac8772c043ff023b15075ad823`. P1 was subsequently accepted. This document preserves the accepted foundation scope and remaining product limits.
 
 ## Scope and evidence boundaries
 

@@ -44,7 +44,7 @@ test("Codex IPC rejects private fields and contradictory account or catalog stat
 });
 
 test("model settings snapshot queued input and survive reopen", async () => {
-  const parent = resolve(".astra/evidence/codex-settings");
+  const parent = resolve("test-results/codex-settings");
   await mkdir(parent, { recursive: true });
   const root = await mkdtemp(join(parent, "fixture-"));
   const store = new CodexSettingsStore(root);

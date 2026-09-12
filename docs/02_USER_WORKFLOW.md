@@ -28,7 +28,7 @@ The user chooses a screen source, microphone, optional system audio, optional ca
 
 ## Import video
 
-The user picks local media and sees one plain processing view. File probing, proxy creation, transcription, and analysis appear as a short progress list. Detailed commands remain hidden.
+The user picks one or more local media files and sees one plain processing view. For a sequential import, the chosen order is visible and adjustable before project creation; the initial draft appends each immutable source in that order. File probing, proxy creation, transcription, and analysis appear as a short progress list. Detailed commands remain hidden.
 
 ## Auto Edit
 

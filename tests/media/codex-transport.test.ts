@@ -280,7 +280,7 @@ test("initialization errors and spawn failures are safe and recoverable only by 
     await transport.close();
   }
   const missing = create({
-    executable: resolve(".astra/nonexistent-codex-executable"),
+    executable: resolve("test-results/nonexistent-codex-executable"),
   });
   try {
     await assert.rejects(missing.start(init), code("process_failed"));

@@ -214,9 +214,10 @@ export function projectCanonicalJson(value: unknown): string {
 export function timelineSha256(
   timeline: InitialProjectSnapshot["timeline"],
 ): string {
-  return createHash("sha256")
-    .update(projectCanonicalJson(timeline))
-    .digest("hex");
+  return canonicalSha256(timeline);
+}
+export function canonicalSha256(value: unknown): string {
+  return createHash("sha256").update(projectCanonicalJson(value)).digest("hex");
 }
 export function createInitialProject(
   input: InitialProjectInput,

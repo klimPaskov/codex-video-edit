@@ -1,10 +1,10 @@
 # User example video acceptance prompt
 
-Use the user-supplied example video as the final product acceptance fixture.
+Use the two user-supplied example videos as one ordered final product acceptance sequence. Append source two after source one through the app and keep each original immutable.
 
 1. Launch the installed native app in the isolated test environment.
-2. Import the video through the real file-picker flow or a deterministic test stub that points to the exact supplied file.
-3. Record the source hash and probe result.
+2. Import both videos through the real file-picker flow or a deterministic test stub that points to the exact supplied files, preserving the recorded order.
+3. Record both source hashes and probe results, then verify the initial timeline places source two immediately after source one without altering either file.
 4. Sign in to real Codex if the environment is authorized. Do not simulate it.
 5. Run the Balanced Magic Wand preset.
 6. Watch the complete edited draft with audio.
@@ -17,7 +17,7 @@ Use the user-supplied example video as the final product acceptance fixture.
 
 Do not call the result improved unless the report explains what changed and the full watch-through supports it.
 
-Export the lossless master from original or verified lossless sources, prove equality to canonical edited samples, and preserve the original recording. Test a smaller MP4 only as an explicit separate profile. Keep the user example and all private visual evidence out of public Git history.
+Export the lossless master from original or verified lossless sources, prove equality to canonical edited samples, and preserve both original recordings. Test a smaller MP4 only as an explicit separate profile. Keep the user examples and all private visual evidence out of public Git history.
 
 ## Editorial acceptance
 

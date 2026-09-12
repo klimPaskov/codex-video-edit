@@ -12,7 +12,7 @@ Acceptance:
 - Balanced Magic Wand improves a fixture without altering source bytes
 - draft changes appear live in the native timeline and shared history
 - interruption and whole-run undo work
-- `.astra/results/P5.json` validates
+- `docs/workflow/results/P5.json` validates
 
 ## Editorial acceptance extension
 

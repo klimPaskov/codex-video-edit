@@ -15,4 +15,4 @@ Acceptance:
 - one real turn applies a reversible draft edit through a guarded tool
 - the edit survives reopen, rejects stale sequence requests, and can be undone through the shared engine; interrupted/incomplete transactions do not corrupt the committed draft
 - raw protocol text stays out of normal UI
-- `.astra/results/P2.json` validates
+- `docs/workflow/results/P2.json` validates

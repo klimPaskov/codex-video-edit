@@ -24,7 +24,7 @@ assert.equal(process.getuid(), 1000);
 assert.equal(process.env.DISPLAY, ":99");
 await access("/.dockerenv");
 const root = resolve(import.meta.dirname, "..");
-const evidence = join(root, ".astra/evidence");
+const evidence = join(root, "test-results");
 await mkdir(evidence, { recursive: true });
 const output = await mkdtemp(join(evidence, "desktop-build-"));
 const staging = join(output, "app");

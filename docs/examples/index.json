@@ -2,6 +2,18 @@
   "schema_version": "1.0",
   "pairs": [
     {
+      "schema": "docs/schemas/draft_snapshot.schema.json",
+      "example": "docs/examples/draft_snapshot.example.json"
+    },
+    {
+      "schema": "docs/schemas/draft_transaction.schema.json",
+      "example": "docs/examples/draft_transaction.example.json"
+    },
+    {
+      "schema": "docs/schemas/pass_checkpoint.schema.json",
+      "example": "docs/examples/pass_checkpoint.example.json"
+    },
+    {
       "schema": "docs/schemas/graphics_opportunity.schema.json",
       "example": "docs/examples/graphics_opportunity.example.json"
     },

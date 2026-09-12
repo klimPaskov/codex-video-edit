@@ -28,7 +28,7 @@ assert.equal(process.env.DISPLAY, ":99");
 await access("/.dockerenv");
 const executablePath = process.argv[2];
 assert.ok(executablePath, "Packaged executable path is required");
-const evidenceRoot = resolve(".astra/evidence");
+const evidenceRoot = resolve("test-results");
 await mkdir(evidenceRoot, { recursive: true });
 const evidence = await mkdtemp(join(evidenceRoot, "native-product-"));
 const video = Buffer.alloc(96 * 64 * 4 * 3);

@@ -36,7 +36,7 @@ Use virtual camera, microphone, system-audio, and screen sources for determinist
 
 ## Test data safety
 
-Use generated media and the supplied example video only. Never capture unrelated desktop content, notifications, credentials, or personal files.
+Use generated media and the two supplied example videos only. Never capture unrelated desktop content, notifications, credentials, or personal files.
 
 ## P1 lifecycle and accessibility checks
 

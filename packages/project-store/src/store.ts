@@ -22,8 +22,8 @@ import type {
   ProjectStage,
 } from "../../domain/src/project.ts";
 import type { MediaLibrary } from "../../media-engine/src/library.ts";
+import { sameProjectStorePath, serializeProjectStore } from "./serialize.ts";
 
-const pending = new Map<string, Promise<unknown>>();
 const jsonLimit = 8 * 1024 * 1024;
 function invalid(): never {
   throw new Error(
@@ -35,7 +35,7 @@ async function safeDirectory(path: string): Promise<void> {
   if (
     !stat.isDirectory() ||
     stat.isSymbolicLink() ||
-    resolve(await realpath(path)) !== path
+    !sameProjectStorePath(await realpath(path), path)
   )
     invalid();
 }
@@ -83,16 +83,7 @@ export class ProjectStore {
     this.library = library;
   }
   private serialize<T>(work: () => Promise<T>): Promise<T> {
-    const result = (pending.get(this.root) ?? Promise.resolve())
-      .catch(() => undefined)
-      .then(work);
-    pending.set(this.root, result);
-    void result
-      .finally(() => {
-        if (pending.get(this.root) === result) pending.delete(this.root);
-      })
-      .catch(() => undefined);
-    return result;
+    return serializeProjectStore(this.root, work);
   }
   private async initialize(): Promise<void> {
     await mkdir(this.root, { recursive: true });
@@ -109,7 +100,7 @@ export class ProjectStore {
     assertInitialProjectSnapshot(baseline);
     if (
       baseline.project.project_id !== id ||
-      baseline.project.storage.project_root !== folder ||
+      !sameProjectStorePath(baseline.project.storage.project_root, folder) ||
       baseline.project.workflow_step !== "record_import" ||
       baseline.project.updated_at !== baseline.project.created_at
     )
@@ -209,6 +200,13 @@ export class ProjectStore {
       await this.initialize();
       return this.read(projectId);
     });
+  }
+  /** Internal verified read for DraftTransactionStore while it owns the shared root queue. */
+  async readForDraftTransaction(
+    projectId: string,
+  ): Promise<InitialProjectSnapshot> {
+    await this.initialize();
+    return this.read(projectId);
   }
   navigate(
     projectId: string,

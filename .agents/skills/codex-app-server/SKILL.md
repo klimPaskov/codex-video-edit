@@ -24,6 +24,20 @@ Changing AI login, model selection, skills, threads, streaming, interruption, ap
 - Explicit skill input items when a known skill is used.
 - Guarded codex-video-edit MCP tools with validated transactions.
 
+The guarded tool layer must resolve its active project and draft in the main process. Tool
+arguments contain only bounded edit intent plus exact freshness preconditions; they never
+contain project paths, arbitrary operation objects, origin, export, deletion, cleanup,
+network, shell, or permission expansion. Read tools return compact editor state. Mutation
+tools call the same transaction service as manual and Magic Wand edits, and return the
+committed draft sequence and timeline hash. Errors are stable, redacted application errors.
+
+For the pinned experimental thread protocol, request experimental capability during
+initialize, send the reviewed main-owned environment/tool policy on thread and turn start,
+and omit start-only fields on resume. Treat streamed terminal events as authoritative,
+correlate them to the active thread and turn, and make retry a new turn with a new request
+identity. Native subagents are represented only by app-server collaboration items; do not
+invent a separate spawn RPC.
+
 ## Runtime boundary
 
 Codex receives project context and edit tools. It does not receive unrestricted access to the installation, source repository, raw source mutation, project deletion, or export confirmation.

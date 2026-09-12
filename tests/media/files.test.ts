@@ -8,7 +8,7 @@ import {
 } from "../../packages/media-engine/src/files.ts";
 
 test("cancellation at the publication boundary leaves the destination absent", async () => {
-  const root = resolve(".astra/evidence/media");
+  const root = resolve("test-results/media");
   await mkdir(root, { recursive: true });
   const directory = await mkdtemp(join(root, "cancel-publication-"));
   const staged = join(directory, "staged.raw");
@@ -31,7 +31,7 @@ test("cancellation at the publication boundary leaves the destination absent", a
 });
 
 test("cancellation during file reading returns the stable media cancellation error", async () => {
-  const root = resolve(".astra/evidence/media");
+  const root = resolve("test-results/media");
   await mkdir(root, { recursive: true });
   const directory = await mkdtemp(join(root, "cancel-read-"));
   const source = join(directory, "source.raw");

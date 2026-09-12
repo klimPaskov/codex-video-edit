@@ -1,7 +1,9 @@
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["node_modules/**", ".astra/**", "dist/**"] },
+  {
+    ignores: ["node_modules/**", "test-results/**", "local-data/**", "dist/**"],
+  },
   ...tseslint.configs.recommended,
   {
     files: ["tests/desktop/probe/*.cjs"],

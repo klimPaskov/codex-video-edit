@@ -33,7 +33,7 @@ class PublicationTests(unittest.TestCase):
         audit_blob('docs/references/screenshots/current/example.png', b'\x89PNG\x00', '100644')
 
     def test_private_paths_and_renamed_credentials_rejected(self):
-        for path in ('private/data.json', '.astra/evidence/test.json', '.env.local', 'fixtures/user-example/video.txt', 'image.raw', 'app.exe', '.ASTRA/EVIDENCE/check.json', 'Recordings/project.json', '.ENV'):
+        for path in ('private/data.json', 'test-results/test.json', 'local-data/input.json', '.env.local', 'fixtures/user-example/video.txt', 'image.raw', 'app.exe', 'TEST-RESULTS/check.json', 'Recordings/project.json', '.ENV'):
             with self.subTest(path=path), self.assertRaises(ValueError):
                 audit_blob(path, b'data', '100644')
         with self.assertRaises(ValueError):
@@ -44,7 +44,7 @@ class PublicationTests(unittest.TestCase):
     def test_private_trees_are_not_traversed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            for path in ('src/file.ts', 'node_modules/pkg/file.ts', '.git/config', '.astra/evidence/private.json', 'Recordings/data.json', '.ASTRA/EVIDENCE/hidden.json', 'fixtures/user-example/nested/private.json'):
+            for path in ('src/file.ts', 'node_modules/pkg/file.ts', '.git/config', 'test-results/private.json', 'local-data/input.json', 'Recordings/data.json', 'TEST-RESULTS/hidden.json', 'fixtures/user-example/nested/private.json'):
                 target = root / path
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text('data')
@@ -114,7 +114,7 @@ class PhaseResultTests(unittest.TestCase):
         validate_result(self.result, self.root)
 
     def test_public_record_does_not_require_private_artifacts_but_writer_does(self):
-        self.result['artifacts'] = ['.astra/evidence/private-native.png']
+        self.result['artifacts'] = ['test-results/private-native.png']
         validate_record(self.result, self.root)
         with self.assertRaisesRegex(ValueError, 'Evidence is missing'):
             validate_result(self.result, self.root)
@@ -123,7 +123,7 @@ class PhaseResultTests(unittest.TestCase):
         self.result['artifacts'] = ['../outside.png']
         with self.assertRaisesRegex(ValueError, 'inside the repository'):
             validate_record(self.result, self.root)
-        self.result['artifacts'] = ['.astra/evidence/private-native.png']
+        self.result['artifacts'] = ['test-results/private-native.png']
         self.result['native_test']['computer_use'] = False
         with self.assertRaisesRegex(ValueError, 'Native launch'):
             validate_record(self.result, self.root)
@@ -167,7 +167,7 @@ class PhaseResultTests(unittest.TestCase):
         git('remote', 'add', 'origin', str(origin))
         with self.assertRaisesRegex(ValueError, 'not verified on origin'):
             write_result(self.result, self.root)
-        self.assertFalse((self.root / '.astra/results/P0.json').exists())
+        self.assertFalse((self.root / 'docs/workflow/results/P0.json').exists())
         git('push', 'origin', 'main')
         evidence = self.root / 'evidence.txt'
         evidence.write_text('uncommitted test result')

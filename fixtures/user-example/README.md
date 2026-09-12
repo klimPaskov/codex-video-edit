@@ -1,5 +1,5 @@
-# User example video
+# User example sequence
 
-Place the user-supplied acceptance video here only in the working implementation environment. Do not add private media to source control or the planning package.
+Select the two user-supplied acceptance videos only from the working implementation environment. Do not copy private media into this repository or the planning package. Preserve both sources and append source two after source one through the native import workflow.
 
-Record the source hash and permission in the project manifest. Use `docs/prompts/EXAMPLE_VIDEO_ACCEPTANCE_PROMPT.md` and `docs/checklists/EXAMPLE_VIDEO_CHECKLIST.md`.
+Record both source hashes, order, and permission in the project manifest. Use `docs/prompts/EXAMPLE_VIDEO_ACCEPTANCE_PROMPT.md` and `docs/checklists/EXAMPLE_VIDEO_CHECKLIST.md`.

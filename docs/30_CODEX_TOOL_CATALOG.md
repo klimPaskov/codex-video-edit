@@ -9,12 +9,16 @@ Codex edits through a guarded project tool surface. It does not receive raw file
 Every project tool request includes:
 
 - `project_id`
-- `revision_id`
-- `expected_draft_sequence`
+- `draft_id`
+- `base_revision_id`
+- `expected_sequence`
+- `expected_timeline_sha256`
 - `request_id`
 - the smallest required time range or entity IDs
 
-Mutating calls also include a user-readable intent and origin. Stale sequence or revision values fail without partial mutation.
+Mutating calls also include a user-readable reason and, where relevant, a pass-group identity. The trusted manual, Codex, or Magic Wand entrypoint injects origin, operation IDs, transaction ID, timestamp, and inverse data. Stale sequence, baseline revision, draft, or timeline hash values fail without partial mutation.
+
+The current P2 foundation implements only `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, and newest-transaction `timeline.undo` behind a main-owned active-project service. They are not available to the model until the owned stdio MCP adapter is connected and verified. The remaining catalog entries retain their later-phase dependencies.
 
 ## Read-only tools
 
@@ -51,6 +55,10 @@ Returns current blocking and warning findings with jump-to-time data.
 ### `timeline.apply_operations`
 
 Applies one atomic batch of schema-valid operations. A batch either succeeds fully or fails fully.
+
+### `timeline.undo`
+
+Restores the exact before-state of the newest still-applied transaction through a new journaled transaction. It rejects an older target or stale draft rather than overwriting intervening work.
 
 ### `cut.split`
 

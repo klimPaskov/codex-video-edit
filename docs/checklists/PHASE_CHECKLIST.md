@@ -12,5 +12,5 @@
 - [ ] Run Playwright Electron and visible computer-use review.
 - [ ] Review privacy, security, licences, and source immutability.
 - [ ] Run spec-sync and update traceability.
-- [ ] Write `.astra/results/PHASE_ID.json`.
+- [ ] Write `docs/workflow/results/PHASE_ID.json`.
 - [ ] Mark tasks only after evidence exists.

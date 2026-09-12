@@ -13,6 +13,6 @@ Acceptance:
 - a local B-roll and music fixture is found, approved, rendered, and audited
 - speech remains clear and unclipped
 - missing assets recover through relink
-- `.astra/results/P8.json` validates
+- `docs/workflow/results/P8.json` validates
 
 Use `lossless-media` and `docs/44_LOSSLESS_MEDIA_POLICY.md`. Validate the sample boundary, not only successful decode. Never feed preview or transcription proxies to master output. Publish reviewed working changes under `docs/45_OPEN_SOURCE_DEVELOPMENT.md`.

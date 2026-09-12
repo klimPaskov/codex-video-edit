@@ -12,6 +12,6 @@ Acceptance:
 - imported project reopens with identical timeline and preview timing
 - source hashes remain unchanged
 - native import and reopen flow is inspected
-- `.astra/results/P3.json` validates
+- `docs/workflow/results/P3.json` validates
 
 Use `lossless-media` and `docs/44_LOSSLESS_MEDIA_POLICY.md`. Validate the sample boundary, not only successful decode. Never feed preview or transcription proxies to master output. Publish reviewed working changes under `docs/45_OPEN_SOURCE_DEVELOPMENT.md`.

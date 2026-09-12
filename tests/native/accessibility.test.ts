@@ -19,10 +19,8 @@ await access("/.dockerenv");
 const executablePath = process.argv[2];
 assert.ok(executablePath && isAbsolute(executablePath));
 await access(executablePath);
-await mkdir(resolve(".astra/evidence"), { recursive: true });
-const evidence = await mkdtemp(
-  resolve(".astra/evidence/native-accessibility-"),
-);
+await mkdir(resolve("test-results"), { recursive: true });
+const evidence = await mkdtemp(resolve("test-results/native-accessibility-"));
 const config = join(evidence, "config");
 const env = { ...process.env, XDG_CONFIG_HOME: config };
 let app = await _electron.launch({
