@@ -16,6 +16,9 @@ import {
   encodeVerifiedMaster,
   sha256,
 } from "../../packages/media-engine/src/lossless.ts";
+import { MediaLibrary } from "../../packages/media-engine/src/library.ts";
+import { ProjectStore } from "../../packages/project-store/src/store.ts";
+import { DraftTransactionStore } from "../../packages/project-store/src/transactions.ts";
 
 assert.equal(
   process.platform,
@@ -417,6 +420,39 @@ try {
     "Same-origin foreign windows must not access the media library",
   );
   await electron.close();
+  const offlineLibrary = new MediaLibrary(join(userData, "media-library")),
+    offlineProjects = new ProjectStore(
+      join(userData, "project-store"),
+      offlineLibrary,
+    ),
+    offlineDrafts = new DraftTransactionStore(
+      join(userData, "project-store"),
+      offlineProjects,
+    ),
+    initialDraft = await offlineDrafts.snapshot(project.id),
+    committedTrim = await offlineDrafts.applyManual({
+      schema_version: "1.0",
+      request_id: "native-project-trim-001",
+      project_id: project.id,
+      draft_id: initialDraft.draft.draft_id,
+      base_revision_id: initialDraft.draft.base_revision_id,
+      expected_sequence: initialDraft.draft.draft_sequence,
+      expected_timeline_sha256: initialDraft.draft.timeline_sha256,
+      pass_group: {
+        pass_group_id: "native-project-preview-001",
+        kind: "manual",
+      },
+      reason: "Verify the packaged committed draft preview.",
+      operations: [
+        {
+          type: "trim",
+          clip_id: initialDraft.draft.timeline.clips[0]!.clip_id,
+          edge: "start",
+          timeline_position_us: 500_000,
+        },
+      ],
+    });
+  assert.equal(committedTrim.draft.timeline.duration_us, 1_000_000);
   electron = await _electron.launch({
     executablePath,
     chromiumSandbox: true,
@@ -433,15 +469,26 @@ try {
       { timeout: 30_000 },
     )
     .toBe(1.25);
+  await expect(
+    window.locator(`#projects [data-project-id="${project.id}"] small`),
+  ).toHaveText("0:01.000 · Review");
   await window.locator(`#projects [data-project-id="${project.id}"]`).click();
   await expect(window.locator("#frame")).toBeVisible();
   await expect(window.locator("#time")).toHaveText("0:00.000");
-  await assertCanvasFrame(window, 0);
+  await assertCanvasFrame(window, 1);
+  await expect(window.locator("#seek")).toHaveAttribute("max", "500000");
+  await window.getByRole("button", { name: "Next frame", exact: true }).click();
+  await expect(window.locator("#time")).toHaveText("0:00.500");
+  await assertCanvasFrame(window, 2);
+  await expect(
+    window.getByRole("button", { name: "Next frame", exact: true }),
+  ).toBeDisabled();
   await expect(window.locator("#stage-select")).toHaveValue("review");
   await window.getByRole("button", { name: "Home", exact: true }).click();
   const sourceCard = window.locator(`[data-media-id="${project.source.id}"]`);
   await sourceCard.click();
   await expect(window.locator("#frame")).toBeVisible();
+  await assertCanvasFrame(window, 0);
   await expect(window.locator("#project-navigation")).toBeHidden();
   const oldSourceCard = await sourceCard.elementHandle();
   assert.ok(oldSourceCard);
@@ -452,6 +499,7 @@ try {
   await expect(sourceCard).toBeFocused();
   await window.locator(`#projects [data-project-id="${project.id}"]`).click();
   await expect(window.locator("#frame")).toBeVisible();
+  await assertCanvasFrame(window, 1);
   await expect(window.locator("#stage-select")).toHaveValue("review");
   assert.deepEqual(await readFile(baselinePath), baselineBytes);
   assert.equal(
@@ -464,7 +512,7 @@ try {
     join(evidence, "result.json"),
     JSON.stringify(
       {
-        scope: "P1-project-navigation-slice",
+        scope: "P2-committed-draft-preview-slice",
         projectId: project.id,
         baselineSha256: sha256(baselineBytes),
         projectStagesPersisted: true,
@@ -478,6 +526,10 @@ try {
         pixelScope:
           "All pixels of opaque nonuniform BGRA frames through native canvas readback; not display or arbitrary alpha equality",
         reopen: true,
+        committedDraftSequence: committedTrim.draft.draft_sequence,
+        committedDraftDurationUs: committedTrim.draft.timeline.duration_us,
+        timelineSourceMapping: true,
+        headBoundProjectFrames: true,
         sourceUnchanged: true,
         preferencesPersisted: true,
         keyboardFocus: true,

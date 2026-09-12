@@ -111,6 +111,12 @@ class DesktopIpcContractTests(unittest.TestCase):
         return {
             'id': '11111111-1111-4111-8111-111111111111', 'name': 'Synthetic project',
             'stage': 'record_import', 'revisionId': '22222222-2222-4222-8222-222222222222',
+            'draft': {
+                'id': 'draft-22222222-2222-4222-8222-222222222222',
+                'baseRevisionId': '22222222-2222-4222-8222-222222222222',
+                'sequence': 0, 'timelineSha256': 'a' * 64,
+                'undoTransactionId': None,
+            },
             'source': deepcopy(self.summary),
             'timeline': {'id': '33333333-3333-4333-8333-333333333333', 'durationUs': 1001000,
                          'frameRate': {'numerator': 30000, 'denominator': 1001}},
@@ -186,6 +192,56 @@ class DesktopIpcContractTests(unittest.TestCase):
         listing = next(branch for branch in self.schema['oneOf'] if branch['properties']['channel'].get('const') == 'projects:list')
         self.assertEqual(listing['properties']['response']['oneOf'][1]['properties']['value']['maxItems'], 1000)
         self.invalid({'channel': 'projects:delete', 'payload': {'id': view['id']}, 'response': {'ok': True, 'value': view}})
+
+    def test_project_frame_and_draft_event_are_head_bound_and_path_free(self):
+        view = self.project_view()
+        draft = {
+            'projectId': view['id'],
+            'draft': deepcopy(view['draft']),
+            'timeline': deepcopy(view['timeline']),
+        }
+        request = {
+            'projectId': view['id'],
+            'draftId': view['draft']['id'],
+            'baseRevisionId': view['revisionId'],
+            'expectedSequence': 0,
+            'expectedTimelineSha256': 'a' * 64,
+            'timelineTimeUs': 0,
+        }
+        ready = {
+            'status': 'ready',
+            'projectId': view['id'],
+            'draftId': view['draft']['id'],
+            'baseRevisionId': view['revisionId'],
+            'draftSequence': 0,
+            'timelineSha256': 'a' * 64,
+            'timelineTimeUs': 0,
+            'frame': self.frame['response']['value'],
+        }
+        self.valid({'channel': 'projects:frame', 'payload': request,
+                    'response': {'ok': True, 'value': ready}})
+        self.valid({'channel': 'projects:frame', 'payload': request,
+                    'response': {'ok': True, 'value': {'status': 'stale', 'draft': draft}}})
+        self.valid({'channel': 'projects:draft-changed',
+                    'event': {'ok': True, 'value': draft}})
+        self.valid({'channel': 'projects:draft-changed',
+                    'event': {'ok': False, 'message': 'Reopen the project.'}})
+        for key, bad in [('expectedSequence', -1),
+                         ('expectedTimelineSha256', 'bad'),
+                         ('timelineTimeUs', 0.5)]:
+            changed = deepcopy(request)
+            changed[key] = bad
+            self.invalid({'channel': 'projects:frame', 'payload': changed,
+                          'response': {'ok': True, 'value': ready}})
+        for leaked in ('path', 'sourceId', 'sourceTimeUs', 'threadId'):
+            changed = deepcopy(request)
+            changed[leaked] = '/private/source'
+            self.invalid({'channel': 'projects:frame', 'payload': changed,
+                          'response': {'ok': True, 'value': ready}})
+        changed = deepcopy(draft)
+        changed['draft']['baseRevisionId'] = 'bad'
+        self.invalid({'channel': 'projects:draft-changed',
+                      'event': {'ok': True, 'value': changed}})
 
 
     def test_codex_settings_channels_reject_credentials_urls_and_arbitrary_requests(self):

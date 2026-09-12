@@ -4,6 +4,9 @@ import type {
 } from "../../../packages/domain/src/codex-view.ts";
 import type { Preferences } from "../../../packages/domain/src/preferences.ts";
 import type {
+  ProjectDraftView,
+  ProjectFrameRequest,
+  ProjectFrameResult,
   ProjectView,
   ProjectRequest,
   ProjectNavigation,
@@ -44,6 +47,12 @@ export interface DesktopBridge {
   openProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
   closeProject(request: ProjectRequest): Promise<Reply<null>>;
   navigateProject(request: ProjectNavigation): Promise<Reply<ProjectView>>;
+  readProjectFrame(
+    request: ProjectFrameRequest,
+  ): Promise<Reply<ProjectFrameResult>>;
+  onProjectDraftChanged(
+    listener: (reply: Reply<ProjectDraftView>) => void,
+  ): () => void;
   getPreferences(): Promise<Reply<Preferences>>;
   setPreferences(value: Preferences): Promise<Reply<Preferences>>;
   listMedia(): Promise<Reply<MediaSummary[]>>;
@@ -67,6 +76,8 @@ export const channels = Object.freeze({
   projectOpen: "projects:open",
   projectClose: "projects:close",
   projectNavigate: "projects:navigate",
+  projectFrame: "projects:frame",
+  projectDraftChanged: "projects:draft-changed",
   preferencesGet: "preferences:get",
   preferencesSet: "preferences:set",
   list: "library:list",

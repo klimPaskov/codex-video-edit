@@ -1,8 +1,13 @@
 import { setupCodexSettings } from "./codex-settings.ts";
+import { reconcileProjectDraft } from "./project-draft.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
-import type { DesktopBridge } from "../src/bridge.ts";
-import type { MediaSummary } from "../../../packages/domain/src/library.ts";
+import type { DesktopBridge, Reply } from "../src/bridge.ts";
 import type {
+  MediaFrame,
+  MediaSummary,
+} from "../../../packages/domain/src/library.ts";
+import type {
+  ProjectDraftView,
   ProjectStage,
   ProjectView,
 } from "../../../packages/domain/src/project-view.ts";
@@ -274,12 +279,32 @@ function select(media: MediaSummary): void {
   clearError();
   canvas.width = 0;
   canvas.height = 0;
-  element("time").textContent = "";
+  element("time").textContent = time(0);
   home.hidden = true;
   viewer.hidden = false;
   back.hidden = false;
   element("source-name").textContent = media.name;
-  seek.max = String(Math.max(0, media.durationUs - Math.ceil(frameInterval())));
+  element("preview-label").textContent = activeProject
+    ? "Project preview"
+    : "Frame preview";
+  canvas.setAttribute(
+    "aria-label",
+    activeProject ? "Project frame" : "Source frame",
+  );
+  seek.setAttribute(
+    "aria-label",
+    activeProject ? "Project position" : "Source position",
+  );
+  element("duration").textContent = ` / ${time(
+    activeProject?.timeline.durationUs ?? media.durationUs,
+  )}`;
+  seek.max = String(
+    Math.max(
+      0,
+      (activeProject?.timeline.durationUs ?? media.durationUs) -
+        Math.ceil(frameInterval()),
+    ),
+  );
   seek.step = "1";
   seek.value = "0";
   canvas.hidden = !media.previewAvailable;
@@ -310,22 +335,63 @@ async function decodeFrames(): Promise<void> {
     while (selected && requestedTime !== undefined) {
       const requested = requestedTime,
         media = selected,
+        project = activeProject,
         generation = selectionGeneration,
         seekVersion = seekGeneration;
       requestedTime = undefined;
-      const reply = await window.desktop.readFrame({
-        id: media.id,
-        timeUs: requested,
-      });
-      if (generation !== selectionGeneration || seekVersion !== seekGeneration)
-        continue;
-      if (!reply.ok) {
-        showError(reply.message);
-        element("preview-message").textContent =
-          "Move the position control to retry this frame.";
-        continue;
+      let frame: MediaFrame;
+      if (project) {
+        const reply = await window.desktop.readProjectFrame({
+          projectId: project.id,
+          draftId: project.draft.id,
+          baseRevisionId: project.draft.baseRevisionId,
+          expectedSequence: project.draft.sequence,
+          expectedTimelineSha256: project.draft.timelineSha256,
+          timelineTimeUs: requested,
+        });
+        if (
+          generation !== selectionGeneration ||
+          seekVersion !== seekGeneration
+        )
+          continue;
+        if (!reply.ok) {
+          showError(reply.message);
+          element("preview-message").textContent =
+            "Move the position control to retry this frame.";
+          continue;
+        }
+        if (reply.value.status === "stale") {
+          applyProjectDraft({ ok: true, value: reply.value.draft });
+          continue;
+        }
+        if (
+          activeProject?.id !== reply.value.projectId ||
+          activeProject.revisionId !== reply.value.baseRevisionId ||
+          activeProject.draft.id !== reply.value.draftId ||
+          activeProject.draft.sequence !== reply.value.draftSequence ||
+          activeProject.draft.timelineSha256 !== reply.value.timelineSha256 ||
+          requested !== reply.value.timelineTimeUs
+        )
+          continue;
+        frame = reply.value.frame;
+      } else {
+        const reply = await window.desktop.readFrame({
+          id: media.id,
+          timeUs: requested,
+        });
+        if (
+          generation !== selectionGeneration ||
+          seekVersion !== seekGeneration
+        )
+          continue;
+        if (!reply.ok) {
+          showError(reply.message);
+          element("preview-message").textContent =
+            "Move the position control to retry this frame.";
+          continue;
+        }
+        frame = reply.value;
       }
-      const frame = reply.value;
       const bytes = Uint8ClampedArray.from(
         atob(frame.rgbaBase64),
         (character) => character.charCodeAt(0),
@@ -441,6 +507,35 @@ function frameInterval(): number {
         activeProject.timeline.frameRate.numerator
     : 1_000_000 / (selected?.frameRate ?? 1);
 }
+function applyProjectDraft(reply: Reply<ProjectDraftView>): void {
+  if (!activeProject) return;
+  if (!reply.ok) {
+    showError(reply.message);
+    return;
+  }
+  const current = activeProject,
+    changed = reply.value,
+    reconciled = reconcileProjectDraft(current, changed);
+  if (reconciled.status === "invalid") {
+    showError("The saved edit could not be displayed. Reopen the project.");
+    return;
+  }
+  if (reconciled.status !== "applied") return;
+  activeProject = reconciled.value;
+  element("duration").textContent = ` / ${time(changed.timeline.durationUs)}`;
+  selectionGeneration++;
+  requestedTime = undefined;
+  const position = Math.min(
+    Number(seek.value),
+    Math.max(0, changed.timeline.durationUs - Math.ceil(frameInterval())),
+  );
+  seek.max = String(
+    Math.max(0, changed.timeline.durationUs - Math.ceil(frameInterval())),
+  );
+  clearError();
+  requestFrame(position);
+}
+window.desktop.onProjectDraftChanged(applyProjectDraft);
 void loadLibrary().catch(() =>
   showError(
     "The library could not be opened. Restart the application to retry.",

@@ -95,6 +95,9 @@ export interface DraftReadResult {
   undo_transaction_id: string | null;
   current_pass_checkpoint: PassCheckpointRecord | null;
 }
+export interface DraftProjectReadResult extends DraftReadResult {
+  project: InitialProjectSnapshot;
+}
 
 export interface DraftCommitResult extends DraftReadResult {
   transaction: DraftTransactionRecord;
@@ -849,6 +852,21 @@ export class DraftTransactionStore {
     return this.serialize(projectId, async () => {
       const loaded = await this.load(projectId);
       return {
+        draft: cloneDraftState(loaded.state),
+        undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
+        current_pass_checkpoint: loaded.currentCheckpoint
+          ? structuredClone(loaded.currentCheckpoint)
+          : null,
+      };
+    });
+  }
+
+  /** One root-queue read keeps project navigation and the active draft coherent. */
+  snapshotWithProject(projectId: string): Promise<DraftProjectReadResult> {
+    return this.serialize(projectId, async () => {
+      const loaded = await this.load(projectId);
+      return {
+        project: structuredClone(loaded.baseline),
         draft: cloneDraftState(loaded.state),
         undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
         current_pass_checkpoint: loaded.currentCheckpoint

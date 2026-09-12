@@ -1,7 +1,7 @@
-import type { InitialProjectSnapshot } from "../../domain/src/project.ts";
 import {
   DraftTransactionError,
   type DraftCommitResult,
+  type DraftProjectReadResult,
   type DraftReadResult,
 } from "../../project-store/src/transactions.ts";
 
@@ -14,12 +14,9 @@ export const codexVideoEditToolNames = [
 
 export type CodexVideoEditToolName = (typeof codexVideoEditToolNames)[number];
 
-type ProjectReader = {
-  open(projectId: string): Promise<InitialProjectSnapshot>;
-};
-
 type DraftTransactions = {
   snapshot(projectId: string): Promise<DraftReadResult>;
+  snapshotWithProject(projectId: string): Promise<DraftProjectReadResult>;
   applyCodex(value: unknown): Promise<DraftCommitResult>;
   undoCodex(value: unknown): Promise<DraftCommitResult>;
 };
@@ -217,17 +214,11 @@ function mapError(error: unknown): never {
  */
 export class CodexVideoEditToolService {
   private readonly activeProjectId: string;
-  private readonly projects: ProjectReader;
   private readonly drafts: DraftTransactions;
 
-  constructor(
-    activeProjectId: string,
-    projects: ProjectReader,
-    drafts: DraftTransactions,
-  ) {
+  constructor(activeProjectId: string, drafts: DraftTransactions) {
     if (!idPattern.test(activeProjectId)) reject("invalid_request");
     this.activeProjectId = activeProjectId;
-    this.projects = projects;
     this.drafts = drafts;
   }
 
@@ -253,10 +244,8 @@ export class CodexVideoEditToolService {
 
   private async projectSummary(input: unknown): Promise<unknown> {
     const projectId = readRequest(input, this.activeProjectId);
-    const [project, draft] = await Promise.all([
-      this.projects.open(projectId),
-      this.drafts.snapshot(projectId),
-    ]);
+    const draft = await this.drafts.snapshotWithProject(projectId),
+      project = draft.project;
     if (
       project.project.project_id !== this.activeProjectId ||
       draft.draft.project_id !== this.activeProjectId ||
