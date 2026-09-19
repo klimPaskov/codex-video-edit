@@ -38,7 +38,7 @@ ADR 0013 brings only the necessary project foundation forward from P3. Stage nav
 - [ ] P2-04 Implement durable project threads, streaming items, interrupt, retry, and compact user-facing activity. Filter native child notifications from the parent projection and require correlated server history before claiming a subagent ran.
 - [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and shared validated transaction engine, including expected draft sequence, durable journal, atomic persistence, deterministic inverse/undo, and committed-transaction recovery required by the real fixture edit (ADR 0013). Support the editorial pass groups, current sequence/hash preconditions and truthful verified checkpoints in docs/47_EDITORIAL_FIRST_CUT.md.
 - [ ] P2-06 Prove a real authenticated Codex turn can inspect a fixture project and apply a draft-only edit. Bootstrap read tools on create/resume with the main-owned validated project identity; obtain current draft identifiers, sequence and hash through those tools before mutation.
-- [ ] P2-07 Reject fake responses and stale protocol assumptions. Distinguish offline guarded-service freshness on a real Codex edit from live stdio error relay, and leave native-agent support unverified without a completed spawn and child read.
+- [ ] P2-07 Reject fake responses and stale protocol assumptions. Distinguish offline guarded-service freshness on a real Codex edit from live stdio error relay, bounded native non-use of a forbidden command from complete tool unavailability, and model subagent claims from a completed spawn and child read.
 
 Acceptance: a real Codex smoke test passes or the phase remains blocked with exact evidence.
 
