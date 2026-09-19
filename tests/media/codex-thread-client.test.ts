@@ -18,7 +18,7 @@ const policy = {
   effort: "high",
 };
 
-async function fixture() {
+async function fixture(onEvent?: (event: ThreadStreamEvent) => void) {
   const parent = resolve("test-results", "codex-thread-client");
   await mkdir(parent, { recursive: true });
   const root = await mkdtemp(join(parent, "fixture-"));
@@ -45,7 +45,10 @@ async function fixture() {
     registry,
     allowedMcpServer: "codex-video-edit",
     allowedMcpTools: new Set(["cut.trim_edge", "timeline.undo"]),
-    onEvent: (event) => events.push(event),
+    onEvent: (event) => {
+      events.push(event);
+      onEvent?.(event);
+    },
     clientMessageId: () => `message-${++nextId}`,
   });
   return {
@@ -741,5 +744,64 @@ test("unsupported or uncorrelated server requests fail closed", async () => {
     );
   } finally {
     await rm(fixtureState.root, { recursive: true, force: true });
+  }
+});
+
+test("poisoned project conversation disconnect and repeated close finish without RPC", async () => {
+  const value = await fixture();
+  try {
+    await value.client.open();
+    value.setHandler(async (method) => {
+      if (method === "turn/start") return turnResponse("turn-poisoned");
+      throw new Error("Unexpected cleanup RPC");
+    });
+    await value.client.startTurn({ text: "Inspect the fixture." });
+    assert.throws(
+      () =>
+        value.client.notification("item/started", {
+          threadId: "thread-1",
+          turnId: "turn-poisoned",
+          item: { id: "forbidden-item", type: "commandExecution" },
+        }),
+      CodexThreadProtocolError,
+    );
+    const count = value.calls.length;
+    assert.doesNotThrow(() => value.client.disconnect());
+    assert.doesNotThrow(() => value.client.disconnect());
+    await value.client.close();
+    await value.client.close();
+    assert.equal(value.calls.length, count);
+    assert.equal(
+      value.events.filter((event) => event.type === "connection_uncertain")
+        .length,
+      1,
+    );
+    await assert.rejects(
+      value.client.startTurn({ text: "Do not reuse." }),
+      CodexThreadProtocolError,
+    );
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("disconnect observer failure cannot leave an opened conversation or permit reuse", async () => {
+  const value = await fixture((event) => {
+    if (event.type === "connection_uncertain")
+      throw new Error("Observer failed");
+  });
+  try {
+    await value.client.open();
+    value.setHandler(async () => turnResponse("turn-observer"));
+    await value.client.startTurn({ text: "Inspect the fixture." });
+    assert.doesNotThrow(() => value.client.disconnect());
+    assert.doesNotThrow(() => value.client.disconnect());
+    await value.client.close();
+    await assert.rejects(
+      value.client.startTurn({ text: "Do not reuse." }),
+      CodexThreadProtocolError,
+    );
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
   }
 });

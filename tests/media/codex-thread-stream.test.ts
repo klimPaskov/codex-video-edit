@@ -517,3 +517,105 @@ test("history enforces turn, item, identity and aggregate text bounds", () => {
     );
   }
 });
+
+test("server user echoes remain correlated without becoming empty Codex replies", () => {
+  const stream = projector();
+  stream.beginTurn(7, "turn-echo");
+  const item = {
+    id: "user-echo",
+    type: "userMessage",
+    content: [{ type: "text", text: "Trim the fixture.", text_elements: [] }],
+  };
+  assert.equal(
+    stream.observe(7, "item/started", {
+      threadId: "thread-1",
+      turnId: "turn-echo",
+      startedAtMs: 1,
+      item,
+    }),
+    null,
+  );
+  assert.equal(
+    stream.observe(7, "item/completed", {
+      threadId: "thread-1",
+      turnId: "turn-echo",
+      completedAtMs: 2,
+      item,
+    }),
+    null,
+  );
+  assert.equal(
+    stream.observe(7, "item/completed", {
+      threadId: "thread-1",
+      turnId: "turn-echo",
+      completedAtMs: 2,
+      item,
+    }),
+    null,
+  );
+  assert.throws(
+    () =>
+      stream.observe(7, "item/agentMessage/delta", {
+        threadId: "thread-1",
+        turnId: "turn-echo",
+        itemId: "user-echo",
+        delta: "Wrong speaker",
+      }),
+    CodexThreadProtocolError,
+  );
+});
+
+test("owned read tools report reading activity instead of claiming an edit", () => {
+  const stream = new ThreadStreamProjector({
+    experimentalApiNegotiated: true,
+    generation: 7,
+    threadId: "thread-1",
+    allowedMcpServer: "codex-video-edit",
+    allowedMcpTools: new Set(["project.get_summary", "timeline.get_summary"]),
+  });
+  stream.beginTurn(7, "turn-read");
+  for (const tool of ["project.get_summary", "timeline.get_summary"]) {
+    const event = stream.observe(7, "item/started", {
+      threadId: "thread-1",
+      turnId: "turn-read",
+      startedAtMs: 1,
+      item: {
+        id: tool,
+        type: "mcpToolCall",
+        server: "codex-video-edit",
+        tool,
+        status: "inProgress",
+      },
+    });
+    assert.equal(event?.type, "item_started");
+    if (event?.type === "item_started") {
+      assert.equal(event.kind, "activity");
+      assert.equal(event.label, "Reading the project");
+    }
+  }
+});
+
+test("poisoned stream disconnect marks uncertainty once without restoring permissions", () => {
+  const stream = projector();
+  stream.beginTurn(7, "turn-poisoned");
+  assert.throws(
+    () =>
+      stream.observe(7, "item/started", {
+        threadId: "thread-1",
+        turnId: "turn-poisoned",
+        item: { id: "forbidden-item", type: "commandExecution" },
+      }),
+    CodexThreadProtocolError,
+  );
+  assert.deepEqual(stream.disconnect(7), {
+    type: "connection_uncertain",
+    generation: 7,
+    threadId: "thread-1",
+    turnId: "turn-poisoned",
+  });
+  assert.equal(stream.disconnect(7), null);
+  assert.throws(
+    () => stream.beginTurn(7, "another-turn"),
+    CodexThreadProtocolError,
+  );
+});
