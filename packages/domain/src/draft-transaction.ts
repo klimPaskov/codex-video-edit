@@ -6,7 +6,7 @@ import {
 } from "./project.ts";
 
 export type DraftTimeline = InitialProjectSnapshot["timeline"];
-export type DraftOrigin = "manual" | "codex" | "magic_wand";
+export type DraftOrigin = "manual" | "codex" | "api_provider" | "magic_wand";
 export type DraftPassKind =
   | "manual"
   | "spoken_cut"

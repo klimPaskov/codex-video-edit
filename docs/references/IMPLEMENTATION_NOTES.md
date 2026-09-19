@@ -15,7 +15,7 @@ The user's latest requirements override image artifacts. Implement their dark pa
 5. Real Codex applies authorized reversible changes live. A canned message saying Done is not an edit. Apply Suggestion cards in mockups are optional review interactions, not a mandatory barrier for each ordinary edit.
 6. The current export image incorrectly labels ProRes 422 HQ as Lossless. Do not implement that label. Default to the verified FFV1/PCM master in a correct container under `docs/44_LOSSLESS_MEDIA_POLICY.md`. Smaller MP4 output is an explicit opt-in. Source-matched output does not automatically mean 4K or 48 kHz.
 7. Separate export settings, rendering, and export-complete states. Do not show them all as simultaneously complete. Only current measurements may populate progress and duration.
-8. A single supported provider does not need a repeated Codex provider dropdown on every page. Offer runtime model selection in settings or the drawer.
+8. ADR 0014 adds optional OpenAI API and DeepSeek connections alongside Codex. Select provider and its live-validated model in Settings or the AI drawer when relevant, never as a repeated dropdown on every page. Do not copy the old single-provider screenshot literally or display unimplemented provider controls.
 9. Do not preserve contradictory time ranges, progress, active navigation, speed values, or demo transcript content. Use one canonical clock and committed draft state.
 10. Local rendering is not a promise of offline Codex inference. Use accurate context-sharing disclosure during sign-in. Do not put repeated privacy banners in every editor panel.
 11. Transcript correction changes text and captions unless a cut is requested. It does not replace spoken words with a new recording or clone a voice.

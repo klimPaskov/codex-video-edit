@@ -4,6 +4,8 @@ Date: 2026-09-08. Scope: official Codex `0.142.3`, source tag `rust-v0.142.3`, a
 
 ## Authentication and provider
 
+This section constrains only the Codex App Server account and thread path. ADR 0014 later adds separate OpenAI API and DeepSeek main-owned adapters; their keys must not be forwarded into App Server or interpreted as ChatGPT login. Their endpoint, storage and model contracts require their own review and native tests.
+
 The pinned [configuration schema](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/core/config.schema.json) supports `forced_login_method = "chatgpt"` and `model_provider = "openai"`. Built-in provider IDs cannot be replaced through `model_providers`. The stable generated `ThreadStartParams` supports `modelProvider`, `sandbox`, `approvalPolicy`, `config`, `cwd`, and `ephemeral`.
 
 The pinned [account processor](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/app-server/src/request_processors/account_processor.rs#L283) rejects API-key login when the forced method is ChatGPT. This restriction does **not** itself distinguish managed ChatGPT login from externally supplied ChatGPT tokens: the external-token path rejects forced API mode, not forced ChatGPT mode. The product must expose only the managed ChatGPT login variants and must never forward arbitrary login payloads or accept access tokens through its renderer IPC.

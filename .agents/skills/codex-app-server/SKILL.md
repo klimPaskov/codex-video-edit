@@ -11,12 +11,12 @@ Changing AI login, model selection, skills, threads, streaming, interruption, ap
 
 ## Requirements
 
-- Official Codex app-server only.
+- Official Codex app-server for the Codex subscription path; ADR 0014 adds separate fixed-endpoint OpenAI API and DeepSeek adapters, never a substitute Codex transport.
 - Stdio JSONL transport.
 - Initialize handshake before other requests.
 - Generate protocol types from the pinned binary.
 - Retain exact generation hashes and licensing; normalize imports/formatting reproducibly without changing type shapes. Check nullable/omitted wire fields against the pinned JSON schema rather than assuming TypeScript requiredness is a wire invariant.
-- ChatGPT-managed login in the first release.
+- ChatGPT-managed Codex login in the first release, distinct from optional API-provider keys and billing.
 - Runtime `model/list` and `skills/list` discovery.
 - Durable project thread and turn streaming.
 - Safe restart, resume, interrupt, and rate-limit handling.
@@ -87,6 +87,8 @@ A packaged signed-out test now opens the real OpenAI login page in an isolated g
 ## Authorized live operations
 
 Apply authorized reversible active-draft transactions during the turn without repeated material-change confirmation. Magic Wand, Codex and manual edits share undo history. Export preparation may stage settings without confirmation but cannot start final export. Keep source deletion, cleanup, spending, publication and final export under explicit user action; handle native server approvals separately. Test both authorization and forbidden-effect boundaries.
+
+For an API-provider turn, require an explicit user start action because that call may incur provider charges. Once started, validated reversible edits may commit during the turn without repeated per-edit approval. API-provider output is untrusted intent; only main's shared transaction service commits it. Do not infer Codex skills, threads, subagents or subscription usage for another provider. Keep provider model catalogs and capability labels separate.
 
 ## Packaged account/settings validation
 

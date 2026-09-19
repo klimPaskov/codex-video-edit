@@ -28,6 +28,8 @@ Use browser tools only for research. Never launch or install on the user's host.
 
 The root is `codex-video-edit`. Apply docs/44_LOSSLESS_MEDIA_POLICY.md, docs/45_OPEN_SOURCE_DEVELOPMENT.md, and docs/references/IMPLEMENTATION_NOTES.md. Default to verified lossless capture and master output, remove redundant UI text and debug indicators, and publish reviewed working slices from P0 onward.
 
+Apply ADR 0014 for optional fixed-endpoint OpenAI API and DeepSeek keys beside the mandatory Codex App Server. Keep paid API turns explicit, keys main-owned and protected, provider capabilities truthful, and every AI edit under the shared guarded transaction history. Do not mark P2 complete from documentation or fake-provider tests.
+
 ## Required editorial capability
 
 Read `docs/47_EDITORIAL_FIRST_CUT.md` and `docs/prompts/EDITORIAL_FIRST_CUT_PROMPT.md` when implementing transcription, Magic Wand, cuts, layouts, graphics opportunities, zooms or final QA. They adapt a user-supplied editorial reference into this app; never operate an external editor or invent its API. Preserve conservative spoken-cue interpretation, verified synchronization/protected scope, final complete retakes, whole-transcript coherence checks, separately verified live pass groups, suggestion-only graphics and no automatic export. Implement the associated negative fixtures and contracts in the assigned later phases; no documentation or P1 shell result proves those capabilities.

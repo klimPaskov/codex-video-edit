@@ -2,7 +2,7 @@
 
 ## S01 Onboarding
 
-- The user understands that media stays local unless Codex is asked to inspect supplied context.
+- The user understands that media stays local unless the selected AI provider is asked to inspect disclosed context.
 - ChatGPT sign-in can begin and recover from cancellation.
 - Dependency problems have one plain repair action.
 - Protocol logs are hidden.
@@ -81,7 +81,8 @@
 
 ## S13 Settings
 
-- Codex provider is shown as the only provider.
+- Codex remains available with managed ChatGPT sign-in; implemented OpenAI API and DeepSeek rows show separate key and billing states with no exposed key bytes.
+- Each provider lists only live-validated models and verified capabilities; a paid API turn starts only on explicit user action.
 - Runtime-discovered Codex models can be selected.
 - Only one settings section opens at a time.
 - Diagnostics remain separate.

@@ -38,7 +38,7 @@
     "draft_id": { "$ref": "#/$defs/id" },
     "base_revision_id": { "$ref": "#/$defs/id" },
     "kind": { "enum": ["apply", "undo"] },
-    "origin": { "enum": ["manual", "codex", "magic_wand"] },
+    "origin": { "enum": ["manual", "codex", "api_provider", "magic_wand"] },
     "pass_group": {
       "oneOf": [{ "$ref": "#/$defs/pass_group" }, { "type": "null" }]
     },

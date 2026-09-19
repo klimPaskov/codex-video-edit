@@ -1,5 +1,20 @@
 import { DesktopCodex } from "./codex.ts";
+import { DesktopApiProviders } from "./api-providers.ts";
+import { ApiProviderThreads } from "./api-thread.ts";
+import { ProviderKeyStore } from "./provider-keys.ts";
+import { ApiProviderClient } from "../../../packages/api-providers/src/client.ts";
+import {
+  assertApiProviderConnectRequest,
+  assertApiProviderModelRequest,
+  assertApiProviderRequest,
+  assertApiProvidersView,
+} from "../../../packages/domain/src/api-providers.ts";
 import { assertCodexView } from "../../../packages/domain/src/codex-view.ts";
+import {
+  assertApiThreadProjectRequest,
+  assertApiThreadSendRequest,
+  assertApiThreadView,
+} from "../../../packages/domain/src/api-thread-view.ts";
 import {
   assertDeviceLoginDetails,
   CODEX_DEVICE_VERIFICATION_URL,
@@ -28,6 +43,7 @@ import {
   dialog,
   ipcMain,
   protocol,
+  safeStorage,
   session,
   shell,
 } from "electron";
@@ -208,6 +224,62 @@ async function start(): Promise<void> {
     (url) => shell.openExternal(url),
     { mcpRuntime },
   );
+  const apiClient = new ApiProviderClient();
+  const apiProviders = new DesktopApiProviders(
+    new ProviderKeyStore(path.join(userData, "api-provider-keys"), safeStorage),
+    apiClient,
+  );
+  const apiThreads = new ApiProviderThreads(
+    userData,
+    apiProviders,
+    apiClient,
+    async (projectId, name, input) => {
+      if (activeProjectId !== projectId)
+        throw new CodexVideoEditToolError("inactive_project");
+      return invokeWithProjectDraftRefresh({
+        toolName: name,
+        projectId,
+        activeProjectId: () => activeProjectId,
+        work: () =>
+          new CodexVideoEditToolService(
+            projectId,
+            drafts,
+            "api_provider",
+          ).invoke(name, input),
+        drafts,
+        notify: publishDraftNotice,
+      });
+    },
+  );
+  register(channels.apiProvidersGet, async (request) => {
+    assertEmptyRequest(request);
+    const value = await apiProviders.get();
+    assertApiProvidersView(value);
+    return value;
+  });
+  register(channels.apiProvidersConnect, async (request) => {
+    assertApiProviderConnectRequest(request);
+    const value = await apiProviders.connect(request);
+    assertApiProvidersView(value);
+    return value;
+  });
+  register(channels.apiProvidersRemove, async (request) => {
+    assertApiProviderRequest(request);
+    if (activeProjectId) {
+      const turn = await apiThreads.get(activeProjectId, request.provider);
+      if (turn.status === "running")
+        await apiThreads.interrupt(activeProjectId, request.provider);
+    }
+    const value = await apiProviders.remove(request);
+    assertApiProvidersView(value);
+    return value;
+  });
+  register(channels.apiProvidersSelectModel, async (request) => {
+    assertApiProviderModelRequest(request);
+    const value = await apiProviders.selectModel(request);
+    assertApiProvidersView(value);
+    return value;
+  });
   for (const [channel, operation] of [
     [channels.codexGet, () => codex!.get()],
     [channels.codexReconnect, () => codex!.reconnect()],
@@ -274,7 +346,19 @@ async function start(): Promise<void> {
         throw new UserFacingError(
           "Stop the running Codex turn before leaving this project.",
         );
+      for (const provider of ["deepseek", "openai"] as const) {
+        const turn = await apiThreads.get(request.id, provider);
+        if (turn.status === "running" || turn.status === "interrupting")
+          throw new UserFacingError(
+            "Stop the running provider turn before leaving this project.",
+          );
+      }
       await codex!.closeThread(request.id);
+      await Promise.all(
+        (["deepseek", "openai"] as const).map((provider) =>
+          apiThreads.close(request.id, provider),
+        ),
+      );
       activeProjectId = undefined;
     }
     return null;
@@ -322,6 +406,45 @@ async function start(): Promise<void> {
     await activeCodexProject(request.project_id);
     const value = await codex!.interruptThread(request.project_id);
     assertCodexThreadView(value);
+    return value;
+  });
+  register(channels.apiThreadGet, async (request) => {
+    assertApiThreadProjectRequest(request);
+    await activeCodexProject(request.project_id);
+    const value = await apiThreads.get(request.project_id, request.provider);
+    assertApiThreadView(value);
+    return value;
+  });
+  register(channels.apiThreadOpen, async (request) => {
+    assertApiThreadProjectRequest(request);
+    await activeCodexProject(request.project_id);
+    if (!(await apiProviders.selected(request.provider)))
+      throw new UserFacingError(
+        "Connect and choose a provider model in Settings to continue.",
+      );
+    const value = await apiThreads.open(request.project_id, request.provider);
+    assertApiThreadView(value);
+    return value;
+  });
+  register(channels.apiThreadSend, async (request) => {
+    assertApiThreadSendRequest(request);
+    await activeCodexProject(request.project_id);
+    const value = await apiThreads.send(
+      request.project_id,
+      request.provider,
+      request.text,
+    );
+    assertApiThreadView(value);
+    return value;
+  });
+  register(channels.apiThreadInterrupt, async (request) => {
+    assertApiThreadProjectRequest(request);
+    await activeCodexProject(request.project_id);
+    const value = await apiThreads.interrupt(
+      request.project_id,
+      request.provider,
+    );
+    assertApiThreadView(value);
     return value;
   });
   register(channels.list, async (request) => {

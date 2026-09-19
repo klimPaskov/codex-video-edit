@@ -3,6 +3,17 @@ import {
   assertCodexSelection,
 } from "../../../packages/domain/src/codex-view.ts";
 import { assertDeviceLoginDetails } from "../../../packages/domain/src/codex-device-login.ts";
+import {
+  assertApiProviderConnectRequest,
+  assertApiProviderModelRequest,
+  assertApiProviderRequest,
+  assertApiProvidersView,
+} from "../../../packages/domain/src/api-providers.ts";
+import {
+  assertApiThreadProjectRequest,
+  assertApiThreadSendRequest,
+  assertApiThreadView,
+} from "../../../packages/domain/src/api-thread-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
   assertProjectDraftView,
@@ -62,6 +73,44 @@ function reply<T>(
   return { ok: true, value: result.value as T };
 }
 const bridge: DesktopBridge = {
+  getApiThread: (request) => {
+    assertApiThreadProjectRequest(request);
+    return invoke(channels.apiThreadGet, request, assertApiThreadView);
+  },
+  openApiThread: (request) => {
+    assertApiThreadProjectRequest(request);
+    return invoke(channels.apiThreadOpen, request, assertApiThreadView);
+  },
+  sendApiThread: (request) => {
+    assertApiThreadSendRequest(request);
+    return invoke(channels.apiThreadSend, request, assertApiThreadView);
+  },
+  interruptApiThread: (request) => {
+    assertApiThreadProjectRequest(request);
+    return invoke(channels.apiThreadInterrupt, request, assertApiThreadView);
+  },
+  getApiProviders: () =>
+    invoke(channels.apiProvidersGet, undefined, assertApiProvidersView),
+  connectApiProvider: (request) => {
+    assertApiProviderConnectRequest(request);
+    return invoke(
+      channels.apiProvidersConnect,
+      request,
+      assertApiProvidersView,
+    );
+  },
+  removeApiProvider: (request) => {
+    assertApiProviderRequest(request);
+    return invoke(channels.apiProvidersRemove, request, assertApiProvidersView);
+  },
+  selectApiProviderModel: (request) => {
+    assertApiProviderModelRequest(request);
+    return invoke(
+      channels.apiProvidersSelectModel,
+      request,
+      assertApiProvidersView,
+    );
+  },
   getCodex: () => invoke(channels.codexGet, undefined, assertCodexView),
   reconnectCodex: () =>
     invoke(channels.codexReconnect, undefined, assertCodexView),

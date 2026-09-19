@@ -39,6 +39,7 @@
 ### AI and provenance
 
 - real Codex event and model identity
+- API-provider identity, explicit paid-turn initiation, live model validation and key redaction when an API path is selected
 - operation transaction integrity
 - current skill and input hashes
 - asset provenance

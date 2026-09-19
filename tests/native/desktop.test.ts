@@ -305,6 +305,20 @@ try {
   await window.screenshot({
     path: join(evidence, "codex-drawer-signed-out.png"),
   });
+  await window.locator("#assistant-provider").selectOption("deepseek");
+  await expect(
+    window.getByRole("complementary", { name: "DeepSeek conversation" }),
+  ).toBeVisible();
+  await expect(window.locator("#api-turn-notice")).toBeVisible();
+  await window.getByRole("button", { name: "Open conversation" }).click();
+  await expect(window.locator("#codex-thread-error")).toHaveText(
+    "Connect and choose a provider model in Settings to continue.",
+  );
+  await expect(window.locator("#codex-thread-messages p")).toHaveCount(0);
+  await window.screenshot({
+    path: join(evidence, "api-drawer-unconnected-private.png"),
+  });
+  await window.locator("#assistant-provider").selectOption("codex");
   await window.getByRole("button", { name: "Close Codex" }).click();
   await expect(window.locator("#codex-drawer")).toBeHidden();
   for (const [width, height, scale] of [

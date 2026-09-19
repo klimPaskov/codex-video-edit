@@ -1,5 +1,7 @@
 # Magic Wand pipeline
 
+If an ADR 0014 API provider is selected, separate local deterministic analysis from the explicitly user-started paid generation turn. Validate provider proposals through the shared active-draft transaction engine, preserve source immutability and report only committed changes. Provider-specific tools are available only after their capability tests; this requirement is not implementation evidence.
+
 ## Goal
 
 Magic Wand creates a useful first edit from recorded or imported media. It operates through visible, reversible draft transactions and keeps the original footage available.

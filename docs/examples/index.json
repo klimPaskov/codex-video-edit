@@ -30,6 +30,10 @@
       "example": "docs/examples/desktop_ipc_device_login.example.json"
     },
     {
+      "schema": "docs/schemas/desktop_ipc.schema.json",
+      "example": "docs/examples/desktop_ipc_api_providers.example.json"
+    },
+    {
       "schema": "docs/schemas/media_library.schema.json",
       "example": "docs/examples/media_library.example.json"
     },
@@ -132,6 +136,10 @@
     {
       "schema": "docs/schemas/codex_thread_view.schema.json",
       "example": "docs/examples/codex_thread_view.example.json"
+    },
+    {
+      "schema": "docs/schemas/desktop_ipc.schema.json",
+      "example": "docs/examples/desktop_ipc_api_thread.example.json"
     }
   ]
 }

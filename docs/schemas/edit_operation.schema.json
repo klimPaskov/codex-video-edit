@@ -63,6 +63,7 @@
         "manual",
         "magic_wand",
         "codex",
+        "api_provider",
         "import",
         "recovery"
       ]

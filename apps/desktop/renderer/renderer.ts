@@ -12,6 +12,8 @@ import type {
   ProjectView,
 } from "../../../packages/domain/src/project-view.ts";
 import type { CodexThreadView } from "../../../packages/domain/src/codex-thread-view.ts";
+import type { ApiThreadView } from "../../../packages/domain/src/api-thread-view.ts";
+import type { ApiProviderId } from "../../../packages/domain/src/api-providers.ts";
 declare global {
   interface Window {
     desktop: DesktopBridge;
@@ -137,6 +139,7 @@ async function openProject(
 function selectProject(project: ProjectView, origin?: HTMLButtonElement): void {
   activeProject = project;
   codexThreadView = undefined;
+  apiThreadView = undefined;
   codexThreadIssue = null;
   navigating = false;
   select(project.source);
@@ -578,8 +581,23 @@ function setInspector(open: boolean): void {
 }
 
 let codexThreadView: CodexThreadView | undefined;
+let apiThreadView: ApiThreadView | undefined;
 let codexThreadIssue: string | null = null;
 let codexPollGeneration = 0;
+const assistantProvider = element<HTMLSelectElement>("assistant-provider");
+function selectedApiProvider(): ApiProviderId | null {
+  return assistantProvider.value === "deepseek" ||
+    assistantProvider.value === "openai"
+    ? assistantProvider.value
+    : null;
+}
+function assistantName(): string {
+  return assistantProvider.value === "deepseek"
+    ? "DeepSeek"
+    : assistantProvider.value === "openai"
+      ? "OpenAI API"
+      : "Codex";
+}
 const threadStatus: Record<CodexThreadView["status"], string> = {
   closed: "",
   opening: "Opening conversation…",
@@ -633,6 +651,67 @@ function renderCodexThread(view: CodexThreadView): void {
   issue.hidden = !issue.textContent;
   messages.scrollTop = messages.scrollHeight;
 }
+function renderApiThread(view: ApiThreadView): void {
+  apiThreadView = view;
+  const status = element("codex-thread-status");
+  status.textContent = {
+    closed: "",
+    ready: "",
+    running: `${assistantName()} is working…`,
+    interrupting: "Stopping…",
+    failed: "",
+  }[view.status];
+  status.hidden = !status.textContent;
+  const messages = element("codex-thread-messages");
+  messages.replaceChildren();
+  for (const item of view.messages) {
+    const message = document.createElement("p");
+    message.className = `codex-message ${item.role}`;
+    const role = document.createElement("strong");
+    role.textContent = item.role === "user" ? "You" : assistantName();
+    const text = document.createElement("span");
+    text.textContent = item.text;
+    message.append(role, text);
+    messages.append(message);
+  }
+  element("codex-thread-activity").replaceChildren();
+  element("codex-thread-activity").hidden = true;
+  element<HTMLButtonElement>("open-codex-thread").hidden =
+    view.status !== "closed";
+  element<HTMLFormElement>("codex-thread-form").hidden =
+    view.status === "closed";
+  const input = element<HTMLTextAreaElement>("codex-thread-input");
+  input.disabled = view.status !== "ready" && view.status !== "failed";
+  element<HTMLButtonElement>("send-codex-thread").disabled =
+    input.disabled || !input.value.trim();
+  const stop = element<HTMLButtonElement>("interrupt-codex-thread");
+  stop.hidden = view.status !== "running" && view.status !== "interrupting";
+  stop.disabled = view.status !== "running";
+  const issue = element("codex-thread-error");
+  issue.textContent = view.message ?? codexThreadIssue ?? "";
+  issue.hidden = !issue.textContent;
+  messages.scrollTop = messages.scrollHeight;
+}
+function clearAssistantDisplay(): void {
+  element("codex-thread-status").hidden = true;
+  element("codex-thread-messages").replaceChildren();
+  element("codex-thread-activity").replaceChildren();
+  element("codex-thread-activity").hidden = true;
+  element<HTMLFormElement>("codex-thread-form").hidden = true;
+  element<HTMLButtonElement>("open-codex-thread").hidden = true;
+  element("codex-thread-error").hidden = true;
+}
+assistantProvider.addEventListener("change", () => {
+  codexThreadIssue = null;
+  element<HTMLTextAreaElement>("codex-thread-input").value = "";
+  const name = assistantName();
+  codexDrawerButton.textContent = name;
+  codexDrawer.setAttribute("aria-label", `${name} conversation`);
+  element("close-codex").setAttribute("aria-label", `Close ${name}`);
+  element("api-turn-notice").hidden = selectedApiProvider() === null;
+  clearAssistantDisplay();
+  if (!codexDrawer.hidden) void pollCodex(++codexPollGeneration);
+});
 function setCodexDrawer(open: boolean): void {
   codexDrawer.hidden = !open;
   codexDrawerButton.setAttribute("aria-expanded", String(open));
@@ -652,19 +731,29 @@ async function pollCodex(generation: number): Promise<void> {
     activeProject
   ) {
     const project = activeProject;
+    const provider = selectedApiProvider();
     try {
-      const reply = await window.desktop.getCodexThread({
-        schema_version: "1.0",
-        project_id: project.id,
-      });
+      const reply = provider
+        ? await window.desktop.getApiThread({
+            schema_version: "1.0",
+            project_id: project.id,
+            provider,
+          })
+        : await window.desktop.getCodexThread({
+            schema_version: "1.0",
+            project_id: project.id,
+          });
       if (
         generation !== codexPollGeneration ||
         codexDrawer.hidden ||
-        activeProject?.id !== project.id
+        activeProject?.id !== project.id ||
+        selectedApiProvider() !== provider
       )
         return;
-      if (reply.ok) renderCodexThread(reply.value);
-      else {
+      if (reply.ok) {
+        if (provider) renderApiThread(reply.value as ApiThreadView);
+        else renderCodexThread(reply.value as CodexThreadView);
+      } else {
         codexThreadIssue = reply.message;
         const issue = element("codex-thread-error");
         issue.textContent = reply.message;
@@ -672,7 +761,7 @@ async function pollCodex(generation: number): Promise<void> {
       }
     } catch {
       if (generation === codexPollGeneration) {
-        codexThreadIssue = "The Codex conversation could not be refreshed.";
+        codexThreadIssue = "The conversation could not be refreshed.";
         const issue = element("codex-thread-error");
         issue.textContent = codexThreadIssue;
         issue.hidden = false;
@@ -688,55 +777,91 @@ element("close-codex").addEventListener("click", () => setCodexDrawer(false));
 element("open-codex-thread").addEventListener("click", async () => {
   if (!activeProject || codexThreadView?.status === "opening") return;
   const project = activeProject;
+  const provider = selectedApiProvider();
   codexThreadIssue = null;
-  renderCodexThread({
-    status: "opening",
-    projectId: project.id,
-    messages: [],
-    activities: [],
-    message: null,
-  });
-  const reply = await window.desktop.openCodexThread({
-    schema_version: "1.0",
-    project_id: project.id,
-  });
-  if (activeProject?.id === project.id && reply.ok)
-    renderCodexThread(reply.value);
-  else if (!reply.ok) {
+  element<HTMLButtonElement>("open-codex-thread").disabled = true;
+  const reply = provider
+    ? await window.desktop.openApiThread({
+        schema_version: "1.0",
+        project_id: project.id,
+        provider,
+      })
+    : await window.desktop.openCodexThread({
+        schema_version: "1.0",
+        project_id: project.id,
+      });
+  element<HTMLButtonElement>("open-codex-thread").disabled = false;
+  if (activeProject?.id !== project.id || selectedApiProvider() !== provider)
+    return;
+  if (reply.ok) {
+    if (provider) renderApiThread(reply.value as ApiThreadView);
+    else renderCodexThread(reply.value as CodexThreadView);
+  } else {
     codexThreadIssue = reply.message;
-    renderCodexThread({
-      status: "closed",
-      projectId: null,
-      messages: [],
-      activities: [],
-      message: null,
-    });
+    if (provider)
+      renderApiThread({
+        status: "closed",
+        projectId: null,
+        provider: null,
+        messages: [],
+        message: null,
+      });
+    else
+      renderCodexThread({
+        status: "closed",
+        projectId: null,
+        messages: [],
+        activities: [],
+        message: null,
+      });
   }
 });
 element<HTMLTextAreaElement>("codex-thread-input").addEventListener(
   "input",
   () => {
-    if (codexThreadView) renderCodexThread(codexThreadView);
+    if (selectedApiProvider()) {
+      if (apiThreadView) renderApiThread(apiThreadView);
+    } else if (codexThreadView) renderCodexThread(codexThreadView);
   },
 );
 element<HTMLFormElement>("codex-thread-form").addEventListener(
   "submit",
   async (event) => {
     event.preventDefault();
-    if (!activeProject || codexThreadView?.status !== "ready") return;
+    if (!activeProject) return;
+    const provider = selectedApiProvider();
+    if (
+      provider
+        ? apiThreadView?.status !== "ready" &&
+          apiThreadView?.status !== "failed"
+        : codexThreadView?.status !== "ready"
+    )
+      return;
     const input = element<HTMLTextAreaElement>("codex-thread-input");
     const text = input.value.trim();
     if (!text) return;
     const project = activeProject;
     input.value = "";
-    const reply = await window.desktop.sendCodexThread({
-      schema_version: "1.0",
-      project_id: project.id,
-      text,
-    });
-    if (activeProject?.id === project.id && reply.ok)
-      renderCodexThread(reply.value);
-    else if (!reply.ok) {
+    const reply = provider
+      ? await window.desktop.sendApiThread({
+          schema_version: "1.0",
+          project_id: project.id,
+          provider,
+          text,
+        })
+      : await window.desktop.sendCodexThread({
+          schema_version: "1.0",
+          project_id: project.id,
+          text,
+        });
+    if (
+      activeProject?.id === project.id &&
+      selectedApiProvider() === provider &&
+      reply.ok
+    ) {
+      if (provider) renderApiThread(reply.value as ApiThreadView);
+      else renderCodexThread(reply.value as CodexThreadView);
+    } else if (!reply.ok) {
       const issue = element("codex-thread-error");
       issue.textContent = reply.message;
       issue.hidden = false;
@@ -744,14 +869,33 @@ element<HTMLFormElement>("codex-thread-form").addEventListener(
   },
 );
 element("interrupt-codex-thread").addEventListener("click", async () => {
-  if (!activeProject || codexThreadView?.status !== "running") return;
+  if (!activeProject) return;
   const project = activeProject;
-  const reply = await window.desktop.interruptCodexThread({
-    schema_version: "1.0",
-    project_id: project.id,
-  });
-  if (activeProject?.id === project.id && reply.ok)
-    renderCodexThread(reply.value);
+  const provider = selectedApiProvider();
+  if (
+    provider
+      ? apiThreadView?.status !== "running"
+      : codexThreadView?.status !== "running"
+  )
+    return;
+  const reply = provider
+    ? await window.desktop.interruptApiThread({
+        schema_version: "1.0",
+        project_id: project.id,
+        provider,
+      })
+    : await window.desktop.interruptCodexThread({
+        schema_version: "1.0",
+        project_id: project.id,
+      });
+  if (
+    activeProject?.id === project.id &&
+    selectedApiProvider() === provider &&
+    reply.ok
+  ) {
+    if (provider) renderApiThread(reply.value as ApiThreadView);
+    else renderCodexThread(reply.value as CodexThreadView);
+  }
 });
 detailsButton.addEventListener("click", () => {
   setInspector(inspector.hidden === true);
@@ -829,7 +973,8 @@ element("settings-form").addEventListener("submit", (event) => {
   if (
     savingPreferences ||
     scaleSelect.disabled ||
-    !element("codex-settings").hidden
+    !element("codex-settings").hidden ||
+    !element("api-provider-settings").hidden
   )
     return;
   void savePreferences();

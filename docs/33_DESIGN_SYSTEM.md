@@ -69,4 +69,4 @@ Support native menus, file dialogs, keyboard shortcuts, drag and drop, window re
 
 ## No redundant chrome
 
-Do not add hero headings, instructional subtitles, permanent Ready or Saved indicators, debug footers, repeated selected-tool names, or marketing language. Use one concise progress label when work is running. Default to a restrained dark theme with a single violet accent. Do not expose a provider dropdown with only one provider in the main editor. Model choice lives in Codex settings or its compact drawer menu.
+Do not add hero headings, instructional subtitles, permanent Ready or Saved indicators, debug footers, repeated selected-tool names, or marketing language. Use one concise progress label when work is running. Default to a restrained dark theme with a single violet accent. Provider choice belongs in the compact AI settings/drawer only when more than one implemented provider is available, not on every editor screen. Model choice is scoped to the selected provider and its validated catalog.

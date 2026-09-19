@@ -30,7 +30,7 @@ Accepted: all six tasks are recorded in `docs/workflow/results/P1.json` against 
 
 ADR 0013 brings only the necessary project foundation forward from P3. Stage navigation persists actual project presentation state without executing features, modifying draft history, certifying review, or starting export. Verify all five transitions and reopen against the same project, source and draft state. Unimplemented stage actions remain absent or truthfully unavailable; navigation is not evidence that later features work.
 
-## P2: real Codex runtime
+## P2: real Codex runtime and explicit API providers
 
 - [ ] P2-01 Spawn the official Codex app-server over stdio and implement initialize lifecycle and restart recovery.
 - [ ] P2-02 Add ChatGPT-managed browser and optional device-code login, logout, account state, and rate-limit display. Keep the one-time device code in the explicit Settings attempt only; require an actual completion callback and reconciled signed-in account before claiming managed login completion.
@@ -39,8 +39,11 @@ ADR 0013 brings only the necessary project foundation forward from P3. Stage nav
 - [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and shared validated transaction engine, including expected draft sequence, durable journal, atomic persistence, deterministic inverse/undo, and committed-transaction recovery required by the real fixture edit (ADR 0013). Support the editorial pass groups, current sequence/hash preconditions and truthful verified checkpoints in docs/47_EDITORIAL_FIRST_CUT.md.
 - [ ] P2-06 Prove a real authenticated Codex turn can inspect a fixture project and apply a draft-only edit. Bootstrap read tools on create/resume with the main-owned validated project identity; obtain current draft identifiers, sequence and hash through those tools before mutation.
 - [ ] P2-07 Reject fake responses and stale protocol assumptions. Distinguish offline guarded-service freshness on a real Codex edit from live stdio error relay, bounded native non-use of a forbidden command from complete tool unavailability, and model subagent claims from a completed spawn and child read.
+- [ ] P2-08 Add fixed-endpoint OpenAI API and DeepSeek key connections beside Codex. Keep key entry and provider network calls in main, use OS-backed encryption or session-only fallback, and never expose key material in renderer state, projects, logs or Git.
+- [ ] P2-09 Discover and validate each API provider's supported models at runtime, separate ChatGPT subscription and API billing/usage labels, and show only verified provider capabilities. Require an explicit user action before a paid generation turn; do not fabricate quotas or prices.
+- [ ] P2-10 Route an authenticated API-provider fixture turn through the same guarded draft transaction engine as Codex, Magic Wand and manual edits. Prove committed-state projection, freshness rejection, shared undo, source immutability, provider failure recovery, key redaction and packaged isolated native behavior. Retain the original Codex smoke gates.
 
-Acceptance: a real Codex smoke test passes or the phase remains blocked with exact evidence.
+Acceptance: the real Codex smoke and the two explicit API-provider security, discovery and guarded-edit paths pass, or the phase remains incomplete with exact evidence. No P2 task is marked complete solely by this requirement change.
 
 Use P1's actual project foundation and the shared transaction engine for the authenticated fixture edit. Do not substitute an AI-only state store or fake project. P3 and P6 retain their full acceptance even where their foundations were implemented earlier.
 

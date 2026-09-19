@@ -1,10 +1,12 @@
 import type { CodexView } from "../../../packages/domain/src/codex-view.ts";
 import type { Reply } from "../src/bridge.ts";
+import { setupProviderSettings } from "./provider-settings.ts";
 
 export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
   const element = <T extends HTMLElement = HTMLElement>(id: string) =>
     document.getElementById(id)! as T;
   const panel = element("codex-settings");
+  const providerSettings = setupProviderSettings(dialog);
   let epoch = 0;
   let pending = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -325,28 +327,44 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
         );
     },
   );
-  function section(codex: boolean): void {
+  function section(selected: "appearance" | "codex" | "api"): void {
     stop();
     clearDeviceCode();
+    providerSettings.deactivate();
     pending = false;
-    panel.hidden = !codex;
-    element("appearance-settings").hidden = codex;
-    element("appearance-actions").hidden = codex;
+    panel.hidden = selected !== "codex";
+    element("api-provider-settings").hidden = selected !== "api";
+    element("appearance-settings").hidden = selected !== "appearance";
+    element("appearance-actions").hidden = selected !== "appearance";
     element("settings-error").hidden = true;
-    element("settings-appearance").setAttribute("aria-pressed", String(!codex));
-    element("settings-codex").setAttribute("aria-pressed", String(codex));
-    if (codex) {
+    element("settings-appearance").setAttribute(
+      "aria-pressed",
+      String(selected === "appearance"),
+    );
+    element("settings-codex").setAttribute(
+      "aria-pressed",
+      String(selected === "codex"),
+    );
+    element("settings-api-providers").setAttribute(
+      "aria-pressed",
+      String(selected === "api"),
+    );
+    if (selected === "codex") {
       setText("codex-account", "Connecting to Codex…");
       void refresh();
     }
+    if (selected === "api") providerSettings.activate();
   }
   element("settings-appearance").addEventListener("click", () =>
-    section(false),
+    section("appearance"),
   );
-  element("settings-codex").addEventListener("click", () => section(true));
+  element("settings-codex").addEventListener("click", () => section("codex"));
+  element("settings-api-providers").addEventListener("click", () =>
+    section("api"),
+  );
   dialog.addEventListener("close", () => {
     stop();
     clearDeviceCode();
   });
-  return () => section(false);
+  return () => section("appearance");
 }

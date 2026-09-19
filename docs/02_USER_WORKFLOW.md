@@ -34,6 +34,8 @@ The user picks one or more local media files and sees one plain processing view.
 
 The Magic Wand is the main action. It opens a small menu with a preset and a few clear switches. While running, the preview and timeline update as validated edit operations arrive. The user can stop without losing completed operations.
 
+Optional OpenAI API and DeepSeek assistance under ADR 0014 uses a separately connected key and provider-validated model. A paid generation turn starts only when the user explicitly selects it. Local deterministic work does not silently incur API usage.
+
 ## Edit
 
 The default layout contains:
@@ -43,7 +45,7 @@ The default layout contains:
 - simple timeline
 - optional transcript tab
 - one inspector at a time
-- collapsible Codex drawer
+- collapsible AI drawer, with real Codex conversation and only verified capabilities for optional API providers
 
 The user can click an AI change in the history to see its reason and undo it.
 
