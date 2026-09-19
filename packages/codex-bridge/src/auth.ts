@@ -12,19 +12,27 @@ import {
   type AccountState,
 } from "./metadata.ts";
 import { CodexTransportError } from "./transport.ts";
+import { CODEX_DEVICE_VERIFICATION_URL } from "../../domain/src/codex-device-login.ts";
+import type { DeviceLoginDetails } from "../../domain/src/codex-device-login.ts";
 
 export interface AuthState {
   status:
     | "idle"
     | "starting"
     | "awaiting_browser"
+    | "awaiting_device_code"
     | "reconciling"
     | "canceling"
     | "failed";
   account: AccountState | null;
   error: "login_failed" | "login_timed_out" | "connection_lost" | null;
 }
-type Login = Extract<LoginAccountResponse, { type: "chatgpt" }>;
+type BrowserLogin = Extract<LoginAccountResponse, { type: "chatgpt" }>;
+export type DeviceLogin = Extract<
+  LoginAccountResponse,
+  { type: "chatgptDeviceCode" }
+>;
+type Login = BrowserLogin | DeviceLogin;
 type Completion = Pick<
   AccountLoginCompletedNotification,
   "loginId" | "success"
@@ -100,7 +108,7 @@ export function validateLoginUrl(value: unknown): string {
     invalid();
   return original;
 }
-export function decodeLogin(value: unknown): Login {
+export function decodeLogin(value: unknown): BrowserLogin {
   const response = object(value);
   if (response.type !== "chatgpt") invalid();
   const loginId = text(response.loginId, 256);
@@ -110,6 +118,20 @@ export function decodeLogin(value: unknown): Login {
     loginId,
     authUrl: validateLoginUrl(response.authUrl),
   };
+}
+export function decodeDeviceLogin(value: unknown): DeviceLogin {
+  const response = object(value);
+  if (response.type !== "chatgptDeviceCode") invalid();
+  const loginId = text(response.loginId, 256);
+  const verificationUrl = text(response.verificationUrl, 2048);
+  const userCode = text(response.userCode, 32);
+  if (
+    !loginId ||
+    verificationUrl !== CODEX_DEVICE_VERIFICATION_URL ||
+    !/^[A-Za-z0-9-]{4,32}$/u.test(userCode)
+  )
+    invalid();
+  return { type: "chatgptDeviceCode", loginId, verificationUrl, userCode };
 }
 export function decodeCompletion(value: unknown): Completion {
   const notice = object(value);
@@ -197,15 +219,19 @@ export class CodexAuthController {
     }
     return account;
   }
-  async startLogin(): Promise<{ authUrl: string } | null> {
+  private async startLoginMode(
+    mode: "chatgpt" | "chatgptDeviceCode",
+  ): Promise<Login | null> {
     this.ready();
     if (this.attempt || this.loggingOut)
       throw new CodexTransportError("not_ready");
     this.readSequence++;
-    const params: LoginAccountParams = { type: "chatgpt" };
+    const params: LoginAccountParams = { type: mode };
     const started = this.options
       .request("account/login/start", params)
-      .then(decodeLogin);
+      .then((value) =>
+        mode === "chatgpt" ? decodeLogin(value) : decodeDeviceLogin(value),
+      );
     const attempt: Attempt = {
       id: undefined,
       canceled: false,
@@ -236,8 +262,11 @@ export class CodexAuthController {
       for (const notice of attempt.early) this.complete(attempt, notice);
       attempt.early = [];
       if (this.attempt !== attempt || attempt.completed) return null;
-      this.publish({ status: "awaiting_browser" });
-      return { authUrl: login.authUrl };
+      this.publish({
+        status:
+          mode === "chatgpt" ? "awaiting_browser" : "awaiting_device_code",
+      });
+      return login;
     } catch (error) {
       if (this.attempt === attempt) {
         this.discard(attempt);
@@ -247,6 +276,21 @@ export class CodexAuthController {
         ? error
         : new CodexTransportError("protocol");
     }
+  }
+  async startLogin(): Promise<{ authUrl: string } | null> {
+    const login = await this.startLoginMode("chatgpt");
+    if (login === null) return null;
+    if (login.type !== "chatgpt") invalid();
+    return { authUrl: login.authUrl };
+  }
+  async startDeviceLogin(): Promise<DeviceLoginDetails | null> {
+    const login = await this.startLoginMode("chatgptDeviceCode");
+    if (login === null) return null;
+    if (login.type !== "chatgptDeviceCode") invalid();
+    return {
+      verificationUrl: CODEX_DEVICE_VERIFICATION_URL,
+      userCode: login.userCode,
+    };
   }
   async cancelLogin(): Promise<void> {
     this.ready();

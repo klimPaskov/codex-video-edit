@@ -7,6 +7,7 @@ import type { ListMcpServerStatusParams } from "./generated/v2/ListMcpServerStat
 import type { ListMcpServerStatusResponse } from "./generated/v2/ListMcpServerStatusResponse.ts";
 import type { ModelListParams } from "./generated/v2/ModelListParams.ts";
 import type { SkillsListParams } from "./generated/v2/SkillsListParams.ts";
+import type { DeviceLoginDetails } from "../../domain/src/codex-device-login.ts";
 import { CodexAuthController, type AuthState } from "./auth.ts";
 import {
   decodeAccount,
@@ -378,6 +379,10 @@ export class CodexClient {
   async startLogin(): Promise<{ authUrl: string } | null> {
     this.ready();
     return this.auth!.startLogin();
+  }
+  async startDeviceLogin(): Promise<DeviceLoginDetails | null> {
+    this.ready();
+    return this.auth!.startDeviceLogin();
   }
   async cancelLogin(): Promise<void> {
     this.ready();

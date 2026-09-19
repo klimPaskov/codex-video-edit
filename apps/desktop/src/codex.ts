@@ -5,6 +5,7 @@ import {
   type CodexClientOptions,
 } from "../../../packages/codex-bridge/src/client.ts";
 import type { AuthState } from "../../../packages/codex-bridge/src/auth.ts";
+import type { DeviceLoginDetails } from "../../../packages/domain/src/codex-device-login.ts";
 import type {
   ThreadHistorySnapshot,
   ThreadStreamEvent,
@@ -37,6 +38,7 @@ type Client = Pick<
   | "models"
   | "rateLimits"
   | "startLogin"
+  | "startDeviceLogin"
   | "cancelLogin"
   | "logout"
   | "openProjectThread"
@@ -145,6 +147,7 @@ export class DesktopCodex {
     const pending = [
       "starting",
       "awaiting_browser",
+      "awaiting_device_code",
       "reconciling",
       "canceling",
     ].includes(auth.status);
@@ -588,6 +591,17 @@ export class DesktopCodex {
         }
       }
     });
+  }
+  async loginDevice(): Promise<DeviceLoginDetails> {
+    let details: DeviceLoginDetails | null = null;
+    await this.action(async (client) => {
+      details = await client.startDeviceLogin();
+    });
+    if (!details) throw new Error("Device sign-in could not start.");
+    return details;
+  }
+  deviceLoginPending(): boolean {
+    return this.client?.authState().status === "awaiting_device_code";
   }
   cancelLogin(): Promise<CodexView> {
     return this.action(async (client) => {

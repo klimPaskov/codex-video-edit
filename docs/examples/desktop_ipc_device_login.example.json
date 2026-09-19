@@ -1,0 +1,10 @@
+{
+  "channel": "codex:device-login",
+  "response": {
+    "ok": true,
+    "value": {
+      "verificationUrl": "https://auth.openai.com/codex/device",
+      "userCode": "TEST-CODE"
+    }
+  }
+}

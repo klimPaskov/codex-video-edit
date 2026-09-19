@@ -10,6 +10,8 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let current: CodexView | undefined;
   let localError: string | null = null;
+  let deviceCode: { verificationUrl: string; userCode: string } | undefined;
+  const deviceVerificationUrl = "https://auth.openai.com/codex/device";
   const active = () => dialog.open && !panel.hidden;
   function stop(): void {
     epoch++;
@@ -19,6 +21,32 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
   function setText(id: string, value: string): void {
     const target = element(id);
     if (target.textContent !== value) target.textContent = value;
+  }
+  function clearDeviceCode(): void {
+    deviceCode = undefined;
+    const link = element<HTMLAnchorElement>("codex-device-url");
+    link.removeAttribute("href");
+    link.textContent = "";
+    setText("codex-device-code", "");
+    element("codex-device-details").hidden = true;
+  }
+  function showDeviceCode(value: {
+    verificationUrl: string;
+    userCode: string;
+  }): void {
+    if (
+      value.verificationUrl !== deviceVerificationUrl ||
+      typeof value.userCode !== "string" ||
+      value.userCode.length === 0 ||
+      value.userCode.length > 128
+    )
+      throw new Error("Invalid sign-in details");
+    deviceCode = value;
+    const link = element<HTMLAnchorElement>("codex-device-url");
+    link.href = value.verificationUrl;
+    link.textContent = value.verificationUrl;
+    setText("codex-device-code", value.userCode);
+    element("codex-device-details").hidden = false;
   }
   function options(
     select: HTMLSelectElement,
@@ -41,13 +69,21 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
   }
   function render(view: CodexView): void {
     current = view;
+    if (
+      view.account !== "signing_in" ||
+      view.connection !== "connected" ||
+      view.message !== null
+    )
+      clearDeviceCode();
     const message = view.message ?? localError;
     setText(
       "codex-account",
       view.account === "signed_in"
         ? `ChatGPT · ${view.plan ?? "Signed in"}`
         : view.account === "signing_in"
-          ? "Updating Codex account…"
+          ? deviceCode
+            ? "Finish sign-in using the code"
+            : "Waiting for ChatGPT sign-in…"
           : view.account === "signed_out"
             ? "Sign in to use Codex"
             : "Codex is unavailable",
@@ -57,6 +93,10 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
     };
     show(
       "codex-login",
+      view.connection === "connected" && view.account === "signed_out",
+    );
+    show(
+      "codex-device-login",
       view.connection === "connected" && view.account === "signed_out",
     );
     show("codex-cancel-login", view.account === "signing_in");
@@ -118,6 +158,10 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
       HTMLButtonElement | HTMLSelectElement
     >("button,select"))
       control.disabled = pending || view.busy;
+    element("codex-device-url").setAttribute(
+      "aria-disabled",
+      String(pending || view.busy),
+    );
   }
   function schedule(): void {
     if (active())
@@ -148,6 +192,7 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
   async function action(work: () => Promise<Reply<CodexView>>): Promise<void> {
     if (!active() || pending) return;
     stop();
+    clearDeviceCode();
     localError = null;
     const request = epoch;
     pending = true;
@@ -179,6 +224,71 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
       }
     }
   }
+  async function deviceLogin(): Promise<void> {
+    if (!active() || pending) return;
+    stop();
+    clearDeviceCode();
+    localError = null;
+    const request = epoch;
+    pending = true;
+    if (current) render(current);
+    try {
+      const reply = await window.desktop.loginCodexDeviceCode();
+      if (request !== epoch || !active()) return;
+      if (!reply.ok) throw new Error();
+      const account = await window.desktop.getCodex();
+      if (request !== epoch || !active()) return;
+      if (!account.ok) throw new Error();
+      current = account.value;
+      if (account.value.account === "signing_in") showDeviceCode(reply.value);
+      else if (account.value.account !== "signed_in") throw new Error();
+    } catch {
+      if (request === epoch) {
+        clearDeviceCode();
+        localError = "Sign-in could not start. Reconnect or try again.";
+      }
+    } finally {
+      if (request === epoch && active()) {
+        pending = false;
+        if (current) render(current);
+        schedule();
+      }
+    }
+  }
+  async function openDeviceVerification(): Promise<void> {
+    if (!active() || pending || !deviceCode || current?.busy) return;
+    stop();
+    const request = epoch;
+    pending = true;
+    if (current) render(current);
+    try {
+      const reply = await window.desktop.openCodexDeviceVerification();
+      if (request !== epoch || !active()) return;
+      if (!reply.ok) throw new Error();
+    } catch {
+      if (request === epoch) {
+        clearDeviceCode();
+        localError =
+          "The sign-in page could not open. Cancel sign-in and try again.";
+      }
+    } finally {
+      if (request === epoch && active()) {
+        pending = false;
+        if (current) render(current);
+        schedule();
+      }
+    }
+  }
+  element("codex-device-login").addEventListener("click", () => {
+    void deviceLogin();
+  });
+  element<HTMLAnchorElement>("codex-device-url").addEventListener(
+    "click",
+    (event) => {
+      event.preventDefault();
+      void openDeviceVerification();
+    },
+  );
   for (const [id, work] of [
     ["codex-login", () => window.desktop.loginCodex()],
     ["codex-cancel-login", () => window.desktop.cancelCodexLogin()],
@@ -217,6 +327,7 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
   );
   function section(codex: boolean): void {
     stop();
+    clearDeviceCode();
     pending = false;
     panel.hidden = !codex;
     element("appearance-settings").hidden = codex;
@@ -233,6 +344,9 @@ export function setupCodexSettings(dialog: HTMLDialogElement): () => void {
     section(false),
   );
   element("settings-codex").addEventListener("click", () => section(true));
-  dialog.addEventListener("close", stop);
+  dialog.addEventListener("close", () => {
+    stop();
+    clearDeviceCode();
+  });
   return () => section(false);
 }

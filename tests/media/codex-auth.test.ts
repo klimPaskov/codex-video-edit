@@ -8,6 +8,7 @@ import {
   CodexAuthController,
   decodeCompletion,
   decodeLogin,
+  decodeDeviceLogin,
   validateAccountUpdate,
   validateLoginUrl,
   type AuthState,
@@ -17,6 +18,7 @@ import {
   validateRateLimitsUpdate,
 } from "../../packages/codex-bridge/src/metadata.ts";
 import { CodexTransportError } from "../../packages/codex-bridge/src/transport.ts";
+import { assertDeviceLoginDetails } from "../../packages/domain/src/codex-device-login.ts";
 
 const url =
   "https://auth.openai.com/oauth/authorize?response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&code_challenge_method=S256&code_challenge=" +
@@ -28,6 +30,12 @@ const signedIn = {
   requiresOpenaiAuth: true,
 };
 const login = { type: "chatgpt", loginId: "PRIVATE_LOGIN_ID", authUrl: url };
+const deviceLogin = {
+  type: "chatgptDeviceCode",
+  loginId: "PRIVATE_LOGIN_ID",
+  verificationUrl: "https://auth.openai.com/codex/device",
+  userCode: "ABCD-EFGH",
+};
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
@@ -85,6 +93,106 @@ test("managed login validates exact initial origin, route, callback and PKCE wit
   assert.deepEqual(decodeLogin(login), login);
   for (const type of ["apiKey", "chatgptAuthTokens", "chatgptDeviceCode"]) {
     assert.throws(() => decodeLogin({ ...login, type }), CodexTransportError);
+  }
+});
+
+test("managed device login accepts only the pinned verification page and bounded code", () => {
+  assert.deepEqual(decodeDeviceLogin(deviceLogin), deviceLogin);
+  for (const malformed of [
+    { ...deviceLogin, type: "chatgpt" },
+    { ...deviceLogin, verificationUrl: "http://auth.openai.com/codex/device" },
+    {
+      ...deviceLogin,
+      verificationUrl: "https://auth.openai.com.evil.test/codex/device",
+    },
+    {
+      ...deviceLogin,
+      verificationUrl: "https://auth.openai.com/codex/device?code=x",
+    },
+    {
+      ...deviceLogin,
+      verificationUrl: "https://auth.openai.com/oauth/authorize",
+    },
+    { ...deviceLogin, userCode: "bad code" },
+    { ...deviceLogin, userCode: "x".repeat(33) },
+  ])
+    assert.throws(() => decodeDeviceLogin(malformed), CodexTransportError);
+});
+
+test("device-code IPC exposes only the fixed URL and bounded one-time code", () => {
+  const details = {
+    verificationUrl: deviceLogin.verificationUrl,
+    userCode: deviceLogin.userCode,
+  };
+  assert.doesNotThrow(() => assertDeviceLoginDetails(details));
+  for (const malformed of [
+    { ...details, verificationUrl: "https://example.com/" },
+    { ...details, userCode: "bad code" },
+    { ...details, loginId: "PRIVATE_LOGIN_ID" },
+    { ...details, userCode: "x".repeat(33) },
+  ])
+    assert.throws(() => assertDeviceLoginDetails(malformed));
+});
+
+test("device-code start and cancel keep the one-time code out of account state", async () => {
+  const { controller, calls, states } = harness(async (method) => {
+    if (method === "account/login/start") return deviceLogin;
+    if (method === "account/login/cancel") return { status: "canceled" };
+    return signedOut;
+  });
+  try {
+    await controller.refreshAccount();
+    assert.deepEqual(await controller.startDeviceLogin(), {
+      verificationUrl: deviceLogin.verificationUrl,
+      userCode: deviceLogin.userCode,
+    });
+    assert.deepEqual(
+      calls.find((call) => call.method === "account/login/start")?.params,
+      { type: "chatgptDeviceCode" },
+    );
+    assert.equal(controller.snapshot().status, "awaiting_device_code");
+    assert.ok(!JSON.stringify(states).includes(deviceLogin.userCode));
+    await controller.cancelLogin();
+    assert.deepEqual(controller.snapshot(), {
+      status: "idle",
+      account: { status: "signed_out" },
+      error: null,
+    });
+    assert.equal(
+      calls.filter((call) => call.method === "account/login/cancel").length,
+      1,
+    );
+  } finally {
+    controller.close();
+  }
+});
+
+test("device-code completion waits for the authoritative signed-in account", async () => {
+  let account: unknown = signedOut;
+  const { controller } = harness(async (method) =>
+    method === "account/login/start" ? deviceLogin : account,
+  );
+  try {
+    await controller.refreshAccount();
+    assert.ok(await controller.startDeviceLogin());
+    controller.notification("account/login/completed", {
+      loginId: deviceLogin.loginId,
+      success: true,
+      error: null,
+    });
+    await tick();
+    assert.equal(controller.snapshot().status, "reconciling");
+    assert.equal(controller.snapshot().account?.status, "signed_out");
+    account = signedIn;
+    controller.notification("account/updated", {
+      authMode: "chatgpt",
+      planType: "plus",
+    });
+    await tick();
+    assert.equal(controller.snapshot().status, "idle");
+    assert.equal(controller.snapshot().account?.status, "chatgpt");
+  } finally {
+    controller.close();
   }
 });
 

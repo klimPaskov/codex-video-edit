@@ -2,6 +2,7 @@ import type {
   CodexView,
   CodexSelection,
 } from "../../../packages/domain/src/codex-view.ts";
+import type { DeviceLoginDetails } from "../../../packages/domain/src/codex-device-login.ts";
 import type { Preferences } from "../../../packages/domain/src/preferences.ts";
 import type {
   ProjectDraftView,
@@ -27,6 +28,8 @@ export interface DesktopBridge {
   getCodex(): Promise<Reply<CodexView>>;
   reconnectCodex(): Promise<Reply<CodexView>>;
   loginCodex(): Promise<Reply<CodexView>>;
+  loginCodexDeviceCode(): Promise<Reply<DeviceLoginDetails>>;
+  openCodexDeviceVerification(): Promise<Reply<null>>;
   cancelCodexLogin(): Promise<Reply<CodexView>>;
   logoutCodex(): Promise<Reply<CodexView>>;
   selectCodexModel(value: CodexSelection): Promise<Reply<CodexView>>;
@@ -64,6 +67,8 @@ export const channels = Object.freeze({
   codexGet: "codex:get",
   codexReconnect: "codex:reconnect",
   codexLogin: "codex:login",
+  codexDeviceLogin: "codex:device-login",
+  codexDeviceVerification: "codex:device-verification",
   codexCancelLogin: "codex:cancel-login",
   codexLogout: "codex:logout",
   codexSelect: "codex:select",
