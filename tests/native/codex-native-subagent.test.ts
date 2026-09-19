@@ -8,9 +8,10 @@ import {
   readFile,
   readdir,
   realpath,
+  stat,
   writeFile,
 } from "node:fs/promises";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron, expect } from "playwright/test";
 import { assertInitialProjectSnapshot } from "../../packages/domain/src/project.ts";
@@ -102,6 +103,51 @@ function items(turn: Record<string, unknown>): Record<string, unknown>[] {
     assert.ok(record(item));
     return item;
   });
+}
+
+async function rolloutRecords(
+  thread: Record<string, unknown>,
+  codexHome: string,
+): Promise<Record<string, unknown>[]> {
+  // Thread.path is an unstable App Server field; use it only in this private,
+  // pinned-runtime test, and confine the read to the isolated account.
+  assert.ok(typeof thread.path === "string" && isAbsolute(thread.path));
+  const root = await realpath(codexHome);
+  const path = await realpath(thread.path);
+  const inside = relative(root, path);
+  assert.ok(
+    inside.length > 0 &&
+      !isAbsolute(inside) &&
+      !inside.split(sep).includes(".."),
+    "Rollout must remain inside the isolated Codex account",
+  );
+  assert.ok((await stat(path)).size <= 8_000_000, "Rollout exceeds test bound");
+  const lines = (await readFile(path, "utf8"))
+    .split("\n")
+    .filter((line) => line.trim().length > 0);
+  assert.ok(lines.length > 0 && lines.length <= 2_000);
+  return lines.map((line) => {
+    const item: unknown = JSON.parse(line);
+    assert.ok(record(item));
+    return item;
+  });
+}
+
+function rolloutContext(
+  records: Record<string, unknown>[],
+  turnId: unknown,
+): Record<string, unknown> {
+  assert.ok(typeof turnId === "string" && turnId.length > 0);
+  const contexts = records
+    .filter((item) => item.type === "turn_context" && record(item.payload))
+    .map((item) => item.payload as Record<string, unknown>)
+    .filter((payload) => payload.turn_id === turnId);
+  assert.equal(
+    contexts.length,
+    1,
+    "Expected one persisted context for this turn",
+  );
+  return contexts[0]!;
 }
 
 const video = Buffer.alloc(96 * 64 * 4 * 3);
@@ -372,6 +418,8 @@ try {
   const projectedChild = projected.activities.some(
     (activity) => activity.kind === "subagent" && activity.complete,
   );
+  await expect(page.locator("#codex-thread-status")).toBeHidden();
+  await expect(page.locator("#codex-thread-input")).toBeEnabled();
   await page.screenshot({ path: join(evidence, "native-window.png") });
   await inspectionHold();
   await electron.close();
@@ -436,18 +484,64 @@ try {
     ),
   );
   assert.ok(parentTurn && parentTurn.status === "completed");
-  const spawns = items(parentTurn).filter(
-    (item) => item.type === "collabAgentToolCall" && item.tool === "spawnAgent",
+  assert.equal(
+    parentTurns.filter((turn) =>
+      items(turn).some((item) => item.type === "userMessage"),
+    ).length,
+    1,
+    "Expected one fresh user turn in the native child test",
   );
-  assert.equal(spawns.length, 1, "Require one real native spawnAgent item");
-  const spawn = spawns[0]!;
-  assert.equal(spawn.status, "completed");
-  assert.equal(spawn.senderThreadId, parentThreadId);
-  assert.ok(Array.isArray(spawn.receiverThreadIds));
-  assert.equal(spawn.receiverThreadIds.length, 1);
-  const childThreadId = spawn.receiverThreadIds[0];
+  const parentRead: unknown = await transport.request("thread/read", {
+    threadId: parentThreadId,
+    includeTurns: false,
+  });
+  assert.ok(record(parentRead) && record(parentRead.thread));
+  assert.equal(parentRead.thread.id, parentThreadId);
+  const parentRollout = await rolloutRecords(parentRead.thread, codexHome);
+  const spawnCalls = parentRollout
+    .filter((item) => item.type === "response_item" && record(item.payload))
+    .map((item) => item.payload as Record<string, unknown>)
+    .filter(
+      (payload) =>
+        payload.type === "function_call" && payload.name === "spawn_agent",
+    );
+  assert.equal(spawnCalls.length, 1, "Require one persisted native spawn call");
+  const callId = spawnCalls[0]!.call_id;
+  assert.ok(typeof callId === "string" && callId.length > 0);
+  const spawnOutputs = parentRollout
+    .filter((item) => item.type === "response_item" && record(item.payload))
+    .map((item) => item.payload as Record<string, unknown>)
+    .filter(
+      (payload) =>
+        payload.type === "function_call_output" && payload.call_id === callId,
+    );
+  assert.equal(spawnOutputs.length, 1, "Require matched native spawn output");
+  assert.ok(
+    parentRollout.findIndex((item) => item.payload === spawnCalls[0]) <
+      parentRollout.findIndex((item) => item.payload === spawnOutputs[0]),
+    "Spawn output must follow its call",
+  );
+  assert.ok(typeof spawnOutputs[0]!.output === "string");
+  const spawnResult: unknown = JSON.parse(spawnOutputs[0]!.output);
+  assert.ok(record(spawnResult));
+  const childThreadId = spawnResult.agent_id;
   assert.ok(typeof childThreadId === "string" && childThreadId.length > 0);
   assert.notEqual(childThreadId, parentThreadId);
+  const childRead: unknown = await transport.request("thread/read", {
+    threadId: childThreadId,
+    includeTurns: false,
+  });
+  assert.ok(record(childRead) && record(childRead.thread));
+  assert.equal(childRead.thread.id, childThreadId);
+  assert.equal(childRead.thread.parentThreadId, parentThreadId);
+  assert.equal(childRead.thread.ephemeral, false);
+  assert.ok(record(childRead.thread.source));
+  assert.ok(record(childRead.thread.source.subAgent));
+  assert.ok(record(childRead.thread.source.subAgent.thread_spawn));
+  assert.equal(
+    childRead.thread.source.subAgent.thread_spawn.parent_thread_id,
+    parentThreadId,
+  );
   const childTurns = await listedTurns(childThreadId);
   const childReadTurns = childTurns.filter((turn) =>
     items(turn).some(
@@ -493,46 +587,37 @@ try {
   );
 
   mark("child-policy-metadata");
-  let childPolicyVerified = false;
-  let childParentVerified = false;
-  try {
-    const resumed: unknown = await transport.request("thread/resume", {
-      threadId: childThreadId,
-      excludeTurns: true,
-    });
-    assert.ok(record(resumed) && record(resumed.thread));
-    assert.equal(resumed.thread.id, childThreadId);
-    assert.equal(resumed.thread.parentThreadId, parentThreadId);
-    assert.equal(resumed.thread.ephemeral, false);
-    childParentVerified = true;
-    assert.equal(resumed.model, model.id);
-    assert.equal(resumed.modelProvider, "openai");
-    assert.equal(resumed.cwd, cwd);
-    assert.equal(resumed.approvalPolicy, "never");
-    assert.equal(resumed.approvalsReviewer, "user");
-    if (resumed.runtimeWorkspaceRoots !== undefined)
-      assert.deepEqual(resumed.runtimeWorkspaceRoots, []);
-    if (resumed.instructionSources !== undefined)
-      assert.deepEqual(resumed.instructionSources, []);
-    assert.ok(record(resumed.sandbox));
-    assert.equal(resumed.sandbox.type, "readOnly");
-    assert.equal(resumed.sandbox.networkAccess, false);
-    assert.equal(resumed.activePermissionProfile ?? null, null);
-    if (
-      resumed.reasoningEffort !== undefined &&
-      resumed.reasoningEffort !== null
-    )
-      assert.equal(resumed.reasoningEffort, "xhigh");
-    childPolicyVerified = true;
-  } catch (error) {
-    if (!(
-      error instanceof CodexTransportError && error.code === "remote_error"
-    ))
-      throw error;
-    // A runtime that cannot expose the child policy cannot satisfy this gate.
-  }
-  assert.ok(childParentVerified, "Child parent link is not verified");
-  assert.ok(childPolicyVerified, "Child inherited policy is not verified");
+  const childRollout = await rolloutRecords(childRead.thread, codexHome);
+  const parentContext = rolloutContext(parentRollout, parentTurn.id);
+  const childContext = rolloutContext(childRollout, childReadTurns[0]!.id);
+  assert.equal(parentContext.cwd, cwd);
+  assert.equal(parentContext.approval_policy, "never");
+  assert.deepEqual(parentContext.sandbox_policy, { type: "read-only" });
+  assert.ok(record(parentContext.permission_profile));
+  assert.equal(parentContext.model, model.id);
+  assert.equal(parentContext.effort, "xhigh");
+  assert.equal(parentContext.multi_agent_version, "v1");
+  for (const field of [
+    "cwd",
+    "workspace_roots",
+    "approval_policy",
+    "sandbox_policy",
+    "permission_profile",
+    "network",
+    "file_system_sandbox_policy",
+    "model",
+    "collaboration_mode",
+    "multi_agent_version",
+    "multi_agent_mode",
+    "effort",
+  ])
+    assert.deepEqual(
+      childContext[field],
+      parentContext[field],
+      `Child turn did not inherit ${field}`,
+    );
+  const childParentVerified = true;
+  const childPolicyVerified = true;
   await transport.close();
   transport = undefined;
 
