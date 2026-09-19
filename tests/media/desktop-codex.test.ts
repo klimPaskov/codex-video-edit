@@ -130,6 +130,20 @@ class FakeClient {
     });
     return this.onLogin ? this.onLogin() : { authUrl: "PRIVATE_AUTH_URL" };
   }
+  async startDeviceLogin(): Promise<{
+    verificationUrl: "https://auth.openai.com/codex/device";
+    userCode: string;
+  }> {
+    this.emit({
+      status: "awaiting_device_code",
+      account: { status: "signed_out" },
+      error: null,
+    });
+    return {
+      verificationUrl: "https://auth.openai.com/codex/device",
+      userCode: "TEST-CODE",
+    };
+  }
   async cancelLogin(): Promise<void> {
     this.cancelCalls++;
     this.emit(signedOut());
@@ -456,6 +470,30 @@ test("browser launch failure cancels the attempt and only returns a fixed action
     assert.equal(view.account, "signed_out");
     assert.ok(view.message);
     assert.ok(!JSON.stringify(view).includes("PRIVATE"));
+  } finally {
+    await controller.close();
+  }
+});
+
+test("device sign-in returns only the bounded verification details on an explicit action", async () => {
+  const fake = new FakeClient();
+  const { controller, opened } = harness(fake);
+  try {
+    await controller.get();
+    assert.equal(controller.deviceLoginPending(), false);
+    const details = await controller.loginDevice();
+    assert.deepEqual(details, {
+      verificationUrl: "https://auth.openai.com/codex/device",
+      userCode: "TEST-CODE",
+    });
+    const view = await controller.get();
+    assert.equal(view.account, "signing_in");
+    assert.equal(controller.deviceLoginPending(), true);
+    assert.ok(!JSON.stringify(view).includes("TEST-CODE"));
+    assert.deepEqual(opened, []);
+    const canceled = await controller.cancelLogin();
+    assert.equal(canceled.account, "signed_out");
+    assert.equal(controller.deviceLoginPending(), false);
   } finally {
     await controller.close();
   }

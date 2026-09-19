@@ -8,6 +8,7 @@ Codex is the only AI provider exposed in the first release. Do not show disabled
 
 - Spawn the official Codex app-server as a managed local child process.
 - Use ChatGPT-managed browser login through `account/login/start` with the supported ChatGPT mode.
+- Offer the official `chatgptDeviceCode` mode as an explicit alternative when the user signs in from another device. Show only the fixed verification page and one-time code for that active Settings attempt; do not treat initiation as completion.
 - Let Codex own token persistence and refresh.
 - Display account state and plan type when returned.
 - Do not ask for or store an API key in the first release.
@@ -106,6 +107,8 @@ Main supplies the validated active project ID and read-tool schema version as a 
 Apply already authorized reversible edits while the turn runs; no repeated material-change approval is required. Magic Wand and manual tools use the same validated active-draft transactions and undo history. `export.prepare` stages settings without another confirmation and cannot start an export. Source deletion, cleanup, spending, publication and final export remain explicit user actions outside these tools. Server-initiated approval requests remain distinct from application edit authorization.
 
 ## Native account/settings (partial P2)
+
+The optional device-code path now uses the same official App Server, login attempt correlation, cancellation and account reconciliation as browser login. An explicit Settings action returns only the exact `https://auth.openai.com/codex/device` verification page and bounded one-time code through typed IPC. Main opens that fixed page on a second explicit click; the renderer supplies no destination. The code stays in transient Settings memory and clears on cancel, completion, failure, reconnect or closing the panel. A packaged native guest run proved real device-code initiation, visible code, guest-local page opening, cancellation to signed out and process cleanup. The pinned runtime also accepted a direct start/cancel probe. In a separate live packaged attempt, the user completed official verification externally. The App Server completion was followed by the same native window's reconciled signed-in state and cleared code; a separate packaged reopen with that private account confirmed authoritative signed-in state, plan, live models and skills. This verifies managed device-code completion, not the browser OAuth callback route or the full P2 phase.
 
 The bridge includes managed browser-login start/cancel/logout handling, completion/account reconciliation and rate-limit mapping. The reviewed generated dependency closure contains 207 types from the experimental output of the same official 0.142.3 binary. Sign-in completion alone does not establish refreshed account metadata; reconcile the runtime account update/read before exposing signed-in controls.
 

@@ -46,7 +46,8 @@ button:disabled {
 }
 button:focus-visible,
 input:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+a:focus-visible {
   outline: 3px solid #b7a5ff;
   outline-offset: 4px;
 }
@@ -583,6 +584,22 @@ select:focus-visible {
 }
 #codex-error {
   color: #ffb4b4;
+}
+#codex-device-details {
+  margin-block: 0.75rem 1rem;
+}
+#codex-device-url {
+  overflow-wrap: anywhere;
+}
+#codex-device-code {
+  display: inline-block;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #3a3f50;
+  border-radius: 0.4rem;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  user-select: all;
 }
 #codex-model-settings {
   display: grid;

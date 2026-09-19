@@ -2,6 +2,7 @@ import {
   assertCodexView,
   assertCodexSelection,
 } from "../../../packages/domain/src/codex-view.ts";
+import { assertDeviceLoginDetails } from "../../../packages/domain/src/codex-device-login.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
   assertProjectDraftView,
@@ -65,6 +66,13 @@ const bridge: DesktopBridge = {
   reconnectCodex: () =>
     invoke(channels.codexReconnect, undefined, assertCodexView),
   loginCodex: () => invoke(channels.codexLogin, undefined, assertCodexView),
+  loginCodexDeviceCode: () =>
+    invoke(channels.codexDeviceLogin, undefined, assertDeviceLoginDetails),
+  openCodexDeviceVerification: () =>
+    invoke(channels.codexDeviceVerification, undefined, (value) => {
+      if (value !== null)
+        throw new Error("Invalid device verification response");
+    }),
   cancelCodexLogin: () =>
     invoke(channels.codexCancelLogin, undefined, assertCodexView),
   logoutCodex: () => invoke(channels.codexLogout, undefined, assertCodexView),

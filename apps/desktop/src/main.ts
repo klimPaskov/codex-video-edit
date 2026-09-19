@@ -1,5 +1,9 @@
 import { DesktopCodex } from "./codex.ts";
 import { assertCodexView } from "../../../packages/domain/src/codex-view.ts";
+import {
+  assertDeviceLoginDetails,
+  CODEX_DEVICE_VERIFICATION_URL,
+} from "../../../packages/domain/src/codex-device-login.ts";
 import { PreferencesStore } from "./preferences.ts";
 import { ProjectStore } from "../../../packages/project-store/src/store.ts";
 import { DraftTransactionStore } from "../../../packages/project-store/src/transactions.ts";
@@ -217,6 +221,19 @@ async function start(): Promise<void> {
       assertCodexView(value);
       return value;
     });
+  register(channels.codexDeviceLogin, async (request) => {
+    assertEmptyRequest(request);
+    const value = await codex!.loginDevice();
+    assertDeviceLoginDetails(value);
+    return value;
+  });
+  register(channels.codexDeviceVerification, async (request) => {
+    assertEmptyRequest(request);
+    if (!codex!.deviceLoginPending())
+      throw new UserFacingError("Start device sign-in first.");
+    await shell.openExternal(CODEX_DEVICE_VERIFICATION_URL);
+    return null;
+  });
   register(channels.codexSelect, async (request) => {
     const value = await codex!.select(request);
     assertCodexView(value);

@@ -33,7 +33,7 @@ ADR 0013 brings only the necessary project foundation forward from P3. Stage nav
 ## P2: real Codex runtime
 
 - [ ] P2-01 Spawn the official Codex app-server over stdio and implement initialize lifecycle and restart recovery.
-- [ ] P2-02 Add ChatGPT-managed login, logout, account state, and rate-limit display.
+- [ ] P2-02 Add ChatGPT-managed browser and optional device-code login, logout, account state, and rate-limit display. Keep the one-time device code in the explicit Settings attempt only; require an actual completion callback and reconciled signed-in account before claiming managed login completion.
 - [ ] P2-03 Discover models, reasoning options, skills, and skill changes at runtime.
 - [ ] P2-04 Implement durable project threads, streaming items, interrupt, retry, and compact user-facing activity. Filter native child notifications from the parent projection and require correlated server history before claiming a subagent ran.
 - [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and shared validated transaction engine, including expected draft sequence, durable journal, atomic persistence, deterministic inverse/undo, and committed-transaction recovery required by the real fixture edit (ADR 0013). Support the editorial pass groups, current sequence/hash preconditions and truthful verified checkpoints in docs/47_EDITORIAL_FIRST_CUT.md.

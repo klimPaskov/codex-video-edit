@@ -153,11 +153,22 @@
             <button type="button" id="codex-login" hidden>
               Sign in with ChatGPT
             </button>
+            <button type="button" id="codex-device-login" hidden>
+              Sign in from another device
+            </button>
             <button type="button" id="codex-cancel-login" hidden>
               Cancel sign-in
             </button>
             <button type="button" id="codex-logout" hidden>Sign out</button>
             <button type="button" id="codex-reconnect" hidden>Reconnect</button>
+          </div>
+          <div id="codex-device-details" hidden>
+            <p>
+              On your other device, open
+              <a id="codex-device-url"></a>
+              and enter this code:
+            </p>
+            <code id="codex-device-code"></code>
           </div>
           <p id="codex-error" role="alert" hidden></p>
           <div id="codex-model-settings" hidden>
