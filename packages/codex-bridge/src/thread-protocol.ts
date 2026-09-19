@@ -166,7 +166,11 @@ export interface ThreadStartRequest {
     forced_login_method: "chatgpt";
     model_provider: "openai";
     project_root_markers: [];
-    features: { shell_tool: false };
+    features: {
+      shell_tool: false;
+      multi_agent: true;
+      multi_agent_v2: false;
+    };
     web_search: "disabled";
   };
   ephemeral: false;
@@ -193,7 +197,11 @@ export function buildThreadStartRequest(
       forced_login_method: "chatgpt",
       model_provider: "openai",
       project_root_markers: [],
-      features: { shell_tool: false },
+      features: {
+        shell_tool: false,
+        multi_agent: true,
+        multi_agent_v2: false,
+      },
       web_search: "disabled",
     },
     ephemeral: false,
@@ -256,7 +264,11 @@ export function buildThreadResumeRequest(
       forced_login_method: "chatgpt",
       model_provider: "openai",
       project_root_markers: [],
-      features: { shell_tool: false },
+      features: {
+        shell_tool: false,
+        multi_agent: true,
+        multi_agent_v2: false,
+      },
       web_search: "disabled",
     },
     excludeTurns: true,

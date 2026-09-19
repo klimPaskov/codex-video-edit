@@ -270,6 +270,8 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
   assert.match(serialized, /mcp_servers\.codex-video-edit\.command/u);
   assert.match(serialized, /enabled_tools/u);
   assert.match(serialized, /default_tools_approval_mode/u);
+  assert.ok(args.includes("features.multi_agent=true"));
+  assert.ok(args.includes("features.multi_agent_v2=false"));
   assert.ok(!serialized.includes(runtime.endpoint));
   assert.ok(!serialized.includes(runtime.token));
   assert.ok(!serialized.includes("filesystem.read"));

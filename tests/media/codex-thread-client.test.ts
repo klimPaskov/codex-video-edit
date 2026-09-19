@@ -613,6 +613,65 @@ test("notifications racing turn response are reduced in order from authoritative
   }
 });
 
+test("native child notifications cannot enter or poison the parent projection", async () => {
+  const fixtureState = await fixture();
+  try {
+    await fixtureState.client.open();
+    fixtureState.setHandler(async (method) => {
+      assert.equal(method, "turn/start");
+      fixtureState.client.notification("turn/started", {
+        threadId: "child-thread",
+        turn: { id: "child-turn", status: "inProgress", items: [] },
+      });
+      fixtureState.client.notification("item/started", {
+        threadId: "child-thread",
+        turnId: "child-turn",
+        startedAtMs: 1,
+        item: { type: "agentMessage", id: "child-item", text: "PRIVATE" },
+      });
+      return turnResponse("parent-turn");
+    });
+    await fixtureState.client.startTurn({ text: "Read this project" });
+    fixtureState.client.notification("item/completed", {
+      threadId: "child-thread",
+      turnId: "child-turn",
+      completedAtMs: 2,
+      item: { type: "agentMessage", id: "child-item", text: "PRIVATE" },
+    });
+    fixtureState.client.notification("turn/completed", {
+      threadId: "child-thread",
+      turn: { id: "child-turn", status: "completed", items: [] },
+    });
+    fixtureState.client.notification("turn/completed", {
+      threadId: "thread-1",
+      turn: { id: "parent-turn", status: "completed", items: [] },
+    });
+    assert.deepEqual(
+      fixtureState.events.map((event) => event.type),
+      ["turn_terminal"],
+    );
+    assert.ok(!JSON.stringify(fixtureState.events).includes("PRIVATE"));
+    assert.throws(
+      () =>
+        fixtureState.client.notification("turn/started", {
+          threadId: 1,
+          turn: { id: "invalid", status: "inProgress", items: [] },
+        }),
+      CodexThreadProtocolError,
+    );
+    assert.throws(
+      () =>
+        fixtureState.client.notification("turn/diff/updated", {
+          threadId: "child-thread",
+        }),
+      (error: unknown) =>
+        error instanceof CodexThreadProtocolError && error.code === "forbidden",
+    );
+  } finally {
+    await rm(fixtureState.root, { recursive: true, force: true });
+  }
+});
+
 test("known rejected turn can retry with a fresh main-owned message id", async () => {
   const fixtureState = await fixture();
   try {

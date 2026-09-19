@@ -29,6 +29,8 @@ validate security-relevant response fields before projection. The packaged MCP c
 only forward the fixed tool name and bounded input to the authenticated main-owned broker;
 it never becomes a second transaction writer.
 
+Native Codex children are separate from implementation subagents. The bridge engineer tests the actual parent collaboration item, child thread/read history and inherited policy privately. The parent project stream filters ordinary child notifications without projecting child content; malformed identities and forbidden methods remain fail-closed. A model statement or generic drawer activity never proves a native child ran.
+
 - Delegate only a clear file or evidence boundary.
 - Give the subagent exact task IDs, inputs, outputs, and stop conditions.
 - Do not let two agents edit the same file at once.
