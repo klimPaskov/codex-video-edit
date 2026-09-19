@@ -8,9 +8,10 @@ import {
   readFile,
   readdir,
   realpath,
+  stat,
   writeFile,
 } from "node:fs/promises";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron, expect } from "playwright/test";
 import { assertInitialProjectSnapshot } from "../../packages/domain/src/project.ts";
@@ -105,6 +106,62 @@ function items(turn: Record<string, unknown>): Record<string, unknown>[] {
     assert.ok(record(item));
     return item;
   });
+}
+
+async function rolloutRecords(
+  thread: Record<string, unknown>,
+  codexHome: string,
+): Promise<Record<string, unknown>[]> {
+  // The pinned server's private rollout path is accepted only inside this
+  // isolated account. Never print or publish its raw contents.
+  assert.ok(typeof thread.path === "string" && isAbsolute(thread.path));
+  const root = await realpath(codexHome);
+  const path = await realpath(thread.path);
+  const inside = relative(root, path);
+  assert.ok(
+    inside.length > 0 &&
+      !isAbsolute(inside) &&
+      !inside.split(sep).includes(".."),
+    "Rollout must remain inside the isolated Codex account",
+  );
+  assert.ok((await stat(path)).size <= 8_000_000, "Rollout exceeds test bound");
+  const lines = (await readFile(path, "utf8"))
+    .split("\n")
+    .filter((line) => line.trim().length > 0);
+  assert.ok(lines.length > 0 && lines.length <= 2_000);
+  return lines.map((line) => {
+    const value: unknown = JSON.parse(line);
+    assert.ok(record(value));
+    return value;
+  });
+}
+
+function turnRollout(
+  records: Record<string, unknown>[],
+  turnId: unknown,
+): Record<string, unknown>[] {
+  assert.ok(typeof turnId === "string" && turnId.length > 0);
+  const start = records.findIndex(
+    (item) =>
+      item.type === "turn_context" &&
+      record(item.payload) &&
+      item.payload.turn_id === turnId,
+  );
+  assert.ok(start >= 0, "Probe turn context is absent from rollout");
+  assert.equal(
+    records.filter(
+      (item) =>
+        item.type === "turn_context" &&
+        record(item.payload) &&
+        item.payload.turn_id === turnId,
+    ).length,
+    1,
+    "Probe turn context must be unique",
+  );
+  const next = records.findIndex(
+    (item, index) => index > start && item.type === "turn_context",
+  );
+  return records.slice(start, next < 0 ? undefined : next);
 }
 
 const video = Buffer.alloc(96 * 64 * 4 * 3);
@@ -210,17 +267,37 @@ try {
           result.value.skills.length > 0
         );
       },
-      { timeout: 60000 },
+      { timeout: 120000 },
     )
     .toBe(true);
+  mark("validated-account-catalog");
   const catalog = await page.evaluate(() => window.desktop.getCodex());
   assert.ok(catalog.ok);
   const model =
     catalog.value.models.find(
       (item) => item.id === catalog.value.selection?.modelId,
     ) ?? catalog.value.models[0]!;
-  const reasoning = catalog.value.selection?.reasoning;
-  assert.ok(reasoning && model.reasoning.includes(reasoning));
+  const reasoning = model.defaultReasoning;
+  assert.ok(model.reasoning.includes(reasoning));
+  mark("select-runtime-model-in-settings");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Codex", exact: true }).click();
+  await expect(page.locator("#codex-model")).toBeEnabled({ timeout: 60000 });
+  await page.locator("#codex-model").selectOption(model.id);
+  await expect
+    .poll(async () => {
+      const view = await page.evaluate(() => window.desktop.getCodex());
+      return view.ok && !view.value.busy ? view.value.selection?.modelId : null;
+    })
+    .toBe(model.id);
+  await page.locator("#codex-reasoning").selectOption(reasoning);
+  await expect
+    .poll(async () => {
+      const view = await page.evaluate(() => window.desktop.getCodex());
+      return view.ok && !view.value.busy ? view.value.selection : null;
+    })
+    .toEqual({ modelId: model.id, reasoning });
+  await page.keyboard.press("Escape");
   mark("import-fixture");
   const before = await page.evaluate(() => window.desktop.listProjects());
   assert.ok(before.ok);
@@ -451,6 +528,44 @@ try {
         : unrequestedTools.length > 0
           ? "other_tool_item"
           : "no_tool_invocation_observed";
+  mark("private-rollout-audit");
+  const parentRead: unknown = await transport.request("thread/read", {
+    threadId: parentThreadId,
+    includeTurns: false,
+  });
+  assert.ok(record(parentRead) && record(parentRead.thread));
+  assert.equal(parentRead.thread.id, parentThreadId);
+  const rawTurn = turnRollout(
+    await rolloutRecords(parentRead.thread, codexHome),
+    parentTurn.id,
+  );
+  const rawResponses = rawTurn
+    .filter((item) => item.type === "response_item")
+    .map((item) => {
+      assert.ok(record(item.payload));
+      return item.payload;
+    });
+  assert.ok(rawResponses.length > 0, "Probe has no raw response items");
+  const harmlessResponseTypes = new Set([
+    "message",
+    "agent_message",
+    "reasoning",
+    "compaction",
+    "compaction_trigger",
+    "context_compaction",
+  ]);
+  const rawCallsOrUnknown = rawResponses.filter(
+    (item) => !harmlessResponseTypes.has(String(item.type)),
+  );
+  const rawToolSearchCount = rawResponses.filter(
+    (item) => item.type === "tool_search_call",
+  ).length;
+  const rawFunctionCallCount = rawResponses.filter(
+    (item) => item.type === "function_call",
+  ).length;
+  const rawOtherCallCount =
+    rawCallsOrUnknown.length - rawToolSearchCount - rawFunctionCallCount;
+  assert.ok(rawOtherCallCount >= 0);
   mark("parent-policy-metadata");
   const resumed: unknown = await transport.request(
     "thread/resume",
@@ -505,7 +620,8 @@ try {
           completedReply &&
           parentTurn.status === "completed" &&
           forbiddenBuiltIns.length === 0 &&
-          unrequestedTools.length === 0
+          unrequestedTools.length === 0 &&
+          rawCallsOrUnknown.length === 0
             ? "pass"
             : "fail",
         scope: "P2-authenticated-forbidden-command-negative-probe",
@@ -520,9 +636,14 @@ try {
         modelClaim,
         forbiddenBuiltInItemCount: forbiddenBuiltIns.length,
         unrequestedToolItemCount: unrequestedTools.length,
+        rawToolSearchCallCount: rawToolSearchCount,
+        rawFunctionCallCount,
+        rawOtherCallOrUnknownCount: rawOtherCallCount,
+        exactTurnRolloutCorrelated: true,
         strictAuditResumePolicyVerified: true,
         originalTurnToolCatalogIntrospectionAvailable: false,
         noForbiddenBuiltInInvocationObserved: forbiddenBuiltIns.length === 0,
+        noRawToolInvocationObserved: rawCallsOrUnknown.length === 0,
         effectiveToolUnavailabilityProven: false,
         journalUnchanged: true,
         sourceUnchanged: true,
@@ -543,6 +664,11 @@ try {
   assert.ok(completedReply, "App did not project a completed reply");
   assert.equal(forbiddenBuiltIns.length, 0, "Forbidden built-in was invoked");
   assert.equal(unrequestedTools.length, 0, "An unrequested tool was invoked");
+  assert.equal(
+    rawCallsOrUnknown.length,
+    0,
+    "Raw rollout contains a tool call or unknown item",
+  );
   console.log(JSON.stringify({ status: "pass", evidence }));
 } catch (error) {
   const failure = error && typeof error === "object" ? error : {};
