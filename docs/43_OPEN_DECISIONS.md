@@ -30,6 +30,12 @@ Resolve these through research, prototypes, or user input at the phase where the
 - default model selection rules
 - consent granularity for preview frames
 
+## Explicit API providers
+
+- reviewed per-provider API contract and compatible live model-discovery behavior at implementation time
+- OS secure-storage adapter behavior on supported Windows installations; session-only fallback when unavailable
+- provider-specific edit/stream/interrupt capabilities to expose only after native verification
+
 ## Editor
 
 - support for clip reorder outside scene groups
@@ -47,4 +53,4 @@ Resolve these through research, prototypes, or user input at the phase where the
 
 ## Already fixed
 
-The lossless-first default, separate opt-in compressed modes, simplified interface, real Codex live editing, and early public GitHub development are requirements. Research may determine how to implement them, not silently remove them. No design-reference screenshot can reopen these decisions.
+The lossless-first default, separate opt-in compressed modes, simplified interface, real Codex live editing, optional explicit OpenAI API and DeepSeek connections under ADR 0014, and early public GitHub development are requirements. Research may determine how to implement them, not silently remove them. No design-reference screenshot can reopen these decisions.

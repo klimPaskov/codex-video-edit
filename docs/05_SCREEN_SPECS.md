@@ -165,14 +165,14 @@ Visible:
 
 Sections:
 
-- Codex account and runtime-discovered model
+- AI providers: Codex account, optional OpenAI API and DeepSeek keys, and provider-validated models
 - recording devices and shortcuts
 - project and cache locations
 - default captions and export
 - privacy
 - diagnostics
 
-Codex is the only provider entry. Only one settings section opens at a time.
+Only one settings section opens at a time. Codex remains the currently evidenced section; the API-provider sections required by ADR 0014 are pending implementation and native acceptance. Key bytes never appear in renderer state, and no provider row may imply a paid API turn already started.
 
 The initial working Settings modal contains Interface size at 100%, 125%, 150%, and 200%, persisted by main through validated preference get/set IPC. Open it with Settings or Ctrl+,. Cancel/Escape leaves unsaved choices unapplied. Save reports success only after persistence succeeds; failures remain actionable. The dialog owns focus while open and restores the invoking control on close. Any selected source-information inspector is hidden during the modal and restored afterward when still applicable. Only implemented settings sections are exposed; do not add inactive controls to imitate later sections. The earlier settings/focus slice passed packaged native tests and computer-use inspection at 150%; the 200% packaged native and guest-only visual checks passed. P1 is accepted in `docs/workflow/results/P1.json`.
 

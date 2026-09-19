@@ -319,7 +319,9 @@ function assertRecordEnvelope(value: unknown): DraftTransactionRecord {
     !validId(record.draft_id) ||
     !validId(record.base_revision_id) ||
     !["apply", "undo"].includes(record.kind as string) ||
-    !["manual", "codex", "magic_wand"].includes(record.origin as string) ||
+    !["manual", "codex", "api_provider", "magic_wand"].includes(
+      record.origin as string,
+    ) ||
     typeof record.reason !== "string" ||
     !record.reason.trim() ||
     record.reason.length > 1000 ||
@@ -884,6 +886,10 @@ export class DraftTransactionStore {
     return this.applyAs("codex", value);
   }
 
+  applyApiProvider(value: unknown): Promise<DraftCommitResult> {
+    return this.applyAs("api_provider", value);
+  }
+
   applyMagicWand(value: unknown): Promise<DraftCommitResult> {
     return this.applyAs("magic_wand", value);
   }
@@ -1036,6 +1042,10 @@ export class DraftTransactionStore {
 
   undoCodex(value: unknown): Promise<DraftCommitResult> {
     return this.undoAs("codex", value);
+  }
+
+  undoApiProvider(value: unknown): Promise<DraftCommitResult> {
+    return this.undoAs("api_provider", value);
   }
 
   undoMagicWand(value: unknown): Promise<DraftCommitResult> {

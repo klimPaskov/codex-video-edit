@@ -58,12 +58,13 @@
       ]
     },
     {
-      "need": "Codex protocol, auth, threads, models, skills, and tools",
+      "need": "Codex protocol, auth, threads, models, skills and tools; explicit OpenAI API and DeepSeek provider adapters",
       "subagent": "codex-bridge-engineer",
       "path": ".codex/agents/codex-bridge-engineer.md",
       "skills": [
         "codex-app-server",
-        "timeline-editor"
+        "timeline-editor",
+        "security-privacy"
       ],
       "phases": [
         "P2"

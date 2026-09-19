@@ -316,6 +316,15 @@ header nav {
   color: #b6bac8;
   font-size: 13px;
 }
+#codex-drawer > label,
+#api-turn-notice {
+  color: #b6bac8;
+  font-size: 13px;
+  line-height: 1.4;
+}
+#assistant-provider {
+  margin: 6px 0 12px;
+}
 #codex-thread-messages {
   flex: 1;
   min-height: 90px;
@@ -612,4 +621,37 @@ select:focus-visible {
 #codex-skills,
 #codex-limits {
   padding-inline-start: 1.25rem;
+}
+#api-provider-settings > label:not(.api-provider-check),
+#api-provider-model-settings label {
+  display: block;
+  margin-top: 0.9rem;
+  color: #c7cbd7;
+}
+#api-provider-key {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 0.45rem;
+  padding: 10px;
+  color: inherit;
+  background: #11151e;
+  border: 1px solid #515b73;
+  border-radius: 6px;
+  font: inherit;
+}
+.api-provider-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+#api-provider-status,
+#api-provider-session-note,
+.api-provider-disclosure {
+  color: #b6bdca;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+#api-provider-error {
+  color: #ffb4b4;
 }

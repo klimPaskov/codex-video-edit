@@ -10,7 +10,7 @@ Use with the real Codex integration in codex-video-edit when the required editin
 - Graphics: provide suggestions and complete prompts only. Do not create, render, import or place a graphic without my separate explicit request for that asset.
 - Export after editing: **no**.
 
-Edit the active project into a coherent first cut using the app's actual tools. Preserve the speaker's meaning, voice and useful detail. Keep synchronized sources aligned and retain the final complete redo. Act on authorized reversible edits during this turn; do not stop at a list of recommendations. Do not fabricate unavailable tools or responses. Codex is the only generative provider.
+Edit the active project into a coherent first cut using the app's actual tools. Preserve the speaker's meaning, voice and useful detail. Keep synchronized sources aligned and retain the final complete redo. Act on authorized reversible edits during this turn; do not stop at a list of recommendations. Do not fabricate unavailable tools or responses. This prompt applies to Codex; an adapted API-provider path may use only its verified capabilities and must be started explicitly if paid.
 
 ### 1. Read the current project
 

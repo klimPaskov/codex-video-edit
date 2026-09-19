@@ -21,6 +21,8 @@ Changing automatic cuts, captions, audio cleanup, layout, pacing, or Magic Wand 
 8. Re-transcribe and inspect risky joins.
 9. Summarize concrete changes.
 
+When an optional API provider is selected for generative assistance, the user explicitly starts the paid turn. Keep deterministic local analysis separate from provider calls. Provider output proposes bounded operations through the same transaction engine and cannot authorize export, deletion or other spending.
+
 ## Quality rule
 
 The goal is a useful edit, not maximum change. Do not add random effects or shorten content without evidence.

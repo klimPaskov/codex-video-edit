@@ -27,7 +27,7 @@ Do not stop at planning. Do not replace the product with a browser app, static m
 - The app is a standalone Electron desktop app.
 - Browser use is for research only.
 - The renderer loads packaged local content only.
-- Real Codex app-server is the only AI provider in the first release.
+- Real Codex app-server remains mandatory; explicit OpenAI API and DeepSeek API-key providers are also required under ADR 0014.
 - Source media is immutable.
 - AI and manual edits target the same non-destructive draft timeline.
 - Every edit is undoable until revision commit.

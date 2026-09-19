@@ -1,0 +1,30 @@
+{
+  "channel": "api-providers:get",
+  "response": {
+    "ok": true,
+    "value": {
+      "providers": [
+        {
+          "id": "deepseek",
+          "connected": false,
+          "remembered": false,
+          "canRemember": false,
+          "models": [],
+          "selectedModel": null,
+          "busy": false,
+          "message": null
+        },
+        {
+          "id": "openai",
+          "connected": false,
+          "remembered": false,
+          "canRemember": false,
+          "models": [],
+          "selectedModel": null,
+          "busy": false,
+          "message": null
+        }
+      ]
+    }
+  }
+}

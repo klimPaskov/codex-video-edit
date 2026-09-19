@@ -2,7 +2,7 @@
 
 ## 0. Onboarding
 
-The app checks its local dependencies, asks the user to sign in to Codex with ChatGPT, reads the current model catalog, and explains what project context may be sent to Codex. Technical details remain collapsed.
+The app checks its local dependencies and offers ChatGPT-managed Codex sign-in plus separate optional OpenAI API and DeepSeek key connections. It reads supported live model catalogs and explains which selected provider receives project context. API billing is separate from the ChatGPT subscription; a paid turn starts only when the user explicitly invokes it. Technical details remain collapsed.
 
 ## 1. Home
 
@@ -37,7 +37,7 @@ Magic Wand opens a short menu with a Balanced preset and individual switches:
 - local B-roll suggestions
 - cursor treatment
 
-Running it creates or updates the active draft. The app streams concise progress and updates the timeline live. The user can stop safely.
+Running it creates or updates the active draft. If an API-backed option is selected, disclose its paid request before the user starts it. The app streams concise progress and updates the timeline from committed edits. The user can stop safely.
 
 ## 4. Edit
 
@@ -51,7 +51,7 @@ Show a large preview, a simple timeline, transcript, and one context panel at a 
 - edit caption text and style
 - import, replace, trim, and position local B-roll
 - adjust audio gain, cleanup, fades, and music ducking
-- ask Codex to change the current selection
+- ask the selected supported AI provider to change the current selection
 - undo, redo, compare, and save a revision
 
 ## 5. Review

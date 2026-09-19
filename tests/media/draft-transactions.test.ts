@@ -132,7 +132,7 @@ function code(expected: DraftTransactionError["code"]) {
     error instanceof DraftTransactionError && error.code === expected;
 }
 
-test("one journal orders trusted manual, Magic Wand, and Codex edits with deterministic undo", async () => {
+test("one journal orders manual, Magic Wand, Codex and API-provider edits with deterministic undo", async () => {
   const { projects, projectStore, baseline } = await fixture();
   const folder = join(projects, baseline.project.project_id);
   const protectedBefore = await Promise.all([
@@ -215,6 +215,23 @@ test("one journal orders trusted manual, Magic Wand, and Codex edits with determ
   assert.equal(
     wand.transaction.previous_transaction_sha256,
     undone.transaction.transaction_sha256,
+  );
+  const providerUndo = await reopened.undoApiProvider({
+    ...undo(wand.draft, wand.transaction.transaction_id),
+    request_id: "request-undo-api-001",
+  });
+  assert.equal(providerUndo.transaction.origin, "api_provider");
+  assert.equal(providerUndo.draft.timeline.duration_us, 1_000_000);
+  const providerTrim = await reopened.applyApiProvider({
+    ...trim(providerUndo.draft),
+    request_id: "request-trim-api-001",
+    pass_group: { pass_group_id: "pass-api-001", kind: "manual" },
+  });
+  assert.equal(providerTrim.transaction.origin, "api_provider");
+  assert.equal(providerTrim.draft.timeline.duration_us, 800_000);
+  assert.equal(
+    providerTrim.transaction.previous_transaction_sha256,
+    providerUndo.transaction.transaction_sha256,
   );
 
   assert.deepEqual(

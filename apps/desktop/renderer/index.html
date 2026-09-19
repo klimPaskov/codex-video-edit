@@ -66,12 +66,23 @@
           </aside>
           <aside id="codex-drawer" aria-label="Codex conversation" hidden>
             <div class="panel-header">
-              <h2>Codex</h2>
+              <h2>Assistant</h2>
               <button id="close-codex" aria-label="Close Codex">×</button>
             </div>
+            <label for="assistant-provider">Provider</label>
+            <select id="assistant-provider">
+              <option value="codex">Codex</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="openai">OpenAI API</option>
+            </select>
             <p id="codex-thread-status" role="status"></p>
             <div id="codex-thread-messages" aria-live="polite"></div>
-            <ul id="codex-thread-activity" aria-label="Codex activity"></ul>
+            <ul id="codex-thread-activity" aria-label="Assistant activity"></ul>
+            <p id="api-turn-notice" hidden>
+              Sending shares your request and project/timeline tool results with
+              this provider. It can use paid API credits and up to four model
+              calls.
+            </p>
             <button id="open-codex-thread">Open conversation</button>
             <form id="codex-thread-form" hidden>
               <label for="codex-thread-input">Request an edit</label>
@@ -132,6 +143,13 @@
           <button type="button" id="settings-codex" aria-pressed="false">
             Codex
           </button>
+          <button
+            type="button"
+            id="settings-api-providers"
+            aria-pressed="false"
+          >
+            API providers
+          </button>
         </nav>
         <div id="appearance-settings">
           <label for="interface-scale">Interface size</label
@@ -182,6 +200,47 @@
             <summary>Available skills</summary>
             <ul id="codex-skills"></ul>
           </details>
+        </section>
+        <section id="api-provider-settings" aria-label="API providers" hidden>
+          <label for="api-provider-id">Provider</label>
+          <select id="api-provider-id">
+            <option value="deepseek">DeepSeek</option>
+            <option value="openai">OpenAI API</option>
+          </select>
+          <p id="api-provider-status" role="status"></p>
+          <label for="api-provider-key">API key</label>
+          <input
+            id="api-provider-key"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            maxlength="1024"
+          />
+          <label class="api-provider-check"
+            ><input id="api-provider-remember" type="checkbox" />Remember on
+            this device</label
+          >
+          <p id="api-provider-session-note" hidden>
+            Secure storage is unavailable; keys can be used for this session
+            only.
+          </p>
+          <div class="codex-actions">
+            <button type="button" id="api-provider-connect" disabled>
+              Connect
+            </button>
+            <button type="button" id="api-provider-remove" hidden>
+              Remove key
+            </button>
+          </div>
+          <div id="api-provider-model-settings" hidden>
+            <label for="api-provider-model">Model</label>
+            <select id="api-provider-model"></select>
+          </div>
+          <p id="api-provider-error" role="alert" hidden></p>
+          <p class="api-provider-disclosure">
+            A request can use paid API credits. Connecting a key does not start
+            one.
+          </p>
         </section>
         <p id="settings-error" role="alert" hidden></p>
         <div class="dialog-actions" id="appearance-actions">

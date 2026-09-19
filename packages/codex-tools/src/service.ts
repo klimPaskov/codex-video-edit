@@ -19,6 +19,8 @@ type DraftTransactions = {
   snapshotWithProject(projectId: string): Promise<DraftProjectReadResult>;
   applyCodex(value: unknown): Promise<DraftCommitResult>;
   undoCodex(value: unknown): Promise<DraftCommitResult>;
+  applyApiProvider?(value: unknown): Promise<DraftCommitResult>;
+  undoApiProvider?(value: unknown): Promise<DraftCommitResult>;
 };
 
 export type CodexVideoEditToolErrorCode =
@@ -215,11 +217,17 @@ function mapError(error: unknown): never {
 export class CodexVideoEditToolService {
   private readonly activeProjectId: string;
   private readonly drafts: DraftTransactions;
+  private readonly origin: "codex" | "api_provider";
 
-  constructor(activeProjectId: string, drafts: DraftTransactions) {
+  constructor(
+    activeProjectId: string,
+    drafts: DraftTransactions,
+    origin: "codex" | "api_provider" = "codex",
+  ) {
     if (!idPattern.test(activeProjectId)) reject("invalid_request");
     this.activeProjectId = activeProjectId;
     this.drafts = drafts;
+    this.origin = origin;
   }
 
   async invoke(name: unknown, input: unknown): Promise<unknown> {
@@ -311,7 +319,12 @@ export class CodexVideoEditToolService {
     integer(request.timeline_position_us, 1);
     if (request.edge !== "start" && request.edge !== "end")
       reject("invalid_request");
-    const result = await this.drafts.applyCodex({
+    const apply =
+      this.origin === "api_provider"
+        ? this.drafts.applyApiProvider?.bind(this.drafts)
+        : this.drafts.applyCodex.bind(this.drafts);
+    if (!apply) reject("service_unavailable");
+    const result = await apply({
       schema_version: "1.0",
       request_id: request.request_id,
       project_id: request.project_id,
@@ -350,7 +363,12 @@ export class CodexVideoEditToolService {
     ]);
     freshness(request, this.activeProjectId);
     id(request.target_transaction_id);
-    const result = await this.drafts.undoCodex({
+    const undo =
+      this.origin === "api_provider"
+        ? this.drafts.undoApiProvider?.bind(this.drafts)
+        : this.drafts.undoCodex.bind(this.drafts);
+    if (!undo) reject("service_unavailable");
+    const result = await undo({
       schema_version: "1.0",
       request_id: request.request_id,
       project_id: request.project_id,

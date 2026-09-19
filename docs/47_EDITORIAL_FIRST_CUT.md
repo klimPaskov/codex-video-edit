@@ -1,6 +1,6 @@
 # Editorial first-cut requirements
 
-Status: accepted product requirements for later implementation, adapted from the user-supplied editorial reference. This document and the original application prompt in `docs/prompts/EDITORIAL_FIRST_CUT_PROMPT.md` do not establish implemented automation, native acceptance, or P1 completion. The reference's external application commands and provider suggestions are not operational instructions for this app. Codex remains the only generative provider.
+Status: accepted product requirements for later implementation, adapted from the user-supplied editorial reference. This document and the original application prompt in `docs/prompts/EDITORIAL_FIRST_CUT_PROMPT.md` do not establish implemented automation, native acceptance, or P1 completion. The reference's external application commands and provider suggestions are not operational instructions for this app. ADR 0014 adds explicit API-key providers; the editorial rules apply to every supported generator, while the Codex prompt uses Codex-specific capabilities only.
 
 ## Preferences and boundaries
 

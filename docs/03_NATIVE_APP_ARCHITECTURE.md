@@ -12,7 +12,7 @@ Its initial frame path transports native-dimension BGRA full-range GBR BT.709 SD
 
 ADR 0013 moves the minimum real project foundation into P1: stable project identity, immutable source references, a source-matched initial canonical timeline, a real baseline revision, create/open/reopen, and persisted active stage. Main owns this state behind validated task-based IPC. Five-stage navigation selects a workspace view only after persistence succeeds; it does not mutate media operations or claim stage completion. The renderer must retain the committed project/draft context while changing stage presentation.
 
-P2 adds the common draft transaction core needed for its authenticated edit: sequence validation, durable journal, atomic persistence, inverse/undo and committed-transaction recovery. This core is shared by manual, Magic Wand and Codex actions. It must not become a second AI-only state store. P3/P6 still complete their full project, playback, editor, history and recovery requirements; implementing prerequisites earlier does not waive their acceptance.
+P2 adds the common draft transaction core needed for authenticated edits: sequence validation, durable journal, atomic persistence, inverse/undo and committed-transaction recovery. This core is shared by manual, Magic Wand, Codex and API-provider actions. It must not become a second AI-only state store. P3/P6 still complete their full project, playback, editor, history and recovery requirements; implementing prerequisites earlier does not waive their acceptance.
 
 ### Electron main process
 
@@ -23,6 +23,7 @@ Owns:
 - project locks and privileged filesystem access
 - capture permissions and source selection
 - child processes for Codex, FFmpeg, ffprobe, and transcription
+- fixed-endpoint OpenAI API and DeepSeek network adapters, key storage and request redaction
 - typed IPC validation
 - installer and update integration
 
@@ -50,6 +51,10 @@ Use typed service boundaries around FFmpeg, ffprobe, local transcription, thumbn
 ### Codex bridge
 
 The main process owns a long-running official `codex app-server` child over stdio. A typed adapter handles JSONL framing, request IDs, notifications, server requests, reconnect, version discovery, and schema generation.
+
+### API-provider adapters
+
+Separate main-owned OpenAI API and DeepSeek adapters use reviewed fixed HTTPS endpoints and provider-specific catalog/turn contracts. Key material is protected by OS-backed per-user storage or kept in session memory; it never enters project data or the renderer. Generated edit intent is validated through the same transaction service as Codex, Magic Wand and manual actions. A generic API adapter does not acquire Codex App Server threads, skills, native subagents or MCP authority by analogy.
 
 ### App-specific MCP server
 

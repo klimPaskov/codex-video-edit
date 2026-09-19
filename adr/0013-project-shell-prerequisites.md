@@ -26,4 +26,4 @@ P1's project navigation depends on project state previously assigned entirely to
 - Do not silently derive a rational frame rate from a rounded display value, invent a working canvas, lower source precision, or convert preview data into master input.
 - Schema changes, migrations, routing and tests needed by implementation must be synchronized before acceptance. This dependency decision does not itself change existing persisted schema versions or waive validation.
 
-This extends the limited bootstrap correction in ADR 0012. The secure native shell, immutable sources, real Codex-only policy, explicit final export control and private-evidence restrictions remain unchanged.
+This extends the limited bootstrap correction in ADR 0012. The secure native shell, immutable sources, explicit final export control and private-evidence restrictions remain unchanged. ADR 0014 later supersedes the historical Codex-only provider policy without changing the shared transaction prerequisite.

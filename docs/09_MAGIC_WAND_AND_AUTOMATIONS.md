@@ -1,5 +1,7 @@
 # Magic Wand and automation specification
 
+ADR 0014 permits optional OpenAI API and DeepSeek assistance beside Codex. A provider-backed Magic Wand turn is a paid generation action and must start only on an explicit user request. Provider output is untrusted edit intent routed through the same validated, undoable active-draft transactions as Codex, deterministic Magic Wand and manual tools. Local deterministic analysis does not silently invoke an API. This provider expansion remains unimplemented.
+
 ## Purpose
 
 Magic Wand produces a useful first edit and offers focused one-click improvements later. It is not a decorative button and it must not hide unreviewable changes.

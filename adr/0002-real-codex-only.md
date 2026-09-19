@@ -2,6 +2,7 @@
 
 - Status: Accepted starting decision
 - Date: 2026-09-04
+- Superseded in part by ADR 0014 on 2026-09-19: Codex remains mandatory, while its first-release provider exclusivity and API-key exclusion no longer apply.
 
 ## Decision
 

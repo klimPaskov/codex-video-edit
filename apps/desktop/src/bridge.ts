@@ -3,6 +3,12 @@ import type {
   CodexSelection,
 } from "../../../packages/domain/src/codex-view.ts";
 import type { DeviceLoginDetails } from "../../../packages/domain/src/codex-device-login.ts";
+import type {
+  ApiProviderConnectRequest,
+  ApiProviderModelRequest,
+  ApiProviderRequest,
+  ApiProvidersView,
+} from "../../../packages/domain/src/api-providers.ts";
 import type { Preferences } from "../../../packages/domain/src/preferences.ts";
 import type {
   ProjectDraftView,
@@ -22,9 +28,32 @@ import type {
   CodexThreadSendRequest,
   CodexThreadView,
 } from "../../../packages/domain/src/codex-thread-view.ts";
+import type {
+  ApiThreadProjectRequest,
+  ApiThreadSendRequest,
+  ApiThreadView,
+} from "../../../packages/domain/src/api-thread-view.ts";
 
 export type Reply<T> = { ok: true; value: T } | { ok: false; message: string };
 export interface DesktopBridge {
+  getApiThread(request: ApiThreadProjectRequest): Promise<Reply<ApiThreadView>>;
+  openApiThread(
+    request: ApiThreadProjectRequest,
+  ): Promise<Reply<ApiThreadView>>;
+  sendApiThread(request: ApiThreadSendRequest): Promise<Reply<ApiThreadView>>;
+  interruptApiThread(
+    request: ApiThreadProjectRequest,
+  ): Promise<Reply<ApiThreadView>>;
+  getApiProviders(): Promise<Reply<ApiProvidersView>>;
+  connectApiProvider(
+    request: ApiProviderConnectRequest,
+  ): Promise<Reply<ApiProvidersView>>;
+  removeApiProvider(
+    request: ApiProviderRequest,
+  ): Promise<Reply<ApiProvidersView>>;
+  selectApiProviderModel(
+    request: ApiProviderModelRequest,
+  ): Promise<Reply<ApiProvidersView>>;
   getCodex(): Promise<Reply<CodexView>>;
   reconnectCodex(): Promise<Reply<CodexView>>;
   loginCodex(): Promise<Reply<CodexView>>;
@@ -64,6 +93,14 @@ export interface DesktopBridge {
   cancelImport(): Promise<Reply<null>>;
 }
 export const channels = Object.freeze({
+  apiThreadGet: "api-thread:get",
+  apiThreadOpen: "api-thread:open",
+  apiThreadSend: "api-thread:send",
+  apiThreadInterrupt: "api-thread:interrupt",
+  apiProvidersGet: "api-providers:get",
+  apiProvidersConnect: "api-providers:connect",
+  apiProvidersRemove: "api-providers:remove",
+  apiProvidersSelectModel: "api-providers:select-model",
   codexGet: "codex:get",
   codexReconnect: "codex:reconnect",
   codexLogin: "codex:login",

@@ -2,7 +2,7 @@
 
 ## Provider scope
 
-Codex is the only AI provider exposed in the first release. Do not show disabled competitors or an empty provider marketplace. The AI settings screen may show the provider label and a runtime-discovered Codex model selector.
+Codex remains the mandatory App Server provider. ADR 0014 also requires optional OpenAI API and DeepSeek key connections, each on a fixed provider endpoint. Do not show disabled competitors or an empty marketplace. Show only implemented provider rows and models verified against the relevant live catalog. The provider implementation has fixed-endpoint and fake-transport tests plus a packaged settings test; no authenticated DeepSeek or OpenAI API turn has been evidenced.
 
 ## Authentication
 
@@ -11,7 +11,7 @@ Codex is the only AI provider exposed in the first release. Do not show disabled
 - Offer the official `chatgptDeviceCode` mode as an explicit alternative when the user signs in from another device. Show only the fixed verification page and one-time code for that active Settings attempt; do not treat initiation as completion.
 - Let Codex own token persistence and refresh.
 - Display account state and plan type when returned.
-- Do not ask for or store an API key in the first release.
+- Do not ask for an API key on the Codex subscription path. Separate API-provider key entry is main-owned under ADR 0014, with OS-backed encryption or session-only fallback; never put a key in a project, renderer-visible state or public evidence.
 
 ## Protocol
 
@@ -47,6 +47,8 @@ Do not send raw full-resolution media unless a supported tool and user disclosur
 ## Live editing
 
 Codex may call guarded tools that append operations to the active draft. The UI applies validated operations as they complete and displays them in the shared undo history. A partial turn may leave completed transactions in place. Stop and undo remain available.
+
+OpenAI API and DeepSeek responses pass through fixed provider adapters and a bounded local conversation service. The service maps only the four reviewed project/timeline tools to main, which applies the same freshness, active-project, transaction and undo checks as Codex and labels committed edits `api_provider`. API keys grant no Codex App Server skills or native subagents. A paid API turn starts only after explicit Send; the drawer shows the selected provider and billing disclosure before it opens. An authenticated provider edit and a packaged native provider turn still need evidence.
 
 ## Guarded tool set
 

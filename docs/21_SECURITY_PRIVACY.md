@@ -26,13 +26,16 @@
 - Never capture keystrokes.
 - Avoid notification and secret exposure in fixtures and documentation.
 
-## Codex data boundary
+## AI data boundary
 
-- Explain that selected text, metadata, frames, and instructions may be sent to Codex.
+- Explain which selected provider receives text, metadata, frames and instructions before first use.
 - Send the minimum context needed for the task.
 - Keep raw media local by default.
 - Show when a frame or transcript excerpt is being shared.
 - Let the user sign out and use the manual editor without AI.
+- Keep API-provider requests on fixed reviewed HTTPS endpoints under main; do not let renderer data choose a destination.
+- Treat API-provider output as untrusted edit intent with the same active-project, scope, sequence/hash and undo validation as Codex tools.
+- Require an explicit user action before any paid generation turn; do not guess prices or remaining credit.
 
 ## Runtime tools
 
@@ -49,3 +52,5 @@ Thread resume consumes at most one validated page of 100 newest full turns and 1
 ## Secrets
 
 Let the official Codex client own ChatGPT credentials. Do not copy tokens into project files, logs, crash reports, or renderer state. The MCP broker credential is inherited through the restricted process environment and never appears in command arguments, thread instructions, project data, or IPC.
+
+OpenAI API and DeepSeek keys are separate secrets. Main owns input and redacted status; never return key bytes or authorization headers over renderer IPC or place them in project files, prompts, URLs, crash output, screenshots or public evidence. Use OS-backed per-user encryption for persistence; if unavailable, keep the key in session memory only or refuse persistence clearly. Key replacement and removal are explicit; removal interrupts a currently running turn for that provider. A tool already committed before interruption remains in the undo history. Native tests must cover endpoint pinning, key redaction, storage failure, logout/replacement, provider rejection and untrusted output.

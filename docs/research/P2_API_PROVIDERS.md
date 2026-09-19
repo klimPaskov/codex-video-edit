@@ -1,0 +1,10 @@
+# P2 API-provider contract notes
+
+Checked 2026-09-19 against primary provider and Electron documentation. These are implementation inputs for ADR 0014, not authenticated calls or native acceptance.
+
+- [OpenAI lists models](https://platform.openai.com/docs/api-reference/models/object?lang=curl) at `GET https://api.openai.com/v1/models`. Its basic model object identifies a model; presence alone does not prove that the model accepts the editor's proposed request or tool format.
+- [DeepSeek lists models](https://api-docs.deepseek.com/api/list-models/) at `GET /models` on its [documented `https://api.deepseek.com` base](https://api-docs.deepseek.com/). The returned model ID/owner likewise does not establish editing capabilities.
+- [DeepSeek's Responses compatibility table](https://api-docs.deepseek.com/guides/responses_api/) is narrower than OpenAI's contract. It documents unsupported stateful conversation parameters and built-in tools, and warns that some unsupported parameters are silently ignored. Do not reuse Codex App Server thread/skill/MCP/subagent semantics or infer support from a successful HTTP status. Validate only the fields and tools the selected provider actually supports, with provider-specific tests.
+- [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage) is main-process storage backed by platform facilities when available. Its documentation warns that Linux `basic_text` can use a hardcoded plaintext password. Never treat that backend as protected persistence; use session-only key memory or a clear failure if a secure backend is unavailable. Verify the selected backend and restart behavior in the isolated packaged native environment.
+
+The provider adapters must pin destinations in main, bound and redact errors, separate model-discovery reads from user-started generation, and pass only validated edit intent to the shared transaction engine. Actual credentials, provider response content and account limits remain private. Recheck these external contracts when implementing P2-08 through P2-10 because endpoints and capability tables can change.

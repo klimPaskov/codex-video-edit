@@ -7,7 +7,7 @@
   "target": "Windows-first standalone Electron desktop application",
   "implementation_agent": "GPT-6 Astra in an isolated computer-use environment",
   "ai_provider_scope": "Real Codex only for the first release",
-  "goal_prompt_characters": 3972,
+  "goal_prompt_characters": 3960,
   "task_count": 73,
   "phase_count": 11,
   "screen_count": 13,

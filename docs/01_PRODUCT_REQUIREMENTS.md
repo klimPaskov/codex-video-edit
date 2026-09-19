@@ -27,6 +27,7 @@
 - Add captions, safe audio cleanup, purposeful zooms, and requested or clearly safe speed-ups.
 - Suggest local B-roll and layouts when suitable.
 - Apply operations to a non-destructive draft and show them live.
+- Offer real Codex plus optional OpenAI API and DeepSeek AI editing, with provider-specific capabilities and model validation. Paid API turns start on explicit user action.
 
 ### Edit manually
 
@@ -51,7 +52,7 @@
 - Responsive editing during background analysis and rendering.
 - Crash-safe project state and resumable work.
 - Local source and project files by default.
-- Clear disclosure of media or text sent to Codex.
+- Clear disclosure of media or text sent to the selected AI provider, with API billing distinct from ChatGPT subscription usage.
 - Keyboard access, scalable text, visible focus, and readable contrast.
 - No normal screen should resemble a debug console.
 

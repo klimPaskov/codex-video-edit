@@ -16,3 +16,4 @@ Files in this directory are accepted starting decisions. Revisit them only with 
 - 0012: minimum actual native media bootstrap prerequisite for P0
 
 - 0013: real project shell and shared transaction prerequisites
+- 0014: explicit OpenAI API and DeepSeek API-key providers alongside Codex (supersedes 0002's exclusivity)

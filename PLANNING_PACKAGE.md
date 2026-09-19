@@ -2,7 +2,7 @@
 
 ## Product statement
 
-codex-video-edit is a local-first desktop application for planning, recording, automatically editing, refining, and exporting creator videos. It combines a simple scene workflow with a compact timeline editor and real Codex assistance.
+codex-video-edit is a local-first desktop application for planning, recording, automatically editing, refining, and exporting creator videos. It combines a simple scene workflow with a compact timeline editor, real Codex assistance and explicit API-key provider options.
 
 ## Core promise
 
@@ -13,7 +13,7 @@ A user can record or import a video, press Magic Wand, receive a useful non-dest
 1. **Native and focused.** One desktop window, no localhost UI, no browser product shell.
 2. **Step by step.** Home, then Record or Import, Auto Edit, Edit, Review, Export.
 3. **Real tools.** Every visible control must work against the project model.
-4. **AI as an editor.** Codex can inspect context and apply guarded live draft edits.
+4. **AI as an editor.** Codex and selected API providers can inspect disclosed context and propose guarded live draft edits.
 5. **Manual control remains.** Users can split, trim, restore, zoom, retime, caption, place B-roll, and undo.
 6. **Non-destructive.** Source files stay unchanged and revisions remain recoverable.
 7. **Quiet interface.** Technical logs are hidden behind Diagnostics.
@@ -49,6 +49,7 @@ Windows 10 and 11 x64. Architecture and project contracts must avoid blocking a 
 - audio cleanup and loudness handling
 - preview, undo, autosave, revisions, QA, lossless master export, and optional sharing exports
 - real Codex login, model selection, chat, skills, and guarded editing tools
+- explicit OpenAI API and DeepSeek key connections, provider model discovery and guarded editing through the same draft history
 
 ## Acceptance milestone
 
@@ -58,8 +59,8 @@ The final milestone imports the user-provided example video, runs Magic Wand, pr
 
 - cloud collaboration and hosted sharing
 - mobile apps
-- generic AI provider marketplace
-- API-key-first setup
+- generic AI provider marketplace and arbitrary custom endpoints
+- API-key-only setup that removes ChatGPT-managed Codex sign-in
 - remote stock-media purchasing
 - generative video or generative B-roll
 - unrestricted professional compositing
@@ -74,3 +75,4 @@ The final milestone imports the user-provided example video, runs Magic Wand, pr
 - The normal app has no permanent debug indicators, readiness dashboard, oversized page title, or redundant explanatory subtitle.
 - The supplied current and previous reference sets each contain ten individual native-app screens. Use the current set first with the mandatory corrections in `docs/references/IMPLEMENTATION_NOTES.md`.
 - Codex makes reversible changes live. Review of the draft does not require a separate approval click for every ordinary editing operation.
+- API-key providers are optional, fixed-endpoint connections. Keys stay under main-process control with OS-backed encryption or session-only fallback; paid turns start only on explicit user action.
