@@ -13,6 +13,7 @@ Acceptance:
 - parser, recovery, stale protocol, and tool validation tests pass
 - a real authenticated Codex smoke test discovers models and skills
 - OpenAI API and DeepSeek key paths pass fixed-endpoint, secure-storage/session-fallback, model-discovery, key-redaction and provider-failure tests
+- a remembered API model choice survives restart only with its protected key and live catalog membership; replacement, removal and session-only use clear it
 - authenticated API-provider fixture turns commit only guarded reversible draft operations after explicit user initiation and pass packaged isolated native tests
 - one real turn applies a reversible draft edit through a guarded tool
 - the edit survives reopen, rejects stale sequence requests, and can be undone through the shared engine; interrupted/incomplete transactions do not corrupt the committed draft

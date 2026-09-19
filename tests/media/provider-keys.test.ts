@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, stat, symlink } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
@@ -75,6 +83,13 @@ test("remembered key is ciphertext in a private file and reloads", async (t) => 
     assert.equal((await stat(file)).mode & 0o777, 0o600);
   const reopened = new ProviderKeyStore(root, storage(), { platform: "linux" });
   assert.equal(await reopened.get("deepseek"), key);
+  assert.equal(await reopened.getModel("deepseek"), null);
+  await reopened.setModel("deepseek", "deepseek-chat");
+  const afterSelection = new ProviderKeyStore(root, storage(), {
+    platform: "linux",
+  });
+  assert.equal(await afterSelection.get("deepseek"), key);
+  assert.equal(await afterSelection.getModel("deepseek"), "deepseek-chat");
   assert.deepEqual(await reopened.status("deepseek"), {
     hasKey: true,
     remembered: true,
@@ -82,6 +97,56 @@ test("remembered key is ciphertext in a private file and reloads", async (t) => 
   });
   await reopened.remove("deepseek");
   assert.equal(await reopened.get("deepseek"), null);
+  assert.equal(await afterSelection.getModel("deepseek"), null);
+});
+
+test("saved model is bound to its key and legacy ciphertext migrates", async (t) => {
+  const root = await directory(t);
+  const adapter = storage();
+  const file = join(root, "openai.key");
+  await writeFile(file, adapter.encryptString(key), { mode: 0o600 });
+  const keys = new ProviderKeyStore(root, adapter, { platform: "linux" });
+  assert.equal(await keys.get("openai"), key);
+  assert.equal(await keys.getModel("openai"), null);
+  await keys.setModel("openai", "gpt-4.1");
+  assert.equal(await keys.getModel("openai"), "gpt-4.1");
+  await keys.set("openai", "replacement-provider-key", { remember: true });
+  assert.equal(await keys.getModel("openai"), null);
+  assert.equal(await keys.get("openai"), "replacement-provider-key");
+  await keys.setModel("openai", "gpt-4o");
+  await keys.set("openai", "session-only-provider-key", { remember: false });
+  assert.equal(await keys.getModel("openai"), null);
+  assert.equal(
+    await new ProviderKeyStore(root, adapter, { platform: "linux" }).get(
+      "openai",
+    ),
+    null,
+  );
+});
+
+test("failed protected model update preserves the encrypted key and choice", async (t) => {
+  const root = await directory(t);
+  const delegate = storage();
+  let fail = false;
+  const adapter: SafeStorageAdapter = {
+    ...delegate,
+    encryptString: (plainText) => {
+      if (fail) throw new Error(`PRIVATE ${key}`);
+      return delegate.encryptString(plainText);
+    },
+  };
+  const keys = new ProviderKeyStore(root, adapter, { platform: "linux" });
+  await keys.set("openai", key, { remember: true });
+  await keys.setModel("openai", "gpt-4.1");
+  const before = await readFile(join(root, "openai.key"));
+  fail = true;
+  await assert.rejects(
+    keys.setModel("openai", "gpt-4o"),
+    errorCode("storage_failure"),
+  );
+  assert.deepEqual(await readFile(join(root, "openai.key")), before);
+  assert.equal(await keys.get("openai"), key);
+  assert.equal(await keys.getModel("openai"), "gpt-4.1");
 });
 
 test("Linux basic_text and unavailable encryption reject remember atomically", async (t) => {

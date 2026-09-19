@@ -16,6 +16,7 @@ description: Review Electron, files, capture, Codex, assets, and deletion bounda
 - Codex minimum-context disclosure
 - credential ownership by official Codex client
 - separate API-provider key entry, fixed HTTPS destinations, OS-backed protected persistence or session-only fallback, key replacement/removal, and no key exposure in renderer or project data
+- encrypted remembered-model selection bound to its key; legacy key-only migration, live revalidation, replacement clearing and no plaintext model preference
 - explicit user initiation before paid provider generation and provider-specific context disclosure
 - guarded tool permissions and transaction validation
 - asset provenance

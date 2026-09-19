@@ -54,7 +54,7 @@ The main process owns a long-running official `codex app-server` child over stdi
 
 ### API-provider adapters
 
-Separate main-owned OpenAI API and DeepSeek adapters use reviewed fixed HTTPS endpoints and provider-specific catalog/turn contracts. Key material is protected by OS-backed per-user storage or kept in session memory; it never enters project data or the renderer. Generated edit intent is validated through the same transaction service as Codex, Magic Wand and manual actions. A generic API adapter does not acquire Codex App Server threads, skills, native subagents or MCP authority by analogy.
+Separate main-owned OpenAI API and DeepSeek adapters use reviewed fixed HTTPS endpoints and provider-specific catalog/turn contracts. Key material is protected by OS-backed per-user storage or kept in session memory; it never enters project data or the renderer. A remembered model ID is encrypted in the same per-user key record, bound to that credential, and checked again against live model discovery after restart. Session-only choices remain in memory. Generated edit intent is validated through the same transaction service as Codex, Magic Wand and manual actions. A generic API adapter does not acquire Codex App Server threads, skills, native subagents or MCP authority by analogy.
 
 ### App-specific MCP server
 

@@ -34,6 +34,7 @@ test("an authenticated catalog with no compatible models stays disconnected", as
   const account = new DesktopApiProviders(
     {
       get: async () => null,
+      getModel: async () => null,
       status: async () => ({
         hasKey: false,
         remembered: false,
@@ -42,6 +43,7 @@ test("an authenticated catalog with no compatible models stays disconnected", as
       set: async () => {
         throw new Error("Must not store unsupported key");
       },
+      setModel: async () => undefined,
       remove: async () => undefined,
     },
     { listModels: async () => ["babbage-002", "text-embedding-3-large"] },
@@ -59,10 +61,12 @@ test("an authenticated catalog with no compatible models stays disconnected", as
 });
 function harness(canRemember: boolean) {
   const keys = new Map<ApiProviderId, { value: string; remembered: boolean }>();
+  const savedModels = new Map<ApiProviderId, string>();
   const calls: { provider: ApiProviderId; key: string }[] = [];
   const account = new DesktopApiProviders(
     {
       get: async (provider) => keys.get(provider)?.value ?? null,
+      getModel: async (provider) => savedModels.get(provider) ?? null,
       status: async (provider) => ({
         hasKey: keys.has(provider),
         remembered: keys.get(provider)?.remembered ?? false,
@@ -70,10 +74,15 @@ function harness(canRemember: boolean) {
       }),
       set: async (provider, key, { remember }) => {
         keys.set(provider, { value: key, remembered: remember });
+        savedModels.delete(provider);
         return { hasKey: true, remembered: remember, canRemember };
+      },
+      setModel: async (provider, model) => {
+        savedModels.set(provider, model);
       },
       remove: async (provider) => {
         keys.delete(provider);
+        savedModels.delete(provider);
       },
     },
     {
@@ -84,7 +93,7 @@ function harness(canRemember: boolean) {
       },
     },
   );
-  return { account, calls, keys };
+  return { account, calls, keys, savedModels };
 }
 
 test("explicit API-key connection discovers separate catalogs without exposing keys", async () => {
@@ -125,6 +134,75 @@ test("explicit API-key connection discovers separate catalogs without exposing k
   assert.equal(await account.selected("deepseek"), null);
 });
 
+test("remembered choice restores only after live catalog revalidation", async () => {
+  const { account, keys, savedModels } = harness(true);
+  await account.connect({ provider: "openai", key: testKey, remember: true });
+  await account.selectModel({ provider: "openai", model: "gpt-4.1" });
+  assert.equal(savedModels.get("openai"), "gpt-4.1");
+  const store = {
+    get: async (provider: ApiProviderId) => keys.get(provider)?.value ?? null,
+    getModel: async (provider: ApiProviderId) =>
+      savedModels.get(provider) ?? null,
+    status: async (provider: ApiProviderId) => ({
+      hasKey: keys.has(provider),
+      remembered: keys.get(provider)?.remembered ?? false,
+      canRemember: true,
+    }),
+    set: async () => {
+      throw new Error("Connection is not needed on reopen");
+    },
+    setModel: async () => undefined,
+    remove: async () => undefined,
+  };
+  const restarted = new DesktopApiProviders(store, {
+    listModels: async () => ["gpt-4.1", "gpt-4o"],
+  });
+  assert.equal((await restarted.get()).providers[1]?.selectedModel, "gpt-4.1");
+  const changedCatalog = new DesktopApiProviders(store, {
+    listModels: async () => ["gpt-4o"],
+  });
+  assert.equal((await changedCatalog.get()).providers[1]?.selectedModel, null);
+  await account.connect({
+    provider: "openai",
+    key: "REPLACEMENT-PROVIDER-KEY",
+    remember: true,
+  });
+  assert.equal(savedModels.get("openai"), undefined);
+  assert.equal((await account.get()).providers[1]?.selectedModel, null);
+});
+
+test("failed model persistence leaves the previous selection intact", async () => {
+  const account = new DesktopApiProviders(
+    {
+      get: async () => testKey,
+      getModel: async () => null,
+      status: async () => ({
+        hasKey: true,
+        remembered: true,
+        canRemember: true,
+      }),
+      set: async () => {
+        throw new Error("Unexpected key replacement");
+      },
+      setModel: async () => {
+        throw new Error(`PRIVATE ${testKey}`);
+      },
+      remove: async () => undefined,
+    },
+    { listModels: async () => ["gpt-4.1"] },
+  );
+  const view = await account.selectModel({
+    provider: "openai",
+    model: "gpt-4.1",
+  });
+  assert.equal(view.providers[1]?.selectedModel, null);
+  assert.equal(
+    view.providers[1]?.message,
+    "Model choice could not be saved. Try again.",
+  );
+  assert.ok(!JSON.stringify(view).includes(testKey));
+});
+
 test("insecure persistence and invalid credentials never replace a working key", async () => {
   const { account, calls } = harness(false);
   let view = await account.connect({
@@ -162,6 +240,7 @@ test("a saved key with an unavailable secure backend stays removable", async () 
   const account = new DesktopApiProviders(
     {
       get: async () => null,
+      getModel: async () => null,
       status: async () => ({
         hasKey: false,
         remembered: !removed,
@@ -170,6 +249,7 @@ test("a saved key with an unavailable secure backend stays removable", async () 
       set: async () => {
         throw new Error("Unavailable");
       },
+      setModel: async () => undefined,
       remove: async () => {
         removed = true;
       },
@@ -194,12 +274,14 @@ test("temporary key-read failure does not permanently suppress model discovery",
         if (++reads === 1) throw new Error("Temporary protected-store failure");
         return testKey;
       },
+      getModel: async () => null,
       status: async () => ({
         hasKey: true,
         remembered: true,
         canRemember: true,
       }),
       set: async () => ({ hasKey: true, remembered: true, canRemember: true }),
+      setModel: async () => undefined,
       remove: async () => undefined,
     },
     { listModels: async () => ["deepseek-chat"] },
