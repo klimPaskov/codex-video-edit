@@ -9,7 +9,14 @@ import {
   realpath,
   writeFile,
 } from "node:fs/promises";
-import { basename, join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
+import { _electron, expect } from "playwright/test";
+import {
+  CodexStdioTransport,
+  CodexTransportError,
+} from "../../packages/codex-bridge/src/transport.ts";
+import { buildCodexAppServerArguments } from "../../packages/codex-bridge/src/client.ts";
+import { buildExperimentalInitialize } from "../../packages/codex-bridge/src/thread-protocol.ts";
 import {
   CodexVideoEditToolError,
   CodexVideoEditToolService,
@@ -27,7 +34,10 @@ assert.equal(process.env.DISPLAY, ":99");
 await access("/.dockerenv");
 const suppliedEvidence = process.argv[2];
 const suppliedConfig = process.argv[3];
-assert.ok(suppliedEvidence && suppliedConfig);
+const executablePath = process.argv[4];
+assert.ok(suppliedEvidence && suppliedConfig && executablePath);
+assert.equal(resolve(executablePath), executablePath);
+assert.ok(executablePath.startsWith("/home/node/workspaces/"));
 const evidence = await realpath(suppliedEvidence);
 const configRoot = await realpath(suppliedConfig);
 assert.equal(evidence, resolve(suppliedEvidence));
@@ -39,6 +49,8 @@ const resultDir = await mkdtemp(
 );
 await chmod(resultDir, 0o700);
 let step = "locate-real-fixture";
+let electron: Awaited<ReturnType<typeof _electron.launch>> | undefined;
+let transport: CodexStdioTransport | undefined;
 try {
   const original = join(evidence, "Color sequence.mkv");
   const originalHash = sha256(await readFile(original));
@@ -133,6 +145,217 @@ try {
   assert.deepEqual(await readFile(matched.baselinePath), matched.baselineBytes);
   assert.equal(sha256(await readFile(matched.managedPath)), originalHash);
   assert.equal(sha256(await readFile(original)), originalHash);
+
+  step = "live-stale-mcp-relay";
+  const registry = JSON.parse(
+    await readFile(
+      join(userData, "codex/context/threads/project-threads.json"),
+      "utf8",
+    ),
+  ) as { entries: Array<{ projectId: string; threadId: string }> };
+  const bindings = registry.entries.filter(
+    (entry) => entry.projectId === matched.projectId,
+  );
+  assert.equal(bindings.length, 1);
+  const threadId = bindings[0]!.threadId;
+  const prompt = `Test the guarded stale-draft response. Call cut.trim_edge exactly once with this earlier, now stale draft head. Do not first refresh it or substitute a new sequence or hash. Treat the expected rejection as success for this diagnostic and do not call any other mutation tool. Use these exact arguments: ${JSON.stringify(
+    {
+      schema_version: "1.0",
+      request_id: "live-stale-after-codex-001",
+      project_id: edit.before.project_id,
+      draft_id: edit.before.draft_id,
+      base_revision_id: edit.before.base_revision_id,
+      expected_sequence: edit.before.draft_sequence,
+      expected_timeline_sha256: edit.before.timeline_sha256,
+      pass_group_id: "stale-spoken-cut-001",
+      reason: "Verify stale freshness through the live guarded tool.",
+      clip_id: edit.before.timeline.clips[0]!.clip_id,
+      edge: "end",
+      timeline_position_us: 1000000,
+    },
+  )}. Then briefly say whether the tool rejected it. Do not claim success without a real tool result.`;
+  electron = await _electron.launch({
+    executablePath,
+    chromiumSandbox: true,
+    env: { ...process.env, XDG_CONFIG_HOME: configRoot },
+    timeout: 30000,
+  });
+  const page = await electron.firstWindow();
+  assert.equal(await electron.evaluate(({ app }) => app.isPackaged), true);
+  assert.equal(page.url(), "codex-video-edit://app/index.html");
+  await electron.evaluate(({ shell }) => {
+    shell.openExternal = async () => {
+      throw new Error("External launch disabled in isolated test");
+    };
+  });
+  await expect
+    .poll(
+      async () => {
+        const result = await page.evaluate(() => window.desktop.getCodex());
+        return (
+          result.ok &&
+          result.value.connection === "connected" &&
+          result.value.account === "signed_in" &&
+          !result.value.busy
+        );
+      },
+      { timeout: 60000 },
+    )
+    .toBe(true);
+  await page
+    .locator(`#projects [data-project-id="${matched.projectId}"]`)
+    .click();
+  await expect(page.locator("#frame")).toBeVisible();
+  await page.getByRole("button", { name: "Codex", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Open conversation", exact: true })
+    .click();
+  const thread = async () => {
+    const result = await page.evaluate(
+      (projectId) =>
+        window.desktop.getCodexThread({
+          schema_version: "1.0",
+          project_id: projectId,
+        }),
+      matched.projectId,
+    );
+    assert.ok(result.ok);
+    return result.value;
+  };
+  await expect
+    .poll(async () => (await thread()).status, { timeout: 90000 })
+    .toBe("ready");
+  const priorUsers = (await thread()).messages.filter(
+    (message) => message.role === "user",
+  ).length;
+  await page.locator("#codex-thread-input").fill(prompt);
+  await page.locator("#send-codex-thread").click();
+  await expect
+    .poll(
+      async () => {
+        const state = await thread();
+        if (state.status === "failed" || state.status === "uncertain")
+          throw new Error("Live stale turn failed; details omitted");
+        const users = state.messages.filter(
+          (message) => message.role === "user",
+        );
+        return (
+          state.status === "ready" &&
+          users.length === priorUsers + 1 &&
+          users.at(-1)?.text === prompt &&
+          state.messages.at(-1)?.role === "codex" &&
+          state.messages.at(-1)?.complete === true
+        );
+      },
+      { timeout: 240000, intervals: [250, 500, 1000] },
+    )
+    .toBe(true);
+  await page.screenshot({ path: join(resultDir, "native-window.png") });
+  await electron.close();
+  electron = undefined;
+
+  step = "authoritative-stale-tool-history";
+  const codexHome = join(userData, "codex/account");
+  const runtime = join(dirname(executablePath), "resources/codex/codex");
+  transport = new CodexStdioTransport({
+    executable: runtime,
+    args: buildCodexAppServerArguments(),
+    cwd: join(userData, "codex/context"),
+    env: {
+      HOME: dirname(codexHome),
+      USERPROFILE: dirname(codexHome),
+      CODEX_HOME: codexHome,
+      ...(process.env.PATH ? { PATH: process.env.PATH } : {}),
+    },
+    requestTimeoutMs: 120000,
+  });
+  await transport.start(buildExperimentalInitialize("0.0.0"));
+  const turns = async () => {
+    const input = {
+      threadId,
+      limit: 100,
+      sortDirection: "desc",
+      itemsView: "full",
+    };
+    try {
+      return await transport!.request("thread/turns/list", input);
+    } catch (error) {
+      if (!(
+        error instanceof CodexTransportError && error.code === "remote_error"
+      ))
+        throw error;
+      await transport!.request("thread/resume", {
+        threadId,
+        excludeTurns: true,
+      });
+      return transport!.request("thread/turns/list", input);
+    }
+  };
+  const history = (await turns()) as {
+    data: Array<{ status: string; items: Array<Record<string, unknown>> }>;
+  };
+  const target = history.data.find((turn) =>
+    turn.items.some(
+      (item) =>
+        item.type === "userMessage" &&
+        Array.isArray(item.content) &&
+        item.content.some(
+          (content: unknown) =>
+            typeof content === "object" &&
+            content !== null &&
+            "text" in content &&
+            content.text === prompt,
+        ),
+    ),
+  );
+  assert.ok(target && target.status === "completed");
+  const staleCalls = target.items.filter(
+    (item) =>
+      item.type === "mcpToolCall" &&
+      item.server === "codex-video-edit" &&
+      item.tool === "cut.trim_edge",
+  );
+  assert.equal(staleCalls.length, 1, "Require one live guarded stale call");
+  const staleCall = staleCalls[0]!;
+  assert.equal(staleCall.status, "failed");
+  const staleArguments = staleCall.arguments as {
+    request_id?: unknown;
+    project_id?: unknown;
+    draft_id?: unknown;
+    base_revision_id?: unknown;
+    expected_sequence?: unknown;
+    expected_timeline_sha256?: unknown;
+    clip_id?: unknown;
+  };
+  assert.equal(staleArguments.request_id, "live-stale-after-codex-001");
+  assert.equal(staleArguments.project_id, edit.before.project_id);
+  assert.equal(staleArguments.draft_id, edit.before.draft_id);
+  assert.equal(staleArguments.base_revision_id, edit.before.base_revision_id);
+  assert.equal(staleArguments.expected_sequence, edit.before.draft_sequence);
+  assert.equal(
+    staleArguments.expected_timeline_sha256,
+    edit.before.timeline_sha256,
+  );
+  assert.equal(staleArguments.clip_id, edit.before.timeline.clips[0]!.clip_id);
+  const resultText = JSON.stringify({
+    result: staleCall.result,
+    error: staleCall.error,
+  });
+  assert.ok(
+    /stale|draft changed before this edit/i.test(resultText),
+    "The live MCP result did not relay the stale-draft rejection",
+  );
+  await transport.close();
+  transport = undefined;
+  assert.deepEqual(
+    (await drafts.snapshot(matched.projectId)).draft,
+    edit.after,
+  );
+  assert.deepEqual(await readdir(journalRoot), journalNames);
+  assert.deepEqual(await readFile(journalPath), journalBefore);
+  assert.deepEqual(await readFile(matched.baselinePath), matched.baselineBytes);
+  assert.equal(sha256(await readFile(matched.managedPath)), originalHash);
+  assert.equal(sha256(await readFile(original)), originalHash);
   await writeFile(
     join(resultDir, "result.json"),
     JSON.stringify(
@@ -144,8 +367,8 @@ try {
         journalUnchanged: true,
         sourceUnchanged: true,
         baselineUnchanged: true,
-        nativeLaunchInThisContinuation: false,
-        liveStdioStaleRelayVerified: false,
+        nativeLaunchInThisContinuation: true,
+        liveStdioStaleRelayVerified: true,
         sourceHash: originalHash,
         journalHash: sha256(journalBefore),
       },
@@ -163,4 +386,7 @@ try {
     `Stale continuation failed at ${step}; private details omitted.`,
   );
   process.exitCode = 1;
+} finally {
+  await transport?.close().catch(() => {});
+  await electron?.close().catch(() => {});
 }
