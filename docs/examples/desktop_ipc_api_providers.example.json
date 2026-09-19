@@ -16,11 +16,11 @@
         },
         {
           "id": "openai",
-          "connected": false,
-          "remembered": false,
-          "canRemember": false,
-          "models": [],
-          "selectedModel": null,
+          "connected": true,
+          "remembered": true,
+          "canRemember": true,
+          "models": ["gpt-4.1"],
+          "selectedModel": "gpt-4.1",
           "busy": false,
           "message": null
         }

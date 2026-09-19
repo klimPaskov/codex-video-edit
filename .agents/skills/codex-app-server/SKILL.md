@@ -90,6 +90,8 @@ Apply authorized reversible active-draft transactions during the turn without re
 
 For an API-provider turn, require an explicit user start action because that call may incur provider charges. Once started, validated reversible edits may commit during the turn without repeated per-edit approval. API-provider output is untrusted intent; only main's shared transaction service commits it. Do not infer Codex skills, threads, subagents or subscription usage for another provider. Keep provider model catalogs and capability labels separate. A `/models` listing proves account membership, not Chat Completions or tool compatibility: intersect live IDs with the adapter's reviewed model families, and report an empty supported subset instead of offering base, embedding, audio, or untested reasoning models.
 
+For a remembered API key, save its selected model in the same OS-protected key record and revalidate that ID against fresh provider discovery on restart. A key replacement must clear the previous selection even when the new account offers the same model. Keep session-only model selection in memory only, and migrate older key-only ciphertext without exposing the key. Do not count fake secure-storage tests as native OS-keyring acceptance.
+
 ## Packaged account/settings validation
 
 Resolve only main-owned fixed packaged resources and verify the pinned runtime manifest, binary and licence before connection. Keep the official runtime outside ASAR and out of Git; preserve licensing in private packaged builds. A content hash is not a release signature. Test missing, damaged and redirected resources without launching test fixture bytes.

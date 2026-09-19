@@ -5,6 +5,8 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { ProviderId } from "../../../packages/api-providers/src/types.ts";
 
 const maxCiphertextBytes = 16 * 1024;
+const envelopePrefix = "\0CVE_PROVIDER_KEY_1:";
+const modelPattern = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/u;
 const pending = new Map<string, Promise<unknown>>();
 
 export type ProviderKeyErrorCode =
@@ -50,6 +52,37 @@ function assertKey(key: string): void {
     /[\r\n\0]/.test(key)
   )
     throw new ProviderKeyError("invalid_key");
+}
+
+function storedKey(plainText: string): { key: string; model: string | null } {
+  if (!plainText.startsWith(envelopePrefix)) {
+    // Keys saved before model persistence contained only the raw key.
+    assertKey(plainText);
+    return { key: plainText, model: null };
+  }
+  const value: unknown = JSON.parse(plainText.slice(envelopePrefix.length));
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Object.prototype ||
+    Object.keys(value).length !== 2 ||
+    !Object.hasOwn(value, "key") ||
+    !Object.hasOwn(value, "model")
+  )
+    throw new ProviderKeyError("storage_failure");
+  const item = value as { key: unknown; model: unknown };
+  assertKey(item.key as string);
+  if (
+    item.model !== null &&
+    (typeof item.model !== "string" || !modelPattern.test(item.model))
+  )
+    throw new ProviderKeyError("storage_failure");
+  return { key: item.key as string, model: item.model as string | null };
+}
+
+function envelope(key: string, model: string | null): string {
+  return `${envelopePrefix}${JSON.stringify({ key, model })}`;
 }
 
 function missing(error: unknown): boolean {
@@ -160,6 +193,15 @@ export class ProviderKeyStore {
     }
   }
 
+  private async readStored(
+    provider: ProviderId,
+  ): Promise<{ key: string; model: string | null } | null> {
+    const ciphertext = await this.readCiphertext(provider);
+    return ciphertext
+      ? storedKey(this.storage.decryptString(ciphertext))
+      : null;
+  }
+
   private async removeCiphertext(provider: ProviderId): Promise<void> {
     await this.directory();
     try {
@@ -207,12 +249,12 @@ export class ProviderKeyStore {
         throw new ProviderKeyError("secure_storage_unavailable");
       try {
         if (options.remember) {
-          const ciphertext = this.storage.encryptString(key);
+          const ciphertext = this.storage.encryptString(envelope(key, null));
           if (
             !Buffer.isBuffer(ciphertext) ||
             ciphertext.length < 1 ||
             ciphertext.length > maxCiphertextBytes ||
-            ciphertext.equals(Buffer.from(key, "utf8"))
+            ciphertext.equals(Buffer.from(envelope(key, null), "utf8"))
           )
             throw new ProviderKeyError("storage_failure");
           await this.writeCiphertext(provider, ciphertext);
@@ -238,11 +280,45 @@ export class ProviderKeyStore {
       if (sessionKey) return sessionKey;
       if (!this.secure()) return null;
       try {
-        const ciphertext = await this.readCiphertext(provider);
-        if (!ciphertext) return null;
-        const key = this.storage.decryptString(ciphertext);
-        assertKey(key);
-        return key;
+        return (await this.readStored(provider))?.key ?? null;
+      } catch {
+        throw new ProviderKeyError("storage_failure");
+      }
+    });
+  }
+
+  async getModel(provider: ProviderId): Promise<string | null> {
+    assertProvider(provider);
+    return this.serialize(async () => {
+      if (!this.secure()) return null;
+      try {
+        return (await this.readStored(provider))?.model ?? null;
+      } catch {
+        throw new ProviderKeyError("storage_failure");
+      }
+    });
+  }
+
+  async setModel(provider: ProviderId, model: string): Promise<void> {
+    assertProvider(provider);
+    if (typeof model !== "string" || !modelPattern.test(model))
+      throw new ProviderKeyError("storage_failure");
+    return this.serialize(async () => {
+      if (!this.secure())
+        throw new ProviderKeyError("secure_storage_unavailable");
+      try {
+        const saved = await this.readStored(provider);
+        if (!saved) throw new ProviderKeyError("storage_failure");
+        const plainText = envelope(saved.key, model);
+        const ciphertext = this.storage.encryptString(plainText);
+        if (
+          !Buffer.isBuffer(ciphertext) ||
+          ciphertext.length < 1 ||
+          ciphertext.length > maxCiphertextBytes ||
+          ciphertext.equals(Buffer.from(plainText, "utf8"))
+        )
+          throw new ProviderKeyError("storage_failure");
+        await this.writeCiphertext(provider, ciphertext);
       } catch {
         throw new ProviderKeyError("storage_failure");
       }

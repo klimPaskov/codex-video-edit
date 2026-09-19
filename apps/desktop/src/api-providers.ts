@@ -13,7 +13,10 @@ import {
 import type { ApiProviderClient } from "../../../packages/api-providers/src/client.ts";
 import type { ProviderKeyStore } from "./provider-keys.ts";
 
-type KeyStore = Pick<ProviderKeyStore, "get" | "status" | "set" | "remove">;
+type KeyStore = Pick<
+  ProviderKeyStore,
+  "get" | "getModel" | "status" | "set" | "setModel" | "remove"
+>;
 type CatalogClient = Pick<ApiProviderClient, "listModels">;
 class UnsupportedCatalogError extends Error {}
 
@@ -62,8 +65,11 @@ export class DesktopApiProviders {
       );
       if (models.length === 0) throw new UnsupportedCatalogError();
       this.models.set(provider, models);
-      if (!models.includes(this.selections.get(provider) ?? ""))
-        this.selections.delete(provider);
+      const candidate =
+        this.selections.get(provider) ?? (await this.keys.getModel(provider));
+      if (candidate && models.includes(candidate))
+        this.selections.set(provider, candidate);
+      else this.selections.delete(provider);
       this.issues.delete(provider);
       this.checked.add(provider);
     } catch (error) {
@@ -131,8 +137,8 @@ export class DesktopApiProviders {
         await this.keys.set(provider, key, { remember });
         this.checked.add(provider);
         this.models.set(provider, models);
-        if (!models.includes(this.selections.get(provider) ?? ""))
-          this.selections.delete(provider);
+        // Replacing a credential never carries a previous account's choice.
+        this.selections.delete(provider);
       }
     } catch (error) {
       this.issues.set(
@@ -168,7 +174,19 @@ export class DesktopApiProviders {
     );
     if (!provider?.connected || !provider.models.includes(request.model))
       throw new Error("Model is unavailable");
+    if (provider.remembered) {
+      try {
+        await this.keys.setModel(request.provider, request.model);
+      } catch {
+        this.issues.set(
+          request.provider,
+          "Model choice could not be saved. Try again.",
+        );
+        return this.get();
+      }
+    }
     this.selections.set(request.provider, request.model);
+    this.issues.delete(request.provider);
     return this.get();
   }
 

@@ -16,6 +16,7 @@ export interface ApiProviderView {
     | "Provider models are unavailable. Try reconnecting."
     | "Saved key is unavailable on this device. Remove it or connect again."
     | "No supported editing models are available for this key."
+    | "Model choice could not be saved. Try again."
     | null;
 }
 export interface ApiProvidersView {
@@ -40,6 +41,7 @@ const issues = new Set([
   "Provider models are unavailable. Try reconnecting.",
   "Saved key is unavailable on this device. Remove it or connect again.",
   "No supported editing models are available for this key.",
+  "Model choice could not be saved. Try again.",
 ]);
 function exact(value: unknown, keys: string[]): Record<string, unknown> {
   if (
