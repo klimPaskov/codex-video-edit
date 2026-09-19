@@ -82,6 +82,8 @@ Account type alone does not prove managed-token provenance. Restrict the actual 
 
 ADR 0006 records the user's explicit authorization to seed this session's private app-owned guest account with only the official runtime credential file, mode 600. This test setup exception does not change production managed ChatGPT onboarding, add a credential-import feature, permit renderer token input, or authorize copying configuration/history or mounting a host account directory. Never expose credential bytes, account identifiers or private locations. A seeded connected/signed_in probe with runtime model/skill/usage discovery is authenticated discovery evidence, not browser-login completion. Real private-fixture turns, guarded reversible edits, interruption, history reopen, stale rejection, shared undo and native child-policy checks remain separate acceptance tests.
 
+A packaged signed-out test now opens the real OpenAI login page in an isolated guest-local Chromium browser and returns to signed out after cancellation. Count it only as opener/cancel evidence. The authorized credential seed and guest browser page still do not prove that the app received a completed managed login; retain that gate until an actual callback and reconciled account state are observed.
+
 ## Authorized live operations
 
 Apply authorized reversible active-draft transactions during the turn without repeated material-change confirmation. Magic Wand, Codex and manual edits share undo history. Export preparation may stage settings without confirmation but cannot start final export. Keep source deletion, cleanup, spending, publication and final export under explicit user action; handle native server approvals separately. Test both authorization and forbidden-effect boundaries.
