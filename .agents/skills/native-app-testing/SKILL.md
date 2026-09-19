@@ -24,6 +24,8 @@ For the P0-04/P0-06 bootstrap, apply ADR 0012 and test the actual packaged produ
 
 For interface sizing changes, test persisted zoom after restart, modal focus and dismissal, and inspector bounds alongside the preview at every supported size. Inspect the actual native window after saving a larger scale: focus restoration can scroll navigation out of view even when a screenshot has no horizontal overflow. Keep this visual check separate from pixel transport equality.
 
+For the managed-login opener, use a guest-local browser/URL handler under the same unprivileged, no-mount, no-port policy. Launch packaged Electron from a fresh signed-out account with the real `shell.openExternal` path, inspect both guest browser and native window with `guest-input.py`, cancel back to signed out, and terminate only test-owned guest browser/opener processes. A loaded OpenAI login page proves opening, not account-login completion. Keep OAuth URLs, codes, browser profiles and screenshots private.
+
 ## Prohibitions
 
 - Do not build or launch the product on the user's host, control the host PC, or capture host windows. The latest user instruction supersedes the earlier viewer exception. Historical viewer evidence remains historical; future host-viewer use requires a new explicit user request.

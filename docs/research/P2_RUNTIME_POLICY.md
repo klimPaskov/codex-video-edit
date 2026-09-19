@@ -12,6 +12,8 @@ Use a product-owned Codex home and an explicit child environment, without inheri
 
 ADR 0006 records the user's explicit one-session test setup authorization: only the official runtime credential file was copied directly into the private app-owned guest account with mode 600. No account-directory mount, configuration, history or secret output was involved; the host file was unchanged at transfer. This is not a production credential-import feature and does not relax renderer IPC or managed sign-in policy. A packaged probe now reports connected/signed_in and runtime model, skill and usage discovery. Account access is available for private synthetic-fixture testing, but this does not prove browser-login completion or any live turn/tool/edit gate. Preserve the earlier signed-out outcomes separately.
 
+A later isolated guest image added Chromium and `xdg-utils`. A fresh signed-out packaged Electron test used its real main-owned opener, observed Chromium start with the validated OpenAI authorization route, and cancelled back to signed out. Guest-only screenshot inspection showed the loaded OpenAI login page with the native editor behind it. The test-owned browser/opener exited without a host browser or published port. This closes the browser-opener evidence gap, not managed browser-login completion: no user authentication callback or reconciled signed-in account was observed in that run.
+
 ## Environment access and built-in tools
 
 `features.shell_tool = false` is supported. The pinned [tool configuration](https://github.com/openai/codex/blob/rust-v0.142.3/codex-rs/tools/src/tool_config.rs#L81) maps this flag to `ConfigShellToolType::Disabled`.
