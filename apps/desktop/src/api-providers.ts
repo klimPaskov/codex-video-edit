@@ -15,6 +15,19 @@ import type { ProviderKeyStore } from "./provider-keys.ts";
 
 type KeyStore = Pick<ProviderKeyStore, "get" | "status" | "set" | "remove">;
 type CatalogClient = Pick<ApiProviderClient, "listModels">;
+class UnsupportedCatalogError extends Error {}
+
+/** /models proves account access, not compatibility with our chat tool path. */
+export function editingModels(
+  provider: ApiProviderId,
+  catalog: string[],
+): string[] {
+  const supported =
+    provider === "openai"
+      ? /^gpt-4(?:\.1(?:-(?:mini|nano))?|o(?:-mini)?)(?:-\d{4}-\d{2}-\d{2})?$/u
+      : /^deepseek-(?:chat|reasoner|flash|v4-(?:flash|pro))(?:-\d{4,8})?$/u;
+  return catalog.filter((model) => supported.test(model));
+}
 
 /** Main-only account catalog. No key or provider error crosses IPC. */
 export class DesktopApiProviders {
@@ -43,16 +56,22 @@ export class DesktopApiProviders {
         this.checked.add(provider);
         return;
       }
-      const models = await this.client.listModels(provider, key);
+      const models = editingModels(
+        provider,
+        await this.client.listModels(provider, key),
+      );
+      if (models.length === 0) throw new UnsupportedCatalogError();
       this.models.set(provider, models);
       if (!models.includes(this.selections.get(provider) ?? ""))
         this.selections.delete(provider);
       this.issues.delete(provider);
       this.checked.add(provider);
-    } catch {
+    } catch (error) {
       this.issues.set(
         provider,
-        "Provider models are unavailable. Try reconnecting.",
+        error instanceof UnsupportedCatalogError
+          ? "No supported editing models are available for this key."
+          : "Provider models are unavailable. Try reconnecting.",
       );
       this.checked.delete(provider);
     } finally {
@@ -104,18 +123,23 @@ export class DesktopApiProviders {
           "Secure storage is unavailable. Use this session only.",
         );
       else {
-        const models = await this.client.listModels(provider, key);
-        if (models.length === 0) throw new Error("Empty model catalog");
+        const models = editingModels(
+          provider,
+          await this.client.listModels(provider, key),
+        );
+        if (models.length === 0) throw new UnsupportedCatalogError();
         await this.keys.set(provider, key, { remember });
         this.checked.add(provider);
         this.models.set(provider, models);
         if (!models.includes(this.selections.get(provider) ?? ""))
           this.selections.delete(provider);
       }
-    } catch {
+    } catch (error) {
       this.issues.set(
         provider,
-        "Connection failed. Check the key and try again.",
+        error instanceof UnsupportedCatalogError
+          ? "No supported editing models are available for this key."
+          : "Connection failed. Check the key and try again.",
       );
     } finally {
       this.pending.delete(provider);

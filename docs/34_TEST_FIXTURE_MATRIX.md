@@ -46,7 +46,7 @@ Use a fake protocol server for parser and recovery tests. Keep a separate real a
 
 ## API-provider fixtures
 
-Use a local fake HTTP server for fixed-endpoint/parser/failure/timeout and key-redaction tests, with provider adapters injected only in tests. Verify no renderer or project key exposure, OS-protected storage or session-only fallback, live catalog validation, explicit paid-turn start, malicious edit-output rejection, stale transaction rejection and shared undo. Separate real authenticated OpenAI API and DeepSeek fixture turns plus packaged isolated native inspection are required before P2 provider acceptance; fake responses alone are insufficient. Keep private keys and outputs outside Git.
+Use a local fake HTTP server for fixed-endpoint/parser/failure/timeout and key-redaction tests, with provider adapters injected only in tests. Verify no renderer or project key exposure, OS-protected storage or session-only fallback, live catalog validation, explicit paid-turn start, malicious edit-output rejection, stale transaction rejection and shared undo. The optional packaged `api-provider-live-catalog.test.ts` consumes a private guest-only key file, deletes it before launch, authenticates OpenAI model discovery and selection without generation, and checks session-only restart. Separate real authenticated OpenAI API and DeepSeek fixture turns plus packaged isolated native inspection are still required before P2 provider acceptance; fake responses and catalog discovery alone are insufficient. Keep private keys and outputs outside Git.
 
 ## User example sequence
 

@@ -15,6 +15,7 @@ export interface ApiProviderView {
     | "Secure storage is unavailable. Use this session only."
     | "Provider models are unavailable. Try reconnecting."
     | "Saved key is unavailable on this device. Remove it or connect again."
+    | "No supported editing models are available for this key."
     | null;
 }
 export interface ApiProvidersView {
@@ -38,6 +39,7 @@ const issues = new Set([
   "Secure storage is unavailable. Use this session only.",
   "Provider models are unavailable. Try reconnecting.",
   "Saved key is unavailable on this device. Remove it or connect again.",
+  "No supported editing models are available for this key.",
 ]);
 function exact(value: unknown, keys: string[]): Record<string, unknown> {
   if (

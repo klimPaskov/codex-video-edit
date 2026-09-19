@@ -88,7 +88,7 @@ A packaged signed-out test now opens the real OpenAI login page in an isolated g
 
 Apply authorized reversible active-draft transactions during the turn without repeated material-change confirmation. Magic Wand, Codex and manual edits share undo history. Export preparation may stage settings without confirmation but cannot start final export. Keep source deletion, cleanup, spending, publication and final export under explicit user action; handle native server approvals separately. Test both authorization and forbidden-effect boundaries.
 
-For an API-provider turn, require an explicit user start action because that call may incur provider charges. Once started, validated reversible edits may commit during the turn without repeated per-edit approval. API-provider output is untrusted intent; only main's shared transaction service commits it. Do not infer Codex skills, threads, subagents or subscription usage for another provider. Keep provider model catalogs and capability labels separate.
+For an API-provider turn, require an explicit user start action because that call may incur provider charges. Once started, validated reversible edits may commit during the turn without repeated per-edit approval. API-provider output is untrusted intent; only main's shared transaction service commits it. Do not infer Codex skills, threads, subagents or subscription usage for another provider. Keep provider model catalogs and capability labels separate. A `/models` listing proves account membership, not Chat Completions or tool compatibility: intersect live IDs with the adapter's reviewed model families, and report an empty supported subset instead of offering base, embedding, audio, or untested reasoning models.
 
 ## Packaged account/settings validation
 
