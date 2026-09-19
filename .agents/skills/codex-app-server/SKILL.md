@@ -42,11 +42,12 @@ On thread create and resume, append only main-owned validated `project_id` and `
 Read project metadata and the active draft in one transaction-store serialization. After every settled mutation, reread and publish the authoritative path-free draft even when journal promotion preceded an uncertain response. Do not derive editor state from model text or MCP activity. Bind project preview requests to draft ID, baseline revision, sequence and timeline hash; map output time to source time only in main, recheck the head after decode, and return no stale pixels.
 
 For the pinned experimental thread protocol, request experimental capability during
-initialize, send the reviewed main-owned environment/tool policy on thread and turn start,
+initialize, explicitly request v1 native collaboration in both app-server and thread configuration, send the reviewed main-owned environment/tool policy on thread and turn start,
 and omit start-only fields on resume. Treat streamed terminal events as authoritative,
 correlate them to the active thread and turn, and make retry a new turn with a new request
-identity. Native subagents are represented only by app-server collaboration items; do not
-invent a separate spawn RPC.
+identity. Model metadata and persisted thread state can override the v1 feature fallback; feature flags alone do not prove a child exists or inherited policy. Require a fresh native child turn and correlated owned read-tool call before claiming support. Native subagents are represented only by app-server collaboration items; do not invent a separate spawn RPC.
+
+App Server broadcasts child-thread notifications on the parent transport. Filter ordinary events for another validated thread identity before parent buffering/projection; keep malformed identities and forbidden notification methods fail-closed. The parent drawer may show only generic collaboration activity. Verify parent spawn and child read-tool history from the authoritative server privately; do not project child transcript, IDs, arguments or results into the renderer.
 
 Restore recent project-thread history from the bounded inline full-turn page, with one exact newest-first `thread/turns/list` fallback when the inline page is absent. Validate the page, cursors, unique turn/item IDs, count/byte limits, item unions, required supported resume thread status, inline activity agreement, and newest-only in-progress turn before flushing buffered notifications. Treat a separate fallback page as the later authority so completion between resume and list remains valid. Project only redacted user/agent text and generic owned activity in chronological order under fresh renderer IDs. Preserve known completion state, seed every active-turn item for raced notifications, and ignore validated skill paths. Quarantine command/file/web/image/dynamic/foreign-MCP/unknown or approval-waiting history; never expose raw history, cursors, server IDs, paths, arguments, results, or reasoning through IPC.
 

@@ -196,6 +196,18 @@ export class CodexProjectThreadClient {
 
   notification(method: string, params: unknown): void {
     if (this.quarantined) throw new CodexThreadProtocolError("forbidden");
+    // Native child threads share this app-server transport. Their ordinary
+    // stream belongs to the child, never to the active project projection.
+    if (
+      (method === "turn/started" ||
+        method === "turn/completed" ||
+        method === "item/started" ||
+        method === "item/completed" ||
+        method === "item/agentMessage/delta" ||
+        method === "error") &&
+      this.runtime.isOtherThreadNotification(params)
+    )
+      return;
     if (this.inFlight) {
       if (
         this.pending.length >= MAX_BUFFERED_NOTIFICATIONS ||

@@ -35,10 +35,10 @@ ADR 0013 brings only the necessary project foundation forward from P3. Stage nav
 - [ ] P2-01 Spawn the official Codex app-server over stdio and implement initialize lifecycle and restart recovery.
 - [ ] P2-02 Add ChatGPT-managed login, logout, account state, and rate-limit display.
 - [ ] P2-03 Discover models, reasoning options, skills, and skill changes at runtime.
-- [ ] P2-04 Implement durable project threads, streaming items, interrupt, retry, and compact user-facing activity.
+- [ ] P2-04 Implement durable project threads, streaming items, interrupt, retry, and compact user-facing activity. Filter native child notifications from the parent projection and require correlated server history before claiming a subagent ran.
 - [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and shared validated transaction engine, including expected draft sequence, durable journal, atomic persistence, deterministic inverse/undo, and committed-transaction recovery required by the real fixture edit (ADR 0013). Support the editorial pass groups, current sequence/hash preconditions and truthful verified checkpoints in docs/47_EDITORIAL_FIRST_CUT.md.
 - [ ] P2-06 Prove a real authenticated Codex turn can inspect a fixture project and apply a draft-only edit. Bootstrap read tools on create/resume with the main-owned validated project identity; obtain current draft identifiers, sequence and hash through those tools before mutation.
-- [ ] P2-07 Reject fake responses and stale protocol assumptions.
+- [ ] P2-07 Reject fake responses and stale protocol assumptions. Distinguish offline guarded-service freshness on a real Codex edit from live stdio error relay, and leave native-agent support unverified without a completed spawn and child read.
 
 Acceptance: a real Codex smoke test passes or the phase remains blocked with exact evidence.
 

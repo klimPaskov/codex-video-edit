@@ -283,6 +283,16 @@ export class ProjectThreadRuntime {
     return event;
   }
 
+  /** App Server broadcasts native-child events on the same connection. */
+  isOtherThreadNotification(params: unknown): boolean {
+    if (!this.threadId || !threadProtocolInternals.record(params)) return false;
+    if (!Object.hasOwn(params, "threadId")) return false;
+    return (
+      threadProtocolInternals.identifier(params.threadId, "protocol") !==
+      this.threadId
+    );
+  }
+
   disconnect(): ThreadStreamEvent | null {
     const projector = this.requireProjector();
     const event = projector.disconnect(projector.currentGeneration());
