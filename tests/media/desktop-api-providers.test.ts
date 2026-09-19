@@ -132,3 +132,28 @@ test("a saved key with an unavailable secure backend stays removable", async () 
     false,
   );
 });
+
+test("temporary key-read failure does not permanently suppress model discovery", async () => {
+  let reads = 0;
+  const account = new DesktopApiProviders(
+    {
+      get: async () => {
+        if (++reads === 1) throw new Error("Temporary protected-store failure");
+        return testKey;
+      },
+      status: async () => ({
+        hasKey: true,
+        remembered: true,
+        canRemember: true,
+      }),
+      set: async () => ({ hasKey: true, remembered: true, canRemember: true }),
+      remove: async () => undefined,
+    },
+    { listModels: async () => ["deepseek-chat"] },
+  );
+  assert.deepEqual((await account.get()).providers[0]?.models, []);
+  assert.deepEqual((await account.get()).providers[0]?.models, [
+    "deepseek-chat",
+  ]);
+  assert.equal(reads >= 2, true);
+});

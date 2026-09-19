@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { lstat, mkdir, open, rename, unlink } from "node:fs/promises";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { ProviderId } from "../../../packages/api-providers/src/types.ts";
 
 const maxCiphertextBytes = 16 * 1024;
@@ -105,13 +105,17 @@ export class ProviderKeyStore {
 
   private async directory(): Promise<void> {
     await mkdir(this.root, { recursive: true, mode: 0o700 });
-    const stat = await lstat(this.root);
-    if (
-      !stat.isDirectory() ||
-      stat.isSymbolicLink() ||
-      resolve(await realpath(this.root)) !== this.root
-    )
-      throw new ProviderKeyError("storage_failure");
+    // Reject linked ancestors directly. Windows realpath may change path
+    // casing or namespace spelling without following a link.
+    let current = this.root;
+    for (;;) {
+      const stat = await lstat(current);
+      if (!stat.isDirectory() || stat.isSymbolicLink())
+        throw new ProviderKeyError("storage_failure");
+      const parent = dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
   }
 
   private path(provider: ProviderId): string {

@@ -1,15 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import {
-  mkdir,
-  lstat,
-  open,
-  readFile,
-  realpath,
-  rename,
-  rm,
-} from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { mkdir, lstat, open, readFile, rename, rm } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import type { ApiProviderClient } from "../../../packages/api-providers/src/client.ts";
 import type {
   ApiChatCompletion,
@@ -245,13 +237,15 @@ export class ApiProviderThreads {
 
   private async privateDirectory(): Promise<void> {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
-    const stat = await lstat(this.directory);
-    if (
-      !stat.isDirectory() ||
-      stat.isSymbolicLink() ||
-      resolve(await realpath(this.directory)) !== resolve(this.directory)
-    )
-      throw new Error("Invalid conversation storage");
+    let current = resolve(this.directory);
+    for (;;) {
+      const stat = await lstat(current);
+      if (!stat.isDirectory() || stat.isSymbolicLink())
+        throw new Error("Invalid conversation storage");
+      const parent = dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
   }
 
   private async save(view: OpenView): Promise<void> {

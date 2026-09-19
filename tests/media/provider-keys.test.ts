@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test, { type TestContext } from "node:test";
@@ -163,3 +163,20 @@ test("invalid provider IDs and malformed keys are rejected before storage", asyn
     errorCode("invalid_key"),
   );
 });
+
+test(
+  "a linked parent directory cannot redirect key storage",
+  { skip: process.platform === "win32" },
+  async (t) => {
+    const root = await directory(t);
+    await mkdir(join(root, "real"));
+    await symlink(join(root, "real"), join(root, "linked"), "dir");
+    const keys = new ProviderKeyStore(join(root, "linked", "keys"), storage(), {
+      platform: "linux",
+    });
+    await assert.rejects(
+      keys.set("deepseek", key, { remember: false }),
+      errorCode("storage_failure"),
+    );
+  },
+);

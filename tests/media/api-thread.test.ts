@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -362,3 +369,31 @@ test("IPC request and view validators reject surplus fields and malformed roles"
     }),
   );
 });
+
+test(
+  "a linked parent directory cannot redirect conversation history",
+  { skip: process.platform === "win32" },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), "api-threads-linked-"));
+    try {
+      await mkdir(join(root, "real"));
+      await symlink(join(root, "real"), join(root, "linked"), "dir");
+      const threads = new ApiProviderThreads(
+        join(root, "linked"),
+        { selected: async () => null },
+        {
+          complete: async () => {
+            throw new Error("No network expected");
+          },
+        },
+        async () => ({}),
+      );
+      await assert.rejects(
+        threads.open(project, provider),
+        /Invalid conversation storage/,
+      );
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);

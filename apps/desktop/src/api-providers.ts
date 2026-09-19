@@ -36,21 +36,25 @@ export class DesktopApiProviders {
 
   private async discover(provider: ApiProviderId): Promise<void> {
     if (this.checked.has(provider) || this.pending.has(provider)) return;
-    this.checked.add(provider);
-    const key = await this.keys.get(provider);
-    if (!key) return;
     this.pending.add(provider);
     try {
+      const key = await this.keys.get(provider);
+      if (!key) {
+        this.checked.add(provider);
+        return;
+      }
       const models = await this.client.listModels(provider, key);
       this.models.set(provider, models);
       if (!models.includes(this.selections.get(provider) ?? ""))
         this.selections.delete(provider);
       this.issues.delete(provider);
+      this.checked.add(provider);
     } catch {
       this.issues.set(
         provider,
         "Provider models are unavailable. Try reconnecting.",
       );
+      this.checked.delete(provider);
     } finally {
       this.pending.delete(provider);
     }
