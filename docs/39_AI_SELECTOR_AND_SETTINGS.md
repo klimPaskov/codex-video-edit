@@ -2,7 +2,7 @@
 
 ## First release
 
-The AI settings area offers Codex with ChatGPT sign-in plus explicit OpenAI API and DeepSeek key connections under ADR 0014. Do not show fake providers, disabled marketing cards or an arbitrary provider marketplace. A packaged isolated native test covers disconnected API settings and key rejection; no authenticated API key or provider turn was available for live verification.
+The AI settings area offers Codex with ChatGPT sign-in plus explicit OpenAI API and DeepSeek key connections under ADR 0014. Do not show fake providers, disabled marketing cards or an arbitrary provider marketplace. Packaged isolated native tests cover disconnected API settings, key rejection, and authenticated OpenAI API model discovery/selection with session-only restart. No paid provider turn or authenticated DeepSeek key has been tested.
 
 ## Provider row
 
@@ -18,7 +18,7 @@ For each supported API provider, show only a main-owned key connect/replace/remo
 
 ## Model selector
 
-Populate Codex from the current app-server model catalog and each API provider from its supported live model discovery. Show friendly labels and reasoning choices only where that provider returns them. Do not hardcode a model as the only selectable model. Validate the choice against its own provider catalog; report unavailable discovery rather than fabricate choices. Save a project default and allow a per-turn override when supported.
+Populate Codex from the current app-server model catalog and each API provider from its supported live model discovery. The model-list endpoint is account membership, not an endpoint-capability declaration: intersect OpenAI IDs with the reviewed GPT-4.1/GPT-4o text Chat Completions families and DeepSeek IDs with its reviewed chat/V4 names. Show an actionable error when no supported model remains. Show friendly labels and reasoning choices only where that provider returns them. Do not hardcode a model as the only selectable model. Validate the choice against its own provider catalog; report unavailable discovery rather than fabricate choices. Save a project default and allow a per-turn override when supported.
 
 ## Skills
 

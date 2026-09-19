@@ -1258,7 +1258,7 @@
               "models": { "type": "array", "maxItems": 1024, "uniqueItems": true, "items": { "type": "string", "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$" } },
               "selectedModel": { "type": ["string", "null"] },
               "busy": { "type": "boolean" },
-              "message": { "enum": [null, "Connection failed. Check the key and try again.", "Secure storage is unavailable. Use this session only.", "Provider models are unavailable. Try reconnecting.", "Saved key is unavailable on this device. Remove it or connect again."] }
+              "message": { "enum": [null, "Connection failed. Check the key and try again.", "Secure storage is unavailable. Use this session only.", "Provider models are unavailable. Try reconnecting.", "Saved key is unavailable on this device. Remove it or connect again.", "No supported editing models are available for this key."] }
             }
           }
         }

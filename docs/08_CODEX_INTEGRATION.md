@@ -2,7 +2,7 @@
 
 ## Provider scope
 
-Codex remains the mandatory App Server provider. ADR 0014 also requires optional OpenAI API and DeepSeek key connections, each on a fixed provider endpoint. Do not show disabled competitors or an empty marketplace. Show only implemented provider rows and models verified against the relevant live catalog. The provider implementation has fixed-endpoint and fake-transport tests plus a packaged settings test; no authenticated DeepSeek or OpenAI API turn has been evidenced.
+Codex remains the mandatory App Server provider. ADR 0014 also requires optional OpenAI API and DeepSeek key connections, each on a fixed provider endpoint. Do not show disabled competitors or an empty marketplace. Show only implemented provider rows and models verified against the relevant live catalog and reviewed endpoint contract. Fixed-endpoint/fake-transport tests and packaged Settings tests pass. A packaged OpenAI API key authenticated a live catalog read and model selection, with no paid completion; no authenticated DeepSeek or API editing turn has been evidenced.
 
 ## Authentication
 
@@ -48,7 +48,7 @@ Do not send raw full-resolution media unless a supported tool and user disclosur
 
 Codex may call guarded tools that append operations to the active draft. The UI applies validated operations as they complete and displays them in the shared undo history. A partial turn may leave completed transactions in place. Stop and undo remain available.
 
-OpenAI API and DeepSeek responses pass through fixed provider adapters and a bounded local conversation service. The service maps only the four reviewed project/timeline tools to main, which applies the same freshness, active-project, transaction and undo checks as Codex and labels committed edits `api_provider`. API keys grant no Codex App Server skills or native subagents. A paid API turn starts only after explicit Send; the drawer shows the selected provider and billing disclosure before it opens. An authenticated provider edit and a packaged native provider turn still need evidence.
+OpenAI API and DeepSeek responses pass through fixed provider adapters and a bounded local conversation service. The service maps only the four reviewed project/timeline tools to main, which applies the same freshness, active-project, transaction and undo checks as Codex and labels committed edits `api_provider`. API keys grant no Codex App Server skills or native subagents. A paid API turn starts only after explicit Send; the drawer shows the selected provider, shared context and billing disclosure before it opens. An authenticated provider edit and a packaged native provider conversation turn still need evidence. OpenAI model-list membership is intersected with reviewed GPT-4.1/GPT-4o Chat Completions families; a base model visible in the raw catalog is not offered as an editor choice.
 
 ## Guarded tool set
 

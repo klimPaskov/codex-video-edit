@@ -1,9 +1,62 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DesktopApiProviders } from "../../apps/desktop/src/api-providers.ts";
+import {
+  DesktopApiProviders,
+  editingModels,
+} from "../../apps/desktop/src/api-providers.ts";
 import type { ApiProviderId } from "../../packages/domain/src/api-providers.ts";
 
 const testKey = "TEST-ONLY-PROVIDER-KEY";
+test("model chooser intersects live IDs with reviewed Chat Completions families", () => {
+  assert.deepEqual(
+    editingModels("openai", [
+      "babbage-002",
+      "gpt-4.1",
+      "gpt-4.1-mini-2025-04-14",
+      "gpt-4o-mini",
+      "gpt-4o-realtime-preview",
+      "gpt-5",
+      "text-embedding-3-large",
+    ]),
+    ["gpt-4.1", "gpt-4.1-mini-2025-04-14", "gpt-4o-mini"],
+  );
+  assert.deepEqual(
+    editingModels("deepseek", [
+      "deepseek-flash",
+      "deepseek-v4-pro",
+      "deepseek-embedding",
+    ]),
+    ["deepseek-flash", "deepseek-v4-pro"],
+  );
+});
+
+test("an authenticated catalog with no compatible models stays disconnected", async () => {
+  const account = new DesktopApiProviders(
+    {
+      get: async () => null,
+      status: async () => ({
+        hasKey: false,
+        remembered: false,
+        canRemember: true,
+      }),
+      set: async () => {
+        throw new Error("Must not store unsupported key");
+      },
+      remove: async () => undefined,
+    },
+    { listModels: async () => ["babbage-002", "text-embedding-3-large"] },
+  );
+  const view = await account.connect({
+    provider: "openai",
+    key: testKey,
+    remember: false,
+  });
+  assert.equal(view.providers[1]?.connected, false);
+  assert.equal(
+    view.providers[1]?.message,
+    "No supported editing models are available for this key.",
+  );
+});
 function harness(canRemember: boolean) {
   const keys = new Map<ApiProviderId, { value: string; remembered: boolean }>();
   const calls: { provider: ApiProviderId; key: string }[] = [];
