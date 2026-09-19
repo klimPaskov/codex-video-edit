@@ -504,10 +504,18 @@ export class CodexClient {
     if (this.closing) return this.closing;
     const startupFinished = this.startupFinished;
     this.startupAbort?.abort();
-    this.auth?.close();
+    try {
+      this.auth?.close();
+    } catch {
+      // A notification consumer cannot bypass process cleanup.
+    }
     this.auth = undefined;
     const transport = this.transport;
-    this.conversation?.disconnect();
+    try {
+      this.conversation?.disconnect();
+    } catch {
+      // Always reach the transport shutdown barrier.
+    }
     this.conversation = undefined;
     this.threadRegistry = undefined;
     this.resolvedCwd = undefined;

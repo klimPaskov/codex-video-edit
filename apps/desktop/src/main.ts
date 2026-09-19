@@ -63,7 +63,10 @@ app.on("before-quit", (event) => {
   quitting = true;
   if (!servicesClosed && (codex || mcpBroker)) {
     event.preventDefault();
-    void Promise.all([codex?.close(), mcpBroker?.close()]).finally(() => {
+    void Promise.allSettled([
+      Promise.resolve().then(() => codex?.close()),
+      Promise.resolve().then(() => mcpBroker?.close()),
+    ]).then(() => {
       servicesClosed = true;
       app.quit();
     });

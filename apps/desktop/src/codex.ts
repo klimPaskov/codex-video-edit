@@ -648,7 +648,7 @@ export class DesktopCodex {
         projectId,
         model: requestModel,
         effort: this.state.selection.reasoning,
-        developerInstructions: PROJECT_THREAD_INSTRUCTIONS,
+        developerInstructions: `${PROJECT_THREAD_INSTRUCTIONS}\nRead-tool input for this main-owned active project: ${JSON.stringify({ schema_version: "1.0", project_id: projectId })}. Use this exact project_id; do not guess identifiers or ask the user to provide it. Obtain draft identifiers, sequence and hash from the read tools before editing.`,
       });
       if (this.thread.status === "opening") this.thread.status = "ready";
     } catch {

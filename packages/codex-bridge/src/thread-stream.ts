@@ -315,7 +315,9 @@ function itemProjection(
       ) {
         throw new CodexThreadProtocolError("forbidden");
       }
-      return { id, type, kind: "edit", label: "Applying an edit" };
+      return tool === "project.get_summary" || tool === "timeline.get_summary"
+        ? { id, type, kind: "activity", label: "Reading the project" }
+        : { id, type, kind: "edit", label: "Applying an edit" };
     }
     default:
       throw new CodexThreadProtocolError("forbidden");
@@ -652,6 +654,9 @@ export class ThreadStreamProjector {
         completed: false,
         text: "",
       });
+      // Main has already published the submitted user message. Its server echo
+      // remains tracked for correlation, but is never a Codex response.
+      if (projected.type === "userMessage") return null;
       return this.event(turnId, {
         type: "item_started",
         itemId: projected.id,
@@ -669,6 +674,7 @@ export class ThreadStreamProjector {
         : null;
     if (existing.completed) return null;
     existing.completed = true;
+    if (projected.type === "userMessage") return null;
     return this.event(turnId, {
       type: "item_completed",
       itemId: projected.id,
@@ -679,7 +685,8 @@ export class ThreadStreamProjector {
 
   disconnect(generation: number): ThreadStreamEvent | null {
     if (generation !== this.generation) return null;
-    this.assertHealthy();
+    // Teardown must still mark an active turn uncertain after a policy failure.
+    // Keep poisoned intact: disconnect is not permission to reuse this projector.
     if (!this.active || this.active.terminal) return null;
     this.active.terminal = "uncertain";
     this.rememberTerminal(this.active.id, "uncertain");

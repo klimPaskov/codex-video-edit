@@ -256,8 +256,16 @@ export class CodexProjectThreadClient {
   disconnect(): void {
     this.pending = [];
     this.inFlight = false;
-    if (this.opened) this.emit(this.runtime.disconnect());
+    const opened = this.opened;
     this.opened = false;
+    if (opened) {
+      try {
+        this.emit(this.runtime.disconnect());
+      } catch {
+        // Consumer notification failures cannot prevent teardown or enable reuse.
+        this.quarantined = true;
+      }
+    }
   }
 
   private begin(requireOpen: boolean): void {

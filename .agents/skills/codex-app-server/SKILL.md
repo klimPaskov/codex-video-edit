@@ -37,6 +37,8 @@ network, shell, or permission expansion. Read tools return compact editor state.
 tools call the same transaction service as manual and Magic Wand edits, and return the
 committed draft sequence and timeline hash. Errors are stable, redacted application errors.
 
+On thread create and resume, append only main-owned validated `project_id` and `schema_version: "1.0"` as JSON read-tool input in developer instructions. Do not inject project paths, titles or a draft snapshot, or ask the user/model to guess the identifier. Test both create and resume context against the selected project. The read tools must still establish current draft identity, sequence and hash; injected identity never replaces active-project authorization or freshness validation.
+
 Read project metadata and the active draft in one transaction-store serialization. After every settled mutation, reread and publish the authoritative path-free draft even when journal promotion preceded an uncertain response. Do not derive editor state from model text or MCP activity. Bind project preview requests to draft ID, baseline revision, sequence and timeline hash; map output time to source time only in main, recheck the head after decode, and return no stale pixels.
 
 For the pinned experimental thread protocol, request experimental capability during
@@ -48,12 +50,16 @@ invent a separate spawn RPC.
 
 Restore recent project-thread history from the bounded inline full-turn page, with one exact newest-first `thread/turns/list` fallback when the inline page is absent. Validate the page, cursors, unique turn/item IDs, count/byte limits, item unions, required supported resume thread status, inline activity agreement, and newest-only in-progress turn before flushing buffered notifications. Treat a separate fallback page as the later authority so completion between resume and list remains valid. Project only redacted user/agent text and generic owned activity in chronological order under fresh renderer IDs. Preserve known completion state, seed every active-turn item for raced notifications, and ignore validated skill paths. Quarantine command/file/web/image/dynamic/foreign-MCP/unknown or approval-waiting history; never expose raw history, cursors, server IDs, paths, arguments, results, or reasoning through IPC.
 
+Track and validate live user-message echoes without emitting a duplicate message or an empty Codex reply; main already owns the submitted user text. Compare live and resumed message projections in native tests. Label owned summary tools Reading the project and trim/undo Applying an edit; activity is not a commit assertion. Verify actual journal origin/sequence, duration, retained source-frame preview and immutable baseline separately, then complete live timing, Stop, reopen/history and undo checks before claiming the full authenticated flow.
+
 Run the MCP child as a packaged fixed-hash resource. It forwards only tool name/input
 to a main-owned active-project broker authenticated by a process-only random secret.
 Verify the exact server name, version, four tool names and input schemas, and empty resources/templates
 through `mcpServerStatus/list` before opening a project thread. Never put the broker
 secret in app-server arguments, thread configuration, project files, renderer state, or
 evidence.
+
+For pinned Codex 0.142.3, the exact four owned server tools and empty resources/templates do not establish absence of built-in MCP resource listing/template/read helpers. The upstream turn router and tool planner register those helpers whenever an MCP server exists, independently of empty environments; no supported disabling switch was found in the pinned schema review. Preserve quarantine for unreviewed items, including those helpers under the current policy. Do not invent a configuration key, silently widen parser acceptance, or treat injected project identity as tool confinement. See `docs/research/P2_RUNTIME_POLICY.md` for pinned sources and the observed failure.
 
 ## Runtime boundary
 
@@ -72,6 +78,8 @@ Codex receives project context and edit tools. It does not receive unrestricted 
 Simulate successful Codex output in a production path or hardcode one current model name as the catalog.
 
 Account type alone does not prove managed-token provenance. Restrict the actual login entrypoint and account-directory ownership. Before enabling turns, verify the pinned no-environment/tool policy, guarded MCP access and native child inheritance; a disabled shell feature or read-only sandbox alone is not a complete project read boundary. Bootstrap stdio tests cannot replace native sign-in and authenticated reversible-edit evidence.
+
+ADR 0006 records the user's explicit authorization to seed this session's private app-owned guest account with only the official runtime credential file, mode 600. This test setup exception does not change production managed ChatGPT onboarding, add a credential-import feature, permit renderer token input, or authorize copying configuration/history or mounting a host account directory. Never expose credential bytes, account identifiers or private locations. A seeded connected/signed_in probe with runtime model/skill/usage discovery is authenticated discovery evidence, not browser-login completion. Real private-fixture turns, guarded reversible edits, interruption, history reopen, stale rejection, shared undo and native child-policy checks remain separate acceptance tests.
 
 ## Authorized live operations
 

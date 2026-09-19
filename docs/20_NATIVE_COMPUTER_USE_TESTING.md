@@ -2,7 +2,7 @@
 
 ## Environment boundary
 
-The implementation agent must build and run the product app only in its isolated desktop environment. The latest user instruction prohibits controlling the host PC: all native input and screenshots must remain inside Docker. Do not use host computer-use tools or operate/capture a host viewer. Historical viewer authorization is superseded; any future viewer use requires a new explicit request. Do not access host capture devices, personal files, credentials, or display sockets.
+The implementation agent must build and run the product app only in its isolated desktop environment. The latest user instruction prohibits controlling the host PC: all native input and screenshots must remain inside Docker. Do not use host computer-use tools or operate/capture a host viewer. Historical viewer authorization is superseded; any future viewer use requires a new explicit request. Do not access host capture devices, unrelated personal files, credentials, or display sockets outside the narrow explicitly authorized test setup in ADR 0006.
 
 The current [Docker environment](../tests/desktop/README.md) provides a private Linux display, an unprivileged user, dropped capabilities, restricted seccomp, and no host mounts or devices. Use `tests/desktop/guest-input.py` inside that guest for native input and screenshots. It uses X11/XTEST via ctypes and FFmpeg x11grab, guarded by Linux, `/.dockerenv`, UID 1000 and display `:99`. The existing authenticated loopback VNC endpoint is not the current testing route. Retain Chromium sandboxing; do not use `--no-sandbox` to make a test pass.
 
@@ -37,6 +37,10 @@ Use virtual camera, microphone, system-audio, and screen sources for determinist
 ## Test data safety
 
 Use generated media and the two supplied example videos only. Never capture unrelated desktop content, notifications, credentials, or personal files.
+
+The 2026-09-12 user-authorized credential seeding in ADR 0006 transferred only the official runtime credential file directly into the private app-owned guest account with mode 600. No host mounts, configuration or history were copied, and the host file was unchanged at transfer. Production onboarding remains managed sign-in; the exception adds no renderer credential input or general import feature. Keep secrets and account-identifying data out of captures and evidence. The packaged account probe reported connected/signed_in with runtime model, skill and usage discovery; it did not complete a browser login or prove a Codex edit.
+
+The later authenticated synthetic packaged run passed a real guarded trim and Codex undo through the shared journal. It observed committed preview pixels and controls during the turn, preserved the source/baseline, reopened the same thread and history, and stopped a separate read-only turn without another transaction. Guest-only input switched the Codex drawer to the Source inspector in the actual native window. Retain that private result and the earlier failures separately. Authenticated negative tool-policy and native subagent inheritance checks remain pending; account discovery alone proves neither.
 
 ## P1 lifecycle and accessibility checks
 
