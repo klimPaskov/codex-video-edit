@@ -47,6 +47,21 @@
       ]
     },
     {
+      "name": "cut.split",
+      "mode": "mutation",
+      "description": "Split one current clip at an exact interior output-time position without changing source files.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
       "name": "cut.delete_range",
       "mode": "mutation",
       "description": "Ripple-delete a bounded half-open output-time interval without changing source files.",

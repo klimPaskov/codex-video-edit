@@ -60,7 +60,16 @@ async function fixture(
     active.project.project_id,
     drafts,
   );
-  return { root, source, active, other, drafts, service };
+  return {
+    root,
+    source,
+    active,
+    other,
+    projects,
+    projectsRoot,
+    drafts,
+    service,
+  };
 }
 
 function readInput(projectId: string) {
@@ -101,6 +110,24 @@ function rangeInput(
     reason: "Remove the selected false start while preserving the source.",
     start_us: 200_000,
     end_us: 600_000,
+  };
+}
+
+function splitInput(
+  draft: Awaited<ReturnType<DraftTransactionStore["snapshot"]>>["draft"],
+) {
+  return {
+    schema_version: "1.0",
+    request_id: "codex-split-request-001",
+    project_id: draft.project_id,
+    draft_id: draft.draft_id,
+    base_revision_id: draft.base_revision_id,
+    expected_sequence: draft.draft_sequence,
+    expected_timeline_sha256: draft.timeline_sha256,
+    pass_group_id: "codex-spoken-cut-001",
+    reason: "Divide the current clip at this reviewed beat.",
+    clip_id: draft.timeline.clips[0]!.clip_id,
+    timeline_position_us: 400_000,
   };
 }
 
@@ -186,6 +213,171 @@ test("Codex trim and newest undo return only committed draft authority", async (
   assert.equal(undone.draft.duration_us, 1_000_000);
   assert.deepEqual(await readFile(source), sourceBefore);
   assert.deepEqual(await readFile(active.source.managed_path), managedBefore);
+});
+
+test("Codex split commits the shared deterministic journal and newest undo restores the exact clip", async () => {
+  const { root, source, active, projects, projectsRoot, drafts, service } =
+    await fixture();
+  const sourceBefore = await readFile(source);
+  const managedBefore = await readFile(active.source.managed_path);
+  const baselinePath = join(
+    projectsRoot,
+    active.project.project_id,
+    "baseline.json",
+  );
+  const baselineBefore = await readFile(baselinePath);
+  const initial = await drafts.snapshot(active.project.project_id);
+  const applied = (await service.invoke(
+    "cut.split",
+    splitInput(initial.draft),
+  )) as {
+    status: string;
+    transaction_id: string;
+    applied_operation_ids: string[];
+    draft: {
+      draft_sequence: number;
+      duration_us: number;
+      clips: Array<{
+        clip_id: string;
+        source_start_us: number;
+        source_end_us: number;
+        timeline_start_us: number;
+        timeline_end_us: number;
+      }>;
+    };
+  };
+  assert.equal(applied.status, "committed");
+  assert.equal(applied.draft.draft_sequence, 1);
+  assert.equal(applied.draft.duration_us, 1_000_000);
+  assert.equal(applied.applied_operation_ids.length, 1);
+  assert.equal(applied.draft.clips.length, 2);
+  assert.equal(
+    applied.draft.clips[0]!.clip_id,
+    initial.draft.timeline.clips[0]!.clip_id,
+  );
+  assert.match(applied.draft.clips[1]!.clip_id, /^clip-[a-f0-9]{32}$/u);
+  assert.deepEqual(
+    applied.draft.clips.map((clip) => [
+      clip.source_start_us,
+      clip.source_end_us,
+      clip.timeline_start_us,
+      clip.timeline_end_us,
+    ]),
+    [
+      [0, 400_000, 0, 400_000],
+      [400_000, 1_000_000, 400_000, 1_000_000],
+    ],
+  );
+  assert.doesNotMatch(
+    serialized(applied),
+    /inverse|before|origin|managed_path/u,
+  );
+  const journal = join(
+    root,
+    "projects",
+    active.project.project_id,
+    "draft",
+    "journal",
+  );
+  const entries = await readdir(journal);
+  assert.equal(entries.length, 1);
+  const record = JSON.parse(
+    await readFile(join(journal, entries[0]!), "utf8"),
+  ) as {
+    origin: string;
+    pass_group: { kind: string };
+    operations: Array<{ operation_type: string }>;
+  };
+  assert.equal(record.origin, "codex");
+  assert.equal(record.pass_group.kind, "spoken_cut");
+  assert.equal(record.operations[0]?.operation_type, "split");
+  const reopened = await new DraftTransactionStore(
+    projectsRoot,
+    projects,
+  ).snapshot(active.project.project_id);
+  assert.equal(reopened.draft.draft_sequence, 1);
+  assert.deepEqual(
+    reopened.draft.timeline.clips,
+    (await drafts.snapshot(active.project.project_id)).draft.timeline.clips,
+  );
+  const undone = (await service.invoke("timeline.undo", {
+    schema_version: "1.0",
+    request_id: "codex-split-undo-001",
+    project_id: reopened.draft.project_id,
+    draft_id: reopened.draft.draft_id,
+    base_revision_id: reopened.draft.base_revision_id,
+    expected_sequence: reopened.draft.draft_sequence,
+    expected_timeline_sha256: reopened.draft.timeline_sha256,
+    target_transaction_id: applied.transaction_id,
+    reason: "Restore the clip before the split.",
+  })) as { draft: { draft_sequence: number; clips: unknown[] } };
+  assert.equal(undone.draft.draft_sequence, 2);
+  assert.deepEqual(undone.draft.clips, initial.draft.timeline.clips);
+  assert.deepEqual(await readFile(source), sourceBefore);
+  assert.deepEqual(await readFile(active.source.managed_path), managedBefore);
+  assert.deepEqual(await readFile(baselinePath), baselineBefore);
+});
+
+test("API-provider split injects its origin and rejects unsafe or stale intent", async () => {
+  const { root, active, drafts, service } = await fixture();
+  const provider = new CodexVideoEditToolService(
+    active.project.project_id,
+    drafts,
+    "api_provider",
+  );
+  const initial = await drafts.snapshot(active.project.project_id);
+  const input = splitInput(initial.draft);
+  for (const invalid of [
+    { timeline_position_us: 0 },
+    { timeline_position_us: -1 },
+    { timeline_position_us: 0.5 },
+    { source_path: "private-media.mp4" },
+    { origin: "manual" },
+    { operations: [{ type: "source_delete" }] },
+  ]) {
+    await assert.rejects(
+      provider.invoke("cut.split", { ...input, ...invalid }),
+      expectCode("invalid_request"),
+    );
+  }
+  for (const boundary of [1_000_000, 1_000_001]) {
+    await assert.rejects(
+      provider.invoke("cut.split", {
+        ...input,
+        timeline_position_us: boundary,
+      }),
+      expectCode("edit_conflict"),
+    );
+  }
+  const applied = (await provider.invoke("cut.split", input)) as {
+    draft: { draft_sequence: number; clips: unknown[] };
+  };
+  assert.equal(applied.draft.draft_sequence, 1);
+  assert.equal(applied.draft.clips.length, 2);
+  const journal = join(
+    root,
+    "projects",
+    active.project.project_id,
+    "draft",
+    "journal",
+  );
+  const entries = await readdir(journal);
+  assert.equal(entries.length, 1);
+  const record = JSON.parse(
+    await readFile(join(journal, entries[0]!), "utf8"),
+  ) as {
+    origin: string;
+    operations: Array<{ operation_type: string }>;
+  };
+  assert.equal(record.origin, "api_provider");
+  assert.equal(record.operations[0]?.operation_type, "split");
+  await assert.rejects(
+    service.invoke("cut.split", {
+      ...input,
+      request_id: "codex-stale-split-002",
+    }),
+    expectCode("stale_draft"),
+  );
 });
 
 test("Codex range cut uses the shared ripple transaction and newest undo", async () => {

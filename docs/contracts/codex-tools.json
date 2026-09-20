@@ -139,7 +139,7 @@
     {
       "name": "cut.split",
       "mode": "mutation",
-      "description": "Split a supported clip at a mapped time.",
+      "description": "Split one current clip at an exact interior output-time position without changing source files.",
       "undoable": true,
       "user_confirmation": "none",
       "allowed_scope": "active_draft",

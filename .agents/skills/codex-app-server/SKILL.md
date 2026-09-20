@@ -55,12 +55,12 @@ Track and validate live user-message echoes without emitting a duplicate message
 
 Run the MCP child as a packaged fixed-hash resource. It forwards only tool name/input
 to a main-owned active-project broker authenticated by a process-only random secret.
-Verify the exact server name, version, five tool names and input schemas, and empty resources/templates
+Verify the exact server name, version, six tool names and input schemas, and empty resources/templates
 through `mcpServerStatus/list` before opening a project thread. Never put the broker
 secret in app-server arguments, thread configuration, project files, renderer state, or
 evidence.
 
-For pinned Codex 0.142.3, the exact five owned server tools and empty resources/templates do not establish absence of built-in MCP resource listing/template/read helpers. The upstream turn router and tool planner register those helpers whenever an MCP server exists, independently of empty environments; no supported disabling switch was found in the pinned schema review. Preserve quarantine for unreviewed items, including those helpers under the current policy. Do not invent a configuration key, silently widen parser acceptance, or treat injected project identity as tool confinement. See `docs/research/P2_RUNTIME_POLICY.md` for pinned sources and the observed failure.
+For pinned Codex 0.142.3, the exact six owned server tools and empty resources/templates do not establish absence of built-in MCP resource listing/template/read helpers. The upstream turn router and tool planner register those helpers whenever an MCP server exists, independently of empty environments; no supported disabling switch was found in the pinned schema review. Preserve quarantine for unreviewed items, including those helpers under the current policy. Do not invent a configuration key, silently widen parser acceptance, or treat injected project identity as tool confinement. See `docs/research/P2_RUNTIME_POLICY.md` for pinned sources and the observed failure.
 
 ## Runtime boundary
 
@@ -92,7 +92,7 @@ For an API-provider turn, require an explicit user start action because that cal
 
 For a remembered API key, save its selected model in the same OS-protected key record and revalidate that ID against fresh provider discovery on restart. A key replacement must clear the previous selection even when the new account offers the same model. Keep session-only model selection in memory only, and migrate older key-only ciphertext without exposing the key. Do not count fake secure-storage tests as native OS-keyring acceptance. The packaged Linux GNOME Secret Service test in `tests/native/api-provider-remembered-model.test.ts` verifies this one backend and live OpenAI catalog only; retain separate evidence gates for other OS backends, DeepSeek and paid edits.
 
-The synthetic packaged API-provider draft fixture must run both OpenAI and DeepSeek. It may replace `fetch` only inside isolated Electron main after startup; each run must assert its fixed destinations, a synthetic key, the real imported project, committed journal/preview/undo and no external completion. Label visible responses as synthetic and keep authenticated paid-provider edit acceptance separate. The pinned Codex 0.142.3 planner adds MCP resource helpers and a plan tool whenever the owned MCP server is present; empty environments and invocation quarantine do not establish an exact model-visible five-tool allowlist. Require authoritative parent/child effective tool specifications before P2-07 acceptance.
+The synthetic packaged API-provider draft fixture must run both OpenAI and DeepSeek. It may replace `fetch` only inside isolated Electron main after startup; each run must assert its fixed destinations, a synthetic key, the real imported project, committed journal/preview/undo and no external completion. Label visible responses as synthetic and keep authenticated paid-provider edit acceptance separate. The pinned Codex 0.142.3 planner adds MCP resource helpers and a plan tool whenever the owned MCP server is present; empty environments and invocation quarantine do not establish an exact model-visible six-tool allowlist. Require authoritative parent/child effective tool specifications before P2-07 acceptance.
 
 For a live API-key fixture, make the explicit Send through packaged Electron and record only bounded HTTP status classifications in private evidence. A 429 may mean rate or quota; map it to fixed redacted recovery text, require no journal commit unless a validated tool succeeds, and stop paid retries until account state changes. Synthetic 429 injection can verify native error presentation but cannot satisfy authenticated edit acceptance.
 
