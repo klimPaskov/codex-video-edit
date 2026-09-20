@@ -11,6 +11,7 @@ import {
 import type { ProjectView } from "../../packages/domain/src/project-view.ts";
 import { MediaLibrary } from "../../packages/media-engine/src/library.ts";
 import { encodeVerifiedMaster } from "../../packages/media-engine/src/lossless.ts";
+import { runProcess } from "../../packages/media-engine/src/process.ts";
 import { ProjectStore } from "../../packages/project-store/src/store.ts";
 import { DraftTransactionStore } from "../../packages/project-store/src/transactions.ts";
 
@@ -167,6 +168,84 @@ test("committed project views and frames follow trim and undo state without chan
   assert.equal(
     (await projects.open(baseline.project.project_id)).timeline.duration_us,
     1_500_000,
+  );
+});
+
+test("tagged H.264 project frames follow the committed trim without using display pixels as source", async () => {
+  const base = resolve("test-results/project-runtime");
+  await mkdir(base, { recursive: true });
+  const root = await mkdtemp(join(base, "h264-"));
+  const source = join(root, "source.mp4");
+  await runProcess({
+    executable: "ffmpeg",
+    args: [
+      "-v",
+      "error",
+      "-nostdin",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=size=64x48:rate=2:duration=1.5",
+      "-vf",
+      "setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
+      "-c:v",
+      "libx264",
+      "-qp",
+      "0",
+      "-pix_fmt",
+      "yuv420p",
+      "-color_range",
+      "tv",
+      "-colorspace",
+      "bt709",
+      "-color_primaries",
+      "bt709",
+      "-color_trc",
+      "bt709",
+      source,
+    ],
+  });
+  const original = await readFile(source);
+  const library = new MediaLibrary(join(root, "library"));
+  const media = await library.importFile(source);
+  const projects = new ProjectStore(join(root, "projects"), library);
+  const baseline = await projects.createFromMedia(media.id);
+  const baselineBytes = await readFile(
+    join(baseline.project.storage.project_root, "baseline.json"),
+  );
+  const drafts = new DraftTransactionStore(join(root, "projects"), projects);
+  const runtime = new DesktopProjectRuntime(drafts, library);
+  const initialView = await runtime.view(baseline.project.project_id);
+  assert.equal(initialView.timeline.durationUs, 1_500_000);
+  const initialFrame = await runtime.frame(frameRequest(initialView, 500_000));
+  assert.equal(initialFrame.status, "ready");
+  if (initialFrame.status !== "ready")
+    throw new Error("Expected initial frame");
+  const committed = await drafts.applyManual(
+    trimRequest(
+      await drafts.snapshot(baseline.project.project_id),
+      "h264-trim-001",
+      "start",
+      500_000,
+    ),
+  );
+  const stale = await runtime.frame(frameRequest(initialView, 0));
+  assert.equal(stale.status, "stale");
+  assert.equal("frame" in stale, false);
+  const trimmedView = await runtime.view(baseline.project.project_id);
+  const trimmedFrame = await runtime.frame(frameRequest(trimmedView, 0));
+  assert.equal(trimmedFrame.status, "ready");
+  if (trimmedFrame.status !== "ready")
+    throw new Error("Expected trimmed frame");
+  assert.deepEqual(trimmedFrame.frame, initialFrame.frame);
+  assert.equal(committed.draft.timeline.clips[0]!.source_start_us, 500_000);
+  assert.deepEqual(await readFile(source), original);
+  assert.deepEqual(await readFile(baseline.source.managed_path), original);
+  assert.deepEqual(
+    await readFile(
+      join(baseline.project.storage.project_root, "baseline.json"),
+    ),
+    baselineBytes,
   );
 });
 

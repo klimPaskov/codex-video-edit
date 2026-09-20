@@ -8,6 +8,8 @@ Under ADR 0013, P1 implements the minimum project foundation needed by its actua
 
 Read rational timing and canvas metadata from the actual source contract. Do not reconstruct the working frame rate from rounded UI text or silently choose a lower-precision working format. Unsupported project/preview paths must be reported honestly. P3 retains the complete import-format, project-management, locking, autosave/recovery and smooth A/V preview requirements below.
 
+The current still-frame adapter additionally previews tagged 8-bit H.264 `yuv420p` limited-range BT.709 with square pixels and no display transform. Its explicit color conversion serves the renderer only; source and project records retain the original bytes and probe metadata. This does not establish variable-frame-rate mapping, full-length A/V playback, or a mixed-source working format. The current project and draft reducer still contain one clip, so two sequential imports remain separate projects until the multi-source timeline is implemented.
+
 ## Project navigation
 
 The five navigation controls select Record or Import, Auto Edit, Edit, Review, or Export on the active project. Main validates and persists the stage before returning the committed state. Reopen restores the saved stage without implying its feature ran. Stage selection preserves the active draft, source references, selection and playhead as applicable, and does not append edits or advance draft sequence. A save failure leaves the previous committed stage intact.

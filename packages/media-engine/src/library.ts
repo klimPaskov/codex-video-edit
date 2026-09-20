@@ -65,21 +65,49 @@ async function hash(path: string, signal?: AbortSignal): Promise<string> {
   }
   return digest.digest("hex");
 }
-function preview(
+type PreviewProfile = "native-bgra" | "h264-yuv420p";
+function previewProfile(
   probe: Record<string, unknown>,
   width: number,
   height: number,
-): boolean {
-  return (
+): PreviewProfile | undefined {
+  if (
+    !Number.isSafeInteger(width) ||
+    !Number.isSafeInteger(height) ||
+    width <= 0 ||
+    height <= 0 ||
+    width * height > maxFramePixels ||
+    width > 8192 ||
+    height > 8192 ||
+    probe.color_primaries !== "bt709" ||
+    probe.color_transfer !== "bt709"
+  )
+    return undefined;
+  if (
     probe.pix_fmt === "bgra" &&
     probe.color_range === "pc" &&
-    probe.color_space === "gbr" &&
-    probe.color_primaries === "bt709" &&
-    probe.color_transfer === "bt709" &&
-    width * height <= maxFramePixels &&
-    width <= 8192 &&
-    height <= 8192
-  );
+    probe.color_space === "gbr"
+  )
+    return "native-bgra";
+  // This conversion is only for the 8-bit display transport. Canonical
+  // rendering and master export must read the preserved YUV source instead.
+  if (
+    probe.codec_name !== "h264" ||
+    probe.pix_fmt !== "yuv420p" ||
+    probe.color_range !== "tv" ||
+    probe.color_space !== "bt709" ||
+    probe.sample_aspect_ratio !== "1:1" ||
+    (object(probe.tags) &&
+      probe.tags.rotate !== undefined &&
+      probe.tags.rotate !== "0") ||
+    (Array.isArray(probe.side_data_list) &&
+      probe.side_data_list.some(
+        (item: unknown) =>
+          object(item) && item.side_data_type === "Display Matrix",
+      ))
+  )
+    return undefined;
+  return "h264-yuv420p";
 }
 export function mediaMeasurements(
   probe: Record<string, unknown>,
@@ -103,7 +131,7 @@ export function mediaMeasurements(
       Number(video.duration ?? probe.format.duration) * 1_000_000,
     ),
     frameRate: Number(rate[0]) / Number(rate[1]),
-    previewAvailable: preview(video, width, height),
+    previewAvailable: previewProfile(video, width, height) !== undefined,
   };
 }
 function validateEntry(value: unknown): asserts value is Entry {
@@ -359,11 +387,10 @@ export class MediaLibrary {
           (item: unknown) => object(item) && item.codec_type === "video",
         )
       : undefined;
-    if (
-      !summary.previewAvailable ||
-      !object(video) ||
-      !preview(video, summary.width, summary.height)
-    )
+    const profile = object(video)
+      ? previewProfile(video, summary.width, summary.height)
+      : undefined;
+    if (!summary.previewAvailable || !profile)
       throw new MediaError(
         "UNSUPPORTED_PROFILE",
         "This source is preserved, but its preview color or precision path is not yet verified.",
@@ -399,6 +426,12 @@ export class MediaLibrary {
         "-dn",
         "-threads",
         "1",
+        ...(profile === "h264-yuv420p"
+          ? [
+              "-vf",
+              "scale=in_range=tv:out_range=pc:in_color_matrix=bt709:out_color_matrix=bt709:flags=accurate_rnd+full_chroma_int,format=bgra",
+            ]
+          : []),
         "-pix_fmt",
         "+bgra",
         "-f",

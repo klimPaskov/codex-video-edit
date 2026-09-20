@@ -35,3 +35,5 @@ Changing FFmpeg, ffprobe, transcription, proxies, render, mux, export, or media 
 ## Evidence
 
 Render a short fixture whenever media behavior changes. Inspect frames and audio. A successful FFmpeg exit is not enough.
+
+For a new still-frame import profile, assert the exact ffprobe pixel, range, primaries, transfer, aspect and display-transform tags before enabling preview. Use an explicit FFmpeg conversion to the renderer format, compare frames at several times and after project reopen, and keep that display transport out of canonical render/master inputs. An H.264/AAC input may already be lossy; byte-preserving import and native-size preview do not make it lossless. Test long footage and multi-source timing separately from a short still-frame fixture.

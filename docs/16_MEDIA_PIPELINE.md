@@ -16,6 +16,8 @@
 5. Create thumbnails, waveform, and contact sheets.
 6. Record every artifact hash and tool version.
 
+The current still-frame preview decodes only verified BGRA or tagged 8-bit H.264 limited-range BT.709 profiles at native dimensions. H.264 uses an explicit BT.709/range conversion to BGRA for display; these bytes are never a canonical render or master input. The original compressed source remains byte-identical. Reject unsupported color/precision/display metadata for preview while retaining a valid import. Exact frame seek, continuous synchronized audio/video playback, variable-frame-rate mapping and multi-source render remain open P3 work.
+
 ## Render layers
 
 - FFmpeg handles probing, trimming, retiming, audio, codecs, muxing, and decode QA.

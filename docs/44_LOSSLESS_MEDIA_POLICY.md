@@ -28,6 +28,8 @@ Run a storage and sustained-throughput preflight. If the configured capture cann
 
 Default preview uses source or lossless intermediate data. Lossless quality does not promise real-time playback on every machine. An explicit Faster preview control may create lower-resolution or lossy playback proxies. Its selection is stored separately from master quality and visibly labelled only while relevant.
 
+For tagged 8-bit H.264 YUV 4:2:0, the current native-size still-frame preview decodes the immutable source and explicitly converts limited-range BT.709 to BGRA for display. That color and chroma conversion changes samples; it is not a lossless intermediate or a master input. The imported H.264/AAC file was already compressed, and this path does not recover discarded detail. The original bytes and metadata remain available for a future canonical render. Unknown tags, higher precision/HDR, display transforms, or non-square pixels remain preview unavailable rather than silently downconverted.
+
 Mono speech extraction, waveform reduction, and thumbnails are analysis-only derivatives. They may not become master audio or video inputs. If Electron cannot play the master codec, use a verified local decode/frame transport or ask for a clearly labelled playback proxy. Never silently substitute the proxy for the export source.
 
 ## Processing
