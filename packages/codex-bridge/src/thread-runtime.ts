@@ -22,7 +22,16 @@ import {
   type TurnStartInput,
   type TurnStartRequest,
 } from "./thread-protocol.ts";
-import type { ProjectThreadRegistry } from "./thread-registry.ts";
+import type {
+  ProjectThreadRegistry,
+  ProjectThreadToolRoute,
+} from "./thread-registry.ts";
+import {
+  buildCodexVideoEditDynamicTools,
+  CODEX_EDITOR_NAMESPACE,
+  ownedDynamicToolWireNames,
+} from "./dynamic-tools.ts";
+import type { DynamicToolSpec } from "./generated/v2/DynamicToolSpec.ts";
 import { ThreadStreamProjector } from "./thread-stream.ts";
 import type {
   ThreadHistorySnapshot,
@@ -40,12 +49,17 @@ export interface ProjectThreadRuntimeOptions {
   allowedMcpTools: ReadonlySet<string>;
   allowedDynamicNamespace?: string;
   allowedDynamicTools?: ReadonlySet<string>;
+  /** Only used for new threads; a persisted binding decides resume mode. */
+  newThreadToolRoute?: ProjectThreadToolRoute;
   /** Main-owned id source; overridden only by deterministic tests. */
   clientMessageId?: () => string;
 }
 
 export type OpenThreadRequest =
-  | { method: "thread/start"; params: ThreadStartRequest }
+  | {
+      method: "thread/start";
+      params: ThreadStartRequest & { dynamicTools?: DynamicToolSpec[] };
+    }
   | { method: "thread/resume"; params: ThreadResumeRequest };
 
 /**
@@ -60,6 +74,8 @@ export class ProjectThreadRuntime {
   private turnStarting = false;
   private lastTerminalTurnId: string | undefined;
   private expectedHistoryActive: boolean | null = null;
+  private openingToolRoute: ProjectThreadToolRoute | undefined;
+  private activeToolRoute: ProjectThreadToolRoute | undefined;
   private readonly clientMessageId: () => string;
 
   constructor(options: ProjectThreadRuntimeOptions) {
@@ -75,6 +91,30 @@ export class ProjectThreadRuntime {
         : {}),
     };
     this.clientMessageId = options.clientMessageId ?? randomUUID;
+    if (
+      options.newThreadToolRoute !== undefined &&
+      options.newThreadToolRoute !== "mcp" &&
+      options.newThreadToolRoute !== "dynamic"
+    ) {
+      throw new CodexThreadProtocolError("configuration");
+    }
+    const reviewedDynamicNames = ownedDynamicToolWireNames();
+    if (
+      options.allowedDynamicTools &&
+      (options.allowedDynamicNamespace !== CODEX_EDITOR_NAMESPACE ||
+        options.allowedDynamicTools.size !== reviewedDynamicNames.size ||
+        [...options.allowedDynamicTools].some(
+          (name) => !reviewedDynamicNames.has(name),
+        ))
+    ) {
+      throw new CodexThreadProtocolError("configuration");
+    }
+    if (
+      options.newThreadToolRoute === "dynamic" &&
+      (!options.allowedDynamicNamespace || !options.allowedDynamicTools?.size)
+    ) {
+      throw new CodexThreadProtocolError("configuration");
+    }
     // Validate the complete no-environment thread policy at construction.
     buildThreadStartRequest(this.options.policy);
   }
@@ -84,13 +124,28 @@ export class ProjectThreadRuntime {
   }
 
   async openThreadRequest(): Promise<OpenThreadRequest> {
-    const existing = await this.options.registry.threadForProject(
+    const existing = await this.options.registry.bindingForProject(
       this.options.projectId,
     );
+    const toolRoute =
+      existing?.toolRoute ?? this.options.newThreadToolRoute ?? "mcp";
+    if (
+      toolRoute === "dynamic" &&
+      (!this.options.allowedDynamicNamespace ||
+        !this.options.allowedDynamicTools?.size)
+    ) {
+      throw new CodexThreadProtocolError("configuration");
+    }
+    this.openingToolRoute = toolRoute;
     if (!existing) {
       return {
         method: "thread/start",
-        params: buildThreadStartRequest(this.options.policy),
+        params: {
+          ...buildThreadStartRequest(this.options.policy),
+          ...(toolRoute === "dynamic"
+            ? { dynamicTools: buildCodexVideoEditDynamicTools() }
+            : {}),
+        },
       };
     }
     return {
@@ -106,6 +161,8 @@ export class ProjectThreadRuntime {
     response: unknown,
     resumed = false,
   ): Promise<unknown | null> {
+    if (!this.openingToolRoute)
+      throw new CodexThreadProtocolError("configuration");
     const session = decodeThreadSession(response, this.options.policy, resumed);
     const historyPage = resumed
       ? decodeThreadResumeHistoryPage(response)
@@ -114,14 +171,19 @@ export class ProjectThreadRuntime {
       this.options.projectId,
       response,
       this.options.policy,
+      this.openingToolRoute,
     );
     this.projector = new ThreadStreamProjector({
       experimentalApiNegotiated: true,
       generation: this.options.generation,
       threadId: session.threadId,
       allowedMcpServer: this.options.allowedMcpServer,
-      allowedMcpTools: this.options.allowedMcpTools,
-      ...(this.options.allowedDynamicTools
+      allowedMcpTools:
+        this.openingToolRoute === "mcp"
+          ? this.options.allowedMcpTools
+          : new Set(),
+      ...(this.openingToolRoute === "dynamic" &&
+      this.options.allowedDynamicTools
         ? {
             allowedDynamicNamespace: this.options.allowedDynamicNamespace,
             allowedDynamicTools: this.options.allowedDynamicTools,
@@ -129,6 +191,8 @@ export class ProjectThreadRuntime {
         : {}),
     });
     this.threadId = session.threadId;
+    this.activeToolRoute = this.openingToolRoute;
+    this.openingToolRoute = undefined;
     this.currentTurnId = undefined;
     this.turnStarting = false;
     this.lastTerminalTurnId = undefined;
@@ -139,6 +203,10 @@ export class ProjectThreadRuntime {
   async historyRequest(): Promise<ThreadTurnsListRequest> {
     this.requireProjector();
     return buildThreadTurnsListRequest(await this.requireThreadId());
+  }
+
+  toolRoute(): ProjectThreadToolRoute | undefined {
+    return this.activeToolRoute;
   }
 
   acceptHistoryPage(
@@ -233,6 +301,8 @@ export class ProjectThreadRuntime {
     decodeThreadUnsubscribe(response);
     this.projector = undefined;
     this.threadId = undefined;
+    this.activeToolRoute = undefined;
+    this.openingToolRoute = undefined;
     this.currentTurnId = undefined;
     this.turnStarting = false;
     this.lastTerminalTurnId = undefined;

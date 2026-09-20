@@ -22,6 +22,8 @@ The current P2 runtime exposes only `project.get_summary`, `timeline.get_summary
 
 An optional internal App Server host-tool adapter maps precisely those six dotted names to `project_get_summary`, `timeline_get_summary`, `cut_trim_edge`, `cut_split`, `cut_delete_range`, and `timeline_undo` in the `codex_video_edit` namespace, reusing the reviewed input schemas. It rejects other names and oversized input before dispatch and bounds safe results. This adapter is not registered by the packaged product, so it does not replace the active MCP route or prove a native draft edit.
 
+The internal thread registry records which route created a project conversation. A new host-tool thread receives this exact six-tool definition at start; a legacy MCP binding remains MCP on resume. Route mismatch and cross-route activity fail closed. Packaged main continues to create MCP bindings.
+
 For the four current mutations, main refreshes the atomic project/draft authority after the tool settles rather than trusting model prose or MCP activity. This covers a journal commit followed by an uncertain response. The native project duration, seek bounds and preview mapping update only from that validated state; notification failure preserves the original tool outcome and asks the user to reopen.
 
 ## Read-only tools

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 2,
+  "entries": [
+    {
+      "projectId": "fixture-legacy",
+      "threadId": "fixture-thread-legacy",
+      "toolRoute": "mcp"
+    },
+    {
+      "projectId": "fixture-new",
+      "threadId": "fixture-thread-dynamic",
+      "toolRoute": "dynamic"
+    }
+  ]
+}

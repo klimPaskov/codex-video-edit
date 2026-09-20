@@ -89,6 +89,7 @@ export class CodexProjectThreadClient {
       allowedMcpTools: options.allowedMcpTools,
       ...(options.dynamicToolInvoker
         ? {
+            newThreadToolRoute: "dynamic",
             allowedDynamicNamespace: CODEX_EDITOR_NAMESPACE,
             allowedDynamicTools: ownedDynamicToolWireNames(),
           }
@@ -246,7 +247,10 @@ export class CodexProjectThreadClient {
     }
     const { method, params } = request;
     if (method === "item/tool/call") {
-      if (!this.options.dynamicToolInvoker) {
+      if (
+        !this.options.dynamicToolInvoker ||
+        this.runtime.toolRoute() !== "dynamic"
+      ) {
         this.quarantine();
         throw new CodexThreadProtocolError("forbidden");
       }

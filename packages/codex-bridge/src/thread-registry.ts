@@ -45,9 +45,17 @@ export class ProjectThreadRegistryError extends Error {
   }
 }
 
+export type ProjectThreadToolRoute = "mcp" | "dynamic";
+
+export interface ProjectThreadBinding {
+  projectId: string;
+  threadId: string;
+  toolRoute: ProjectThreadToolRoute;
+}
+
 interface RegistryState {
-  schemaVersion: 1;
-  entries: Array<{ projectId: string; threadId: string }>;
+  schemaVersion: 2;
+  entries: ProjectThreadBinding[];
 }
 
 function validProjectId(value: unknown): value is string {
@@ -76,7 +84,10 @@ function decodeRegistry(value: unknown): RegistryState {
     throw new ProjectThreadRegistryError("corrupt");
   }
   const record = value as Record<string, unknown>;
-  if (record.schemaVersion !== 1 || !Array.isArray(record.entries)) {
+  if (
+    (record.schemaVersion !== 1 && record.schemaVersion !== 2) ||
+    !Array.isArray(record.entries)
+  ) {
     throw new ProjectThreadRegistryError("corrupt");
   }
   const projects = new Set<string>();
@@ -87,7 +98,7 @@ function decodeRegistry(value: unknown): RegistryState {
       entry === null ||
       typeof entry !== "object" ||
       Array.isArray(entry) ||
-      Object.keys(entry).length !== 2
+      Object.keys(entry).length !== (record.schemaVersion === 1 ? 2 : 3)
     ) {
       throw new ProjectThreadRegistryError("corrupt");
     }
@@ -95,6 +106,10 @@ function decodeRegistry(value: unknown): RegistryState {
     if (
       !validProjectId(item.projectId) ||
       !validThreadId(item.threadId) ||
+      (record.schemaVersion === 2 &&
+        item.toolRoute !== "mcp" &&
+        item.toolRoute !== "dynamic") ||
+      (record.schemaVersion === 1 && Object.hasOwn(item, "toolRoute")) ||
       projects.has(item.projectId) ||
       threads.has(item.threadId)
     ) {
@@ -102,10 +117,17 @@ function decodeRegistry(value: unknown): RegistryState {
     }
     projects.add(item.projectId);
     threads.add(item.threadId);
-    entries.push({ projectId: item.projectId, threadId: item.threadId });
+    entries.push({
+      projectId: item.projectId,
+      threadId: item.threadId,
+      toolRoute:
+        record.schemaVersion === 1
+          ? "mcp"
+          : (item.toolRoute as ProjectThreadToolRoute),
+    });
   }
   entries.sort((a, b) => a.projectId.localeCompare(b.projectId, "en"));
-  return { schemaVersion: 1, entries };
+  return { schemaVersion: 2, entries };
 }
 
 async function serialize<T>(root: string, work: () => Promise<T>): Promise<T> {
@@ -155,23 +177,33 @@ export class ProjectThreadRegistry {
     }
   }
 
-  async threadForProject(projectId: string): Promise<string | null> {
+  async bindingForProject(
+    projectId: string,
+  ): Promise<ProjectThreadBinding | null> {
     this.assertProjectId(projectId);
     return serialize(this.root, async () => {
       const state = await this.read();
-      return (
-        state.entries.find((entry) => entry.projectId === projectId)
-          ?.threadId ?? null
+      const binding = state.entries.find(
+        (entry) => entry.projectId === projectId,
       );
+      return binding ? { ...binding } : null;
     });
+  }
+
+  async threadForProject(projectId: string): Promise<string | null> {
+    return (await this.bindingForProject(projectId))?.threadId ?? null;
   }
 
   async bindFromThreadResponse(
     projectId: string,
     response: unknown,
     expectedPolicy: ThreadRuntimePolicy,
+    toolRoute: ProjectThreadToolRoute = "mcp",
   ): Promise<string> {
     this.assertProjectId(projectId);
+    if (toolRoute !== "mcp" && toolRoute !== "dynamic") {
+      throw new ProjectThreadRegistryError("configuration");
+    }
     const { threadId } = decodeThreadSession(response, expectedPolicy);
     return serialize(this.root, async () => {
       const state = await this.read();
@@ -179,7 +211,10 @@ export class ProjectThreadRegistry {
         (entry) => entry.projectId === projectId,
       );
       if (existing) {
-        if (existing.threadId !== threadId) {
+        if (
+          existing.threadId !== threadId ||
+          existing.toolRoute !== toolRoute
+        ) {
           throw new ProjectThreadRegistryError("conflict");
         }
         return existing.threadId;
@@ -187,7 +222,7 @@ export class ProjectThreadRegistry {
       if (state.entries.some((entry) => entry.threadId === threadId)) {
         throw new ProjectThreadRegistryError("conflict");
       }
-      state.entries.push({ projectId, threadId });
+      state.entries.push({ projectId, threadId, toolRoute });
       state.entries.sort((a, b) =>
         a.projectId.localeCompare(b.projectId, "en"),
       );
@@ -231,7 +266,7 @@ export class ProjectThreadRegistry {
         "code" in error &&
         error.code === "ENOENT"
       ) {
-        return { schemaVersion: 1, entries: [] };
+        return { schemaVersion: 2, entries: [] };
       }
       if (error instanceof ProjectThreadRegistryError) throw error;
       throw new ProjectThreadRegistryError("corrupt");

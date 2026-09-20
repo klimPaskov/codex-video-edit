@@ -130,3 +130,30 @@ test("project runtime requires experimental negotiation and owns server IDs", as
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("dynamic thread creation requires the exact reviewed host inventory", async () => {
+  const fixtures = resolve("test-results", "codex-thread-runtime");
+  await mkdir(fixtures, { recursive: true });
+  const root = await mkdtemp(join(fixtures, "fixture-"));
+  try {
+    const registry = await ProjectThreadRegistry.open(root);
+    assert.throws(
+      () =>
+        new ProjectThreadRuntime({
+          experimentalApiNegotiated: true,
+          generation: 1,
+          projectId: "project-1",
+          policy,
+          registry,
+          allowedMcpServer: "codex-video-edit",
+          allowedMcpTools: new Set(),
+          newThreadToolRoute: "dynamic",
+          allowedDynamicNamespace: "codex_video_edit",
+          allowedDynamicTools: new Set(["project_get_summary"]),
+        }),
+      CodexThreadProtocolError,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
