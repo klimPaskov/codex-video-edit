@@ -64,6 +64,8 @@ For pinned Codex 0.142.3, the exact six owned server tools and empty resources/t
 
 A separate direct 0.155.1 App Server probe in `tests/native/codex-dynamic-tools-probe.test.ts` found that a namespaced host-defined dynamic tool can be called without an MCP server, with one owned-only bounded `ALL_TOOLS` inventory. `item/tool/call.params.tool` used the bare function name even though code mode used the namespace-qualified identifier. Treat this as protocol feasibility only. Before routing production project threads through dynamic tools, validate the exact namespace/name mapping, active thread and turn, arguments, response bounds, persisted resume behavior, existing MCP-backed thread compatibility, shared transaction commit/Undo and packaged native behavior. Do not remove the functioning MCP path or claim P2-07 complete from this direct probe.
 
+The separate direct `codex-dynamic-tools-resume.test.ts` passed one exact-thread restart/resume with a second owned host call. The generated resume request has no `dynamicTools` field; the observed definition survived for that fresh thread. Continue to require old MCP-backed thread compatibility, full history, guarded transaction and packaged native checks before production routing.
+
 ## Runtime boundary
 
 Codex receives project context and edit tools. It does not receive unrestricted access to the installation, source repository, raw source mutation, project deletion, or export confirmation.
