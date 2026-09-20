@@ -83,8 +83,9 @@ async function seek(page: Page, timeUs: number): Promise<void> {
     input.value = String(value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   }, timeUs);
+  const seconds = timeUs / 1_000_000;
   await expect(page.locator("#time")).toHaveText(
-    timeUs === 1_000_000 ? "0:01.000" : "0:00.750",
+    `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, "0")}`,
   );
 }
 try {
@@ -215,6 +216,51 @@ try {
       ?.length,
     2,
   );
+  await seek(page, 250_000);
+  await page.locator("#mark-in").click();
+  await seek(page, 1_500_000);
+  await page.locator("#mark-out").click();
+  await expect(page.locator("#cut-selection")).toHaveText(
+    "In 0:00.250 · Out 0:01.500",
+  );
+  await expect(page.locator("#cut-range")).toBeEnabled();
+  await page.locator("#cut-range").click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:00.750");
+  const cutProjects = await page.evaluate(() => window.desktop.listProjects());
+  assert.ok(cutProjects.ok);
+  const cut = cutProjects.value.find((project) => project.id === combined.id);
+  assert.equal(cut?.clips?.length, 2);
+  assert.equal(cut?.clips?.[0]?.timelineEndUs, 250_000);
+  assert.equal(cut?.clips?.[1]?.timelineStartUs, 250_000);
+  assert.equal(cut?.clips?.[1]?.sourceStartUs, 500_000);
+  const expectedAfterCut = Buffer.from(
+    (await library.frame(baseline.sources[1].source_id, 500_000)).rgbaBase64,
+    "base64",
+  );
+  await seek(page, 250_000);
+  await expect
+    .poll(async () => (await canvasBytes(page)).equals(expectedAfterCut), {
+      timeout: 30_000,
+    })
+    .toBe(true);
+  await expect(page.locator("#cut-selection")).toBeHidden();
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:02.000");
+  await seek(page, 250_000);
+  const expectedRestoredFirst = Buffer.from(
+    (await library.frame(baseline.sources[0].source_id, 0)).rgbaBase64,
+    "base64",
+  );
+  await expect
+    .poll(async () => (await canvasBytes(page)).equals(expectedRestoredFirst), {
+      timeout: 30_000,
+    })
+    .toBe(true);
+  await expect(page.locator("#frame")).toBeVisible();
+  await expect(page.locator("#cut-range")).toBeInViewport();
+  await page.screenshot({
+    path: join(evidence, "two-source-range-controls.png"),
+  });
   await electron.close();
 
   electron = await _electron.launch({

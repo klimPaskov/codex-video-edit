@@ -481,6 +481,76 @@ function prepareApply(
       operationId = authority.operation_ids[index]!;
     if (!validId(operationId) || timeline.operation_ids.includes(operationId))
       fail("conflict");
+    if (intent.type === "ripple_delete") {
+      if (
+        intent.end_us > timeline.duration_us ||
+        (intent.start_us === 0 && intent.end_us === timeline.duration_us)
+      )
+        fail("conflict");
+      const priorClips = structuredClone(timeline.clips);
+      const survivors: typeof timeline.clips = [];
+      for (const current of timeline.clips) {
+        const leftLength = Math.max(
+          0,
+          Math.min(intent.start_us, current.timeline_end_us) -
+            current.timeline_start_us,
+        );
+        const rightLength = Math.max(
+          0,
+          current.timeline_end_us -
+            Math.max(intent.end_us, current.timeline_start_us),
+        );
+        if (leftLength > 0) {
+          survivors.push({
+            ...current,
+            source_end_us: current.source_start_us + leftLength,
+          });
+        }
+        if (rightLength > 0) {
+          const rightId =
+            leftLength > 0
+              ? `clip-${canonicalSha256({ operation_id: operationId, clip_id: current.clip_id }).slice(0, 32)}`
+              : current.clip_id;
+          if (
+            survivors.some((candidate) => candidate.clip_id === rightId) ||
+            (leftLength > 0 &&
+              timeline.clips.some((candidate) => candidate.clip_id === rightId))
+          )
+            fail("conflict");
+          survivors.push({
+            ...current,
+            clip_id: rightId,
+            source_start_us: current.source_end_us - rightLength,
+          });
+        }
+      }
+      if (survivors.length < 1 || survivors.length > 4096) fail("conflict");
+      timeline.clips = survivors;
+      let position = 0;
+      for (const candidate of timeline.clips) {
+        candidate.timeline_start_us = position;
+        position += candidate.source_end_us - candidate.source_start_us;
+        candidate.timeline_end_us = position;
+      }
+      if (!Number.isSafeInteger(position) || position < 1) fail("conflict");
+      timeline.duration_us = position;
+      records.push({
+        schema_version: "1.0",
+        operation_id: operationId,
+        operation_type: "ripple_delete",
+        start_us: intent.start_us,
+        end_us: intent.end_us,
+        before: priorClips,
+        after: structuredClone(timeline.clips),
+        inverse: {
+          type: "restore_timeline_clips",
+          clips: structuredClone(priorClips),
+          expected_after_sha256: canonicalSha256(timeline.clips),
+        },
+      });
+      timeline.operation_ids.push(operationId);
+      continue;
+    }
     const clipIndex = timeline.clips.findIndex(
       (candidate) => candidate.clip_id === intent.clip_id,
     );
@@ -784,12 +854,18 @@ export class DraftTransactionStore {
                   clip_id: operation.clip_id,
                   timeline_position_us: operation.timeline_position_us,
                 }
-              : {
-                  type: "trim" as const,
-                  clip_id: operation.clip_id,
-                  edge: operation.edge,
-                  timeline_position_us: operation.timeline_position_us,
-                },
+              : operation.operation_type === "ripple_delete"
+                ? {
+                    type: "ripple_delete" as const,
+                    start_us: operation.start_us,
+                    end_us: operation.end_us,
+                  }
+                : {
+                    type: "trim" as const,
+                    clip_id: operation.clip_id,
+                    edge: operation.edge,
+                    timeline_position_us: operation.timeline_position_us,
+                  },
           ),
         };
         assertApplyDraftTransactionRequest(request);

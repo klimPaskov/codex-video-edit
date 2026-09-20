@@ -40,7 +40,14 @@ export interface SplitClipIntent {
   timeline_position_us: number;
 }
 
-export type DraftEditIntent = TrimEdgeIntent | SplitClipIntent;
+export interface RippleDeleteIntent {
+  type: "ripple_delete";
+  start_us: number;
+  end_us: number;
+}
+
+export type DraftEditIntent =
+  TrimEdgeIntent | SplitClipIntent | RippleDeleteIntent;
 
 /** Untrusted callers provide intent and freshness only. Authority is injected by the adapter. */
 export interface ApplyDraftTransactionRequest {
@@ -132,7 +139,23 @@ export interface SplitOperationRecord {
   };
 }
 
-export type DraftOperationRecord = TrimOperationRecord | SplitOperationRecord;
+export interface RippleDeleteOperationRecord {
+  schema_version: "1.0";
+  operation_id: string;
+  operation_type: "ripple_delete";
+  start_us: number;
+  end_us: number;
+  before: DraftTimeline["clips"];
+  after: DraftTimeline["clips"];
+  inverse: {
+    type: "restore_timeline_clips";
+    clips: DraftTimeline["clips"];
+    expected_after_sha256: string;
+  };
+}
+
+export type DraftOperationRecord =
+  TrimOperationRecord | SplitOperationRecord | RippleDeleteOperationRecord;
 
 export interface DraftTransactionRecord {
   schema_version: "1.0";
@@ -331,7 +354,7 @@ export function assertDraftTimeline(
     value.operation_ids.length > 100_000 ||
     !Array.isArray(value.clips) ||
     ![1, 2].includes(baseline.clips.length) ||
-    value.clips.length < baseline.clips.length ||
+    value.clips.length < 1 ||
     value.clips.length > 4096
   )
     invalid();
@@ -344,7 +367,6 @@ export function assertDraftTimeline(
   for (const original of baseline.clips) {
     clip(original);
     let previousSourceEnd = original.source_start_us;
-    let fragmentCount = 0;
     while (
       clipIndex < value.clips.length &&
       value.clips[clipIndex]?.source_id === original.source_id
@@ -352,7 +374,8 @@ export function assertDraftTimeline(
       const current = value.clips[clipIndex++]!;
       clip(current);
       if (
-        (fragmentCount === 0 && current.clip_id !== original.clip_id) ||
+        (current.clip_id !== original.clip_id &&
+          !/^clip-[a-f0-9]{32}$/u.test(current.clip_id)) ||
         clipIds.has(current.clip_id) ||
         current.track_id !== original.track_id ||
         current.source_id !== original.source_id ||
@@ -370,9 +393,7 @@ export function assertDraftTimeline(
       clipIds.add(current.clip_id);
       previousSourceEnd = current.source_end_us;
       position = current.timeline_end_us;
-      fragmentCount++;
     }
-    if (fragmentCount === 0) invalid();
   }
   if (clipIndex !== value.clips.length || value.duration_us !== position)
     invalid();
@@ -445,6 +466,17 @@ export function assertApplyDraftTransactionRequest(
     invalid();
   const clips = new Set<string>();
   for (const operation of value.operations) {
+    if (operation?.type === "ripple_delete") {
+      exact(operation, ["type", "start_us", "end_us"]);
+      integer(operation.start_us);
+      integer(operation.end_us, 1);
+      if (
+        operation.start_us >= operation.end_us ||
+        value.operations.length !== 1
+      )
+        invalid();
+      continue;
+    }
     exact(
       operation,
       operation?.type === "split"

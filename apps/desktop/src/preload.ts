@@ -21,6 +21,7 @@ import {
   assertProjectFrameResult,
   assertManualTrimRequest,
   assertManualSplitRequest,
+  assertManualRangeCutRequest,
   assertManualUndoRequest,
   assertProjectRequest,
   assertTwoSourceProjectRequest,
@@ -188,6 +189,14 @@ const bridge: DesktopBridge = {
   applyManualSplit: (request) => {
     assertManualSplitRequest(request);
     return invoke(channels.projectManualSplit, request, assertProjectDraftView);
+  },
+  applyManualRangeCut: (request) => {
+    assertManualRangeCutRequest(request);
+    return invoke(
+      channels.projectManualRangeCut,
+      request,
+      assertProjectDraftView,
+    );
   },
   undoManualEdit: (request) => {
     assertManualUndoRequest(request);

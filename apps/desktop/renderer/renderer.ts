@@ -41,7 +41,12 @@ const editActions = element("edit-actions"),
   trimStart = element<HTMLButtonElement>("trim-start"),
   trimEnd = element<HTMLButtonElement>("trim-end"),
   splitClip = element<HTMLButtonElement>("split-clip"),
-  undoEdit = element<HTMLButtonElement>("undo-edit");
+  undoEdit = element<HTMLButtonElement>("undo-edit"),
+  markInButton = element<HTMLButtonElement>("mark-in"),
+  markOutButton = element<HTMLButtonElement>("mark-out"),
+  cutSelection = element("cut-selection"),
+  cutRangeButton = element<HTMLButtonElement>("cut-range"),
+  clearMarksButton = element<HTMLButtonElement>("clear-marks");
 let selected: MediaSummary | undefined;
 let selectedButton: HTMLButtonElement | undefined;
 let requestedTime: number | undefined;
@@ -54,6 +59,9 @@ let loadingHome = 0;
 let navigating = false;
 let addingFootage = false;
 let manualEditPending = false;
+let markHead: string | undefined;
+let markInUs: number | undefined;
+let markOutUs: number | undefined;
 const stageLabels: Record<ProjectStage, string> = {
   record_import: "Record or Import",
   auto_edit: "Auto Edit",
@@ -106,6 +114,9 @@ function currentClip(): NonNullable<ProjectView["clips"]>[number] | undefined {
     (clip) => position >= clip.timelineStartUs && position < clip.timelineEndUs,
   );
 }
+function currentHeadKey(project: ProjectView): string {
+  return `${project.id}:${project.draft.id}:${project.draft.sequence}:${project.draft.timelineSha256}`;
+}
 function renderEditTools(): void {
   const project = activeProject;
   if (!project || project.stage !== "edit" || !project.clips) {
@@ -136,6 +147,28 @@ function renderEditTools(): void {
   splitClip.disabled = !interior || manualEditPending || navigating;
   undoEdit.disabled =
     !project.draft.undoTransactionId || manualEditPending || navigating;
+  const currentMarks = markHead === currentHeadKey(project),
+    inUs = currentMarks ? markInUs : undefined,
+    outUs = currentMarks ? markOutUs : undefined;
+  markInButton.disabled = manualEditPending || navigating;
+  markOutButton.disabled = manualEditPending || navigating;
+  cutRangeButton.disabled =
+    inUs === undefined ||
+    outUs === undefined ||
+    inUs >= outUs ||
+    outUs > project.timeline.durationUs ||
+    (inUs === 0 && outUs === project.timeline.durationUs) ||
+    manualEditPending ||
+    navigating;
+  clearMarksButton.disabled =
+    (inUs === undefined && outUs === undefined) || manualEditPending;
+  cutSelection.hidden = inUs === undefined && outUs === undefined;
+  cutSelection.textContent = [
+    inUs === undefined ? undefined : `In ${time(inUs)}`,
+    outUs === undefined ? undefined : `Out ${time(outUs)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 async function navigate(stage: ProjectStage): Promise<void> {
   if (
@@ -730,6 +763,66 @@ async function submitManualSplit(): Promise<void> {
     renderEditTools();
   }
 }
+function markBoundary(edge: "in" | "out"): void {
+  const project = activeProject;
+  if (!project || project.stage !== "edit" || manualEditPending || navigating)
+    return;
+  const head = currentHeadKey(project);
+  if (markHead !== head) {
+    markHead = head;
+    markInUs = undefined;
+    markOutUs = undefined;
+  }
+  const position = Number(seek.value);
+  if (edge === "in") markInUs = position;
+  else markOutUs = position;
+  renderEditTools();
+}
+async function submitManualRangeCut(): Promise<void> {
+  const project = activeProject,
+    startUs = markInUs,
+    endUs = markOutUs,
+    generation = routeGeneration;
+  if (
+    !project ||
+    project.stage !== "edit" ||
+    markHead !== currentHeadKey(project) ||
+    startUs === undefined ||
+    endUs === undefined ||
+    startUs >= endUs ||
+    endUs > project.timeline.durationUs ||
+    (startUs === 0 && endUs === project.timeline.durationUs) ||
+    manualEditPending
+  )
+    return;
+  manualEditPending = true;
+  back.disabled = true;
+  renderEditTools();
+  clearError();
+  try {
+    const reply = await window.desktop.applyManualRangeCut({
+      schema_version: "1.0",
+      projectId: project.id,
+      draftId: project.draft.id,
+      baseRevisionId: project.draft.baseRevisionId,
+      expectedSequence: project.draft.sequence,
+      expectedTimelineSha256: project.draft.timelineSha256,
+      startUs,
+      endUs,
+    });
+    if (generation === routeGeneration && activeProject?.id === project.id) {
+      applyProjectDraft(reply);
+      if (reply.ok) requestFrame(startUs);
+    }
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      showError("The range cut could not be saved. Try again.");
+  } finally {
+    manualEditPending = false;
+    back.disabled = false;
+    renderEditTools();
+  }
+}
 async function submitManualUndo(): Promise<void> {
   const project = activeProject,
     target = project?.draft.undoTransactionId,
@@ -764,6 +857,15 @@ async function submitManualUndo(): Promise<void> {
 trimStart.addEventListener("click", () => void submitManualTrim("start"));
 trimEnd.addEventListener("click", () => void submitManualTrim("end"));
 splitClip.addEventListener("click", () => void submitManualSplit());
+markInButton.addEventListener("click", () => markBoundary("in"));
+markOutButton.addEventListener("click", () => markBoundary("out"));
+cutRangeButton.addEventListener("click", () => void submitManualRangeCut());
+clearMarksButton.addEventListener("click", () => {
+  markHead = undefined;
+  markInUs = undefined;
+  markOutUs = undefined;
+  renderEditTools();
+});
 undoEdit.addEventListener("click", () => void submitManualUndo());
 window.desktop.onProjectDraftChanged(applyProjectDraft);
 void loadLibrary().catch(() =>

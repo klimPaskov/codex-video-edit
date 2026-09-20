@@ -55,7 +55,8 @@
       "items": {
         "oneOf": [
           { "$ref": "#/$defs/trim_operation" },
-          { "$ref": "#/$defs/split_operation" }
+          { "$ref": "#/$defs/split_operation" },
+          { "$ref": "#/$defs/ripple_delete_operation" }
         ]
       }
     },
@@ -159,6 +160,54 @@
           "oneOf": [{ "$ref": "#/$defs/hash" }, { "type": "null" }]
         },
         "timeline": { "$ref": "timeline.schema.json" }
+      }
+    },
+    "ripple_delete_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "operation_id",
+        "operation_type",
+        "start_us",
+        "end_us",
+        "before",
+        "after",
+        "inverse"
+      ],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "operation_id": { "$ref": "#/$defs/id" },
+        "operation_type": { "const": "ripple_delete" },
+        "start_us": { "type": "integer", "minimum": 0 },
+        "end_us": { "type": "integer", "minimum": 1 },
+        "before": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4096,
+          "items": { "$ref": "#/$defs/clip" }
+        },
+        "after": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4096,
+          "items": { "$ref": "#/$defs/clip" }
+        },
+        "inverse": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "clips", "expected_after_sha256"],
+          "properties": {
+            "type": { "const": "restore_timeline_clips" },
+            "clips": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096,
+              "items": { "$ref": "#/$defs/clip" }
+            },
+            "expected_after_sha256": { "$ref": "#/$defs/hash" }
+          }
+        }
       }
     },
     "split_operation": {

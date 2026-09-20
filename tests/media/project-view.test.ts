@@ -7,6 +7,7 @@ import {
   assertProjectFrameResult,
   assertManualTrimRequest,
   assertManualSplitRequest,
+  assertManualRangeCutRequest,
   assertManualUndoRequest,
   assertProjectNavigation,
   assertProjectRequest,
@@ -182,8 +183,10 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
     clipId: "clip-main",
     timelinePositionUs: 500_000,
   };
+  const rangeCut = { ...head, startUs: 0, endUs: 500_000 };
   assertManualTrimRequest(trim);
   assertManualSplitRequest(split);
+  assertManualRangeCutRequest(rangeCut);
   assertManualUndoRequest(undo);
   for (const bad of [
     { ...trim, path: "/private/source.mp4" },
@@ -206,6 +209,18 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
     { ...split, expectedTimelineSha256: "bad" },
   ])
     assert.throws(() => assertManualSplitRequest(bad));
+  for (const bad of [
+    { ...rangeCut, path: "/private/source.mp4" },
+    { ...rangeCut, schema_version: "2.0" },
+    { ...rangeCut, startUs: -1 },
+    { ...rangeCut, startUs: 500_000, endUs: 500_000 },
+    { ...rangeCut, startUs: 500_001, endUs: 500_000 },
+    { ...rangeCut, startUs: 0.5 },
+    { ...rangeCut, endUs: Number.MAX_SAFE_INTEGER + 1 },
+    { ...rangeCut, expectedTimelineSha256: "bad" },
+    { ...rangeCut, request_id: "renderer-owned" },
+  ])
+    assert.throws(() => assertManualRangeCutRequest(bad));
   for (const bad of [
     { ...undo, targetTransactionId: "" },
     { ...undo, expectedSequence: -1 },
@@ -331,6 +346,25 @@ test("committed clip maps enforce contiguous ordered half-open source mapping", 
     timeline: { ...first.timeline, durationUs: firstClip.timelineEndUs * 2 },
   };
   assertProjectView(joined);
+  assertProjectView({
+    ...joined,
+    clips: [firstClip],
+    timeline: { ...joined.timeline, durationUs: firstClip.timelineEndUs },
+  });
+  assertProjectView({
+    ...joined,
+    clips: [
+      {
+        ...secondClip,
+        timelineStartUs: 0,
+        timelineEndUs: secondClip.sourceEndUs - secondClip.sourceStartUs,
+      },
+    ],
+    timeline: {
+      ...joined.timeline,
+      durationUs: secondClip.sourceEndUs - secondClip.sourceStartUs,
+    },
+  });
   const draftOnly = {
     projectId: joined.id,
     draft: joined.draft,
@@ -340,7 +374,6 @@ test("committed clip maps enforce contiguous ordered half-open source mapping", 
   assertProjectDraftView(draftOnly);
   for (const clips of [
     [],
-    [firstClip],
     [secondClip, firstClip],
     [
       firstClip,
@@ -352,6 +385,13 @@ test("committed clip maps enforce contiguous ordered half-open source mapping", 
     [firstClip, { ...secondClip, path: "/private" }],
   ])
     assert.throws(() => assertProjectView({ ...joined, clips }));
+  assert.throws(() =>
+    assertProjectView({
+      ...joined,
+      clips: [firstClip],
+      timeline: { ...joined.timeline, durationUs: firstClip.timelineEndUs + 1 },
+    }),
+  );
   assert.throws(() =>
     assertProjectDraftView({
       ...draftOnly,

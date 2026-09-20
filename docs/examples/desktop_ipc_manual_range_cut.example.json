@@ -1,0 +1,49 @@
+{
+  "channel": "projects:manual-range-cut",
+  "payload": {
+    "schema_version": "1.0",
+    "projectId": "ec68bd7a-79eb-4a96-9475-4db15df75d3a",
+    "draftId": "draft-bfddc982-903a-4570-8efc-27dc381b98b6",
+    "baseRevisionId": "a647be34-c87d-44eb-82fb-70d6afcbdc31",
+    "expectedSequence": 0,
+    "expectedTimelineSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "startUs": 250000,
+    "endUs": 1250000
+  },
+  "response": {
+    "ok": true,
+    "value": {
+      "projectId": "ec68bd7a-79eb-4a96-9475-4db15df75d3a",
+      "draft": {
+        "id": "draft-bfddc982-903a-4570-8efc-27dc381b98b6",
+        "baseRevisionId": "a647be34-c87d-44eb-82fb-70d6afcbdc31",
+        "sequence": 1,
+        "timelineSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "undoTransactionId": "manual-transaction-1"
+      },
+      "timeline": {
+        "id": "d0d743dc-b2af-4a60-8dd9-3cb7644a7ba4",
+        "durationUs": 1000000,
+        "frameRate": { "numerator": 60, "denominator": 1 }
+      },
+      "clips": [
+        {
+          "id": "8ae27d25-c778-4d2c-9678-6be65c0ca717",
+          "sourceId": "d81632fb-4cde-4d40-a75d-679e22c15f2a",
+          "timelineStartUs": 0,
+          "timelineEndUs": 250000,
+          "sourceStartUs": 0,
+          "sourceEndUs": 250000
+        },
+        {
+          "id": "951af9b8-5f2b-4f24-96cd-b2cdfb543884",
+          "sourceId": "b3b7a3c2-34b1-4bb8-9c2b-71c7e2072834",
+          "timelineStartUs": 250000,
+          "timelineEndUs": 1000000,
+          "sourceStartUs": 250000,
+          "sourceEndUs": 1000000
+        }
+      ]
+    }
+  }
+}
