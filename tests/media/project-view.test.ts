@@ -6,6 +6,7 @@ import {
   assertProjectFrameRequest,
   assertProjectFrameResult,
   assertManualTrimRequest,
+  assertManualSplitRequest,
   assertManualUndoRequest,
   assertProjectNavigation,
   assertProjectRequest,
@@ -176,7 +177,13 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
     timelinePositionUs: 500_000,
   };
   const undo = { ...head, targetTransactionId: "transaction-1" };
+  const split = {
+    ...head,
+    clipId: "clip-main",
+    timelinePositionUs: 500_000,
+  };
   assertManualTrimRequest(trim);
+  assertManualSplitRequest(split);
   assertManualUndoRequest(undo);
   for (const bad of [
     { ...trim, path: "/private/source.mp4" },
@@ -190,11 +197,109 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
   ])
     assert.throws(() => assertManualTrimRequest(bad));
   for (const bad of [
+    { ...split, path: "/private/source.mp4" },
+    { ...split, schema_version: "2.0" },
+    { ...split, clipId: "../private" },
+    { ...split, timelinePositionUs: 0 },
+    { ...split, timelinePositionUs: 0.5 },
+    { ...split, edge: "start" },
+    { ...split, expectedTimelineSha256: "bad" },
+  ])
+    assert.throws(() => assertManualSplitRequest(bad));
+  for (const bad of [
     { ...undo, targetTransactionId: "" },
     { ...undo, expectedSequence: -1 },
     { ...undo, request_id: "renderer-owned" },
   ])
     assert.throws(() => assertManualUndoRequest(bad));
+});
+test("committed fragments retain ordered source intervals and reject overlap or source revisits", () => {
+  const base = view();
+  const second = {
+    ...base.source,
+    id: "55555555-5555-4555-8555-555555555555",
+    name: "Second.mkv",
+  };
+  const clips = [
+    {
+      id: "clip-left",
+      sourceId: base.source.id,
+      timelineStartUs: 0,
+      timelineEndUs: 400_000,
+      sourceStartUs: 0,
+      sourceEndUs: 400_000,
+    },
+    {
+      id: "clip-right",
+      sourceId: base.source.id,
+      timelineStartUs: 400_000,
+      timelineEndUs: 800_000,
+      sourceStartUs: 500_000,
+      sourceEndUs: 900_000,
+    },
+    {
+      id: "clip-second",
+      sourceId: second.id,
+      timelineStartUs: 800_000,
+      timelineEndUs: 1_300_000,
+      sourceStartUs: 0,
+      sourceEndUs: 500_000,
+    },
+  ];
+  const project: ProjectView = {
+    ...base,
+    sources: [base.source, second],
+    clips,
+    timeline: { ...base.timeline, durationUs: 1_300_000 },
+  };
+  assertProjectView(project);
+  assertProjectDraftView({
+    projectId: project.id,
+    draft: project.draft,
+    timeline: project.timeline,
+    clips,
+  });
+  for (const bad of [
+    [clips[0], { ...clips[1], id: clips[0]!.id }, clips[2]],
+    [
+      clips[0],
+      { ...clips[1], sourceStartUs: 399_999, sourceEndUs: 799_999 },
+      clips[2],
+    ],
+    [
+      clips[0],
+      { ...clips[2], timelineStartUs: 400_000, timelineEndUs: 900_000 },
+      { ...clips[1], timelineStartUs: 900_000, timelineEndUs: 1_300_000 },
+    ],
+    [clips[0], { ...clips[1], timelineStartUs: 400_001 }, clips[2]],
+    [
+      clips[0],
+      { ...clips[1], sourceEndUs: base.source.durationUs + 1 },
+      clips[2],
+    ],
+  ])
+    assert.throws(() => assertProjectView({ ...project, clips: bad }));
+  const many = Array.from({ length: 4097 }, (_, index) => ({
+    id: `clip-${index}`,
+    sourceId: base.source.id,
+    timelineStartUs: index,
+    timelineEndUs: index + 1,
+    sourceStartUs: index,
+    sourceEndUs: index + 1,
+  }));
+  assertProjectView({
+    ...base,
+    timeline: { ...base.timeline, durationUs: 4096 },
+    clips: many.slice(0, 4096),
+  });
+  assert.throws(() =>
+    assertProjectDraftView({
+      projectId: base.id,
+      draft: base.draft,
+      timeline: { ...base.timeline, durationUs: many.length },
+      clips: many,
+    }),
+  );
 });
 test("committed clip maps enforce contiguous ordered half-open source mapping", () => {
   const first = view();

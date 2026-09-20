@@ -47,9 +47,17 @@ input carries only bounded intent. Return the committed clip map with every draf
 so an assistant edit cannot leave the next manual target stale. Disable trims at clip
 boundaries and keep failure/uncertain outcomes truthful.
 
+For the partial split tool, require an interior playhead position on the currently
+committed fragment. Keep its left ID and derive the new right ID from the trusted
+operation rather than renderer input. Preserve half-open timeline/source intervals,
+source order, total duration and the immutable baseline. Bound the fragment count,
+store the exact inverse in the shared journal, and refresh the committed fragment map
+before another manual or assistant edit. Split must be undoable and replay identically
+after reopen; it is not a ripple delete or an audio/video render.
+
 ## Validation
 
-Test zero and final boundaries, overlapping operations, ripple mapping, speed mapping, zoom blocks, transcript restore, batch undo, crash replay, stale dependencies, and revision compare. The first bounded reducer must also test immutable source/baseline bytes, reopen replay, postcommit-unknown recovery, strict input rejection, stale-head concurrency, and checkpoint invalidation. Use Playwright Electron for pointer and keyboard flows once the transaction path changes native UI behavior.
+Test zero and final boundaries, overlapping operations, ripple mapping, speed mapping, zoom blocks, transcript restore, batch undo, crash replay, stale dependencies, and revision compare. The first bounded reducer must also test immutable source/baseline bytes, reopen replay, postcommit-unknown recovery, strict input rejection, stale-head concurrency, and checkpoint invalidation. For split, test exact interior/boundary behavior, fragment IDs/order/limits, seek equivalence on both sides, trim-after-split, undo and replay. Use Playwright Electron for pointer and keyboard flows once the transaction path changes native UI behavior.
 
 ## Simplicity rule
 

@@ -34,6 +34,14 @@ export interface TrimEdgeIntent {
   timeline_position_us: number;
 }
 
+export interface SplitClipIntent {
+  type: "split";
+  clip_id: string;
+  timeline_position_us: number;
+}
+
+export type DraftEditIntent = TrimEdgeIntent | SplitClipIntent;
+
 /** Untrusted callers provide intent and freshness only. Authority is injected by the adapter. */
 export interface ApplyDraftTransactionRequest {
   schema_version: "1.0";
@@ -45,7 +53,7 @@ export interface ApplyDraftTransactionRequest {
   expected_timeline_sha256: string;
   pass_group: DraftPassGroup;
   reason: string;
-  operations: TrimEdgeIntent[];
+  operations: DraftEditIntent[];
 }
 
 export interface UndoDraftTransactionRequest {
@@ -109,6 +117,23 @@ export interface TrimOperationRecord {
   };
 }
 
+export interface SplitOperationRecord {
+  schema_version: "1.0";
+  operation_id: string;
+  operation_type: "split";
+  clip_id: string;
+  timeline_position_us: number;
+  before: DraftTimeline["clips"][number];
+  after: [DraftTimeline["clips"][number], DraftTimeline["clips"][number]];
+  inverse: {
+    type: "merge_split";
+    clip: DraftTimeline["clips"][number];
+    expected_after_sha256: string;
+  };
+}
+
+export type DraftOperationRecord = TrimOperationRecord | SplitOperationRecord;
+
 export interface DraftTransactionRecord {
   schema_version: "1.0";
   transaction_id: string;
@@ -127,7 +152,7 @@ export interface DraftTransactionRecord {
   target_transaction_id: string | null;
   before: DraftState;
   after: DraftState;
-  operations: TrimOperationRecord[];
+  operations: DraftOperationRecord[];
   status: "committed";
 }
 
@@ -306,32 +331,51 @@ export function assertDraftTimeline(
     value.operation_ids.length > 100_000 ||
     !Array.isArray(value.clips) ||
     ![1, 2].includes(baseline.clips.length) ||
-    value.clips.length !== baseline.clips.length
+    value.clips.length < baseline.clips.length ||
+    value.clips.length > 4096
   )
     invalid();
   for (const operationId of value.operation_ids) id(operationId);
   if (new Set(value.operation_ids).size !== value.operation_ids.length)
     invalid();
   let position = 0;
-  for (let index = 0; index < baseline.clips.length; index++) {
-    const current = value.clips[index],
-      original = baseline.clips[index];
-    clip(current);
+  let clipIndex = 0;
+  const clipIds = new Set<string>();
+  for (const original of baseline.clips) {
     clip(original);
-    if (
-      current.clip_id !== original.clip_id ||
-      current.track_id !== original.track_id ||
-      current.source_id !== original.source_id ||
-      current.source_start_us < original.source_start_us ||
-      current.source_end_us > original.source_end_us ||
-      current.timeline_start_us !== position ||
-      current.timeline_end_us !==
-        position + current.source_end_us - current.source_start_us
-    )
-      invalid();
-    position = current.timeline_end_us;
+    let previousSourceEnd = original.source_start_us;
+    let fragmentCount = 0;
+    while (
+      clipIndex < value.clips.length &&
+      value.clips[clipIndex]?.source_id === original.source_id
+    ) {
+      const current = value.clips[clipIndex++]!;
+      clip(current);
+      if (
+        (fragmentCount === 0 && current.clip_id !== original.clip_id) ||
+        clipIds.has(current.clip_id) ||
+        current.track_id !== original.track_id ||
+        current.source_id !== original.source_id ||
+        current.source_start_us < original.source_start_us ||
+        current.source_start_us < previousSourceEnd ||
+        current.source_end_us > original.source_end_us ||
+        current.timeline_start_us !== position ||
+        !Number.isSafeInteger(
+          position + current.source_end_us - current.source_start_us,
+        ) ||
+        current.timeline_end_us !==
+          position + current.source_end_us - current.source_start_us
+      )
+        invalid();
+      clipIds.add(current.clip_id);
+      previousSourceEnd = current.source_end_us;
+      position = current.timeline_end_us;
+      fragmentCount++;
+    }
+    if (fragmentCount === 0) invalid();
   }
-  if (value.duration_us !== position) invalid();
+  if (clipIndex !== value.clips.length || value.duration_us !== position)
+    invalid();
 }
 
 export function assertDraftState(
@@ -401,12 +445,18 @@ export function assertApplyDraftTransactionRequest(
     invalid();
   const clips = new Set<string>();
   for (const operation of value.operations) {
-    exact(operation, ["type", "clip_id", "edge", "timeline_position_us"]);
+    exact(
+      operation,
+      operation?.type === "split"
+        ? ["type", "clip_id", "timeline_position_us"]
+        : ["type", "clip_id", "edge", "timeline_position_us"],
+    );
     id(operation.clip_id);
     integer(operation.timeline_position_us, 1);
     if (
-      operation.type !== "trim" ||
-      !["start", "end"].includes(operation.edge as string) ||
+      (operation.type !== "split" &&
+        (operation.type !== "trim" ||
+          !["start", "end"].includes(operation.edge as string))) ||
       clips.has(operation.clip_id)
     )
       invalid();

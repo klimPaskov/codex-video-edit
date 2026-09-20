@@ -148,6 +148,7 @@ try {
   await expect(page.locator("#edit-actions")).toBeVisible();
   await expect(page.locator("#trim-start")).toBeDisabled();
   await expect(page.locator("#trim-end")).toBeDisabled();
+  await expect(page.locator("#split-clip")).toBeDisabled();
   await expect(page.locator("#undo-edit")).toBeDisabled();
   await seek(page, 750_000);
   await expect(page.locator("#trim-start")).toBeEnabled();
@@ -173,6 +174,47 @@ try {
   );
   assert.equal(restored?.clips?.[0]?.sourceStartUs, 0);
   assert.equal(restored?.clips?.[1]?.timelineStartUs, 1_000_000);
+  await seek(page, 500_000);
+  await expect(page.locator("#split-clip")).toBeEnabled();
+  await page.locator("#split-clip").click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:02.000");
+  const splitProjects = await page.evaluate(() =>
+    window.desktop.listProjects(),
+  );
+  assert.ok(splitProjects.ok);
+  const split = splitProjects.value.find(
+    (project) => project.id === combined.id,
+  );
+  assert.equal(split?.clips?.length, 3);
+  assert.equal(split?.clips?.[0]?.timelineEndUs, 500_000);
+  assert.equal(split?.clips?.[1]?.sourceStartUs, 500_000);
+  assert.equal(split?.clips?.[2]?.timelineStartUs, 1_000_000);
+  await seek(page, 750_000);
+  assert.deepEqual(await canvasBytes(page), firstFrame);
+  await page.locator("#trim-start").click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:01.750");
+  const trimmedFragmentProjects = await page.evaluate(() =>
+    window.desktop.listProjects(),
+  );
+  assert.ok(trimmedFragmentProjects.ok);
+  const trimmedFragment = trimmedFragmentProjects.value.find(
+    (project) => project.id === combined.id,
+  );
+  assert.equal(trimmedFragment?.clips?.[1]?.sourceStartUs, 750_000);
+  assert.equal(trimmedFragment?.clips?.[2]?.timelineStartUs, 750_000);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:02.000");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:02.000");
+  const unsplitProjects = await page.evaluate(() =>
+    window.desktop.listProjects(),
+  );
+  assert.ok(unsplitProjects.ok);
+  assert.equal(
+    unsplitProjects.value.find((project) => project.id === combined.id)?.clips
+      ?.length,
+    2,
+  );
   await electron.close();
 
   electron = await _electron.launch({

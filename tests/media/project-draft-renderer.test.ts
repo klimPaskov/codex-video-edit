@@ -125,3 +125,44 @@ test("a committed trim replaces the clip map used by manual controls", () => {
   if (missingMap.status === "applied")
     assert.equal(missingMap.value.clips, undefined);
 });
+
+test("renderer reconciliation retains every split fragment and its ordered mapping", () => {
+  const current = project();
+  current.clips = [
+    {
+      id: "clip-main",
+      sourceId: current.source.id,
+      timelineStartUs: 0,
+      timelineEndUs: 1_000_000,
+      sourceStartUs: 0,
+      sourceEndUs: 1_000_000,
+    },
+  ];
+  const update = changed(3);
+  update.timeline.durationUs = 1_000_000;
+  update.clips = [
+    { ...current.clips[0]!, timelineEndUs: 250_000, sourceEndUs: 250_000 },
+    {
+      ...current.clips[0]!,
+      id: "clip-right-1",
+      timelineStartUs: 250_000,
+      timelineEndUs: 500_000,
+      sourceStartUs: 250_000,
+      sourceEndUs: 500_000,
+    },
+    {
+      ...current.clips[0]!,
+      id: "clip-right-2",
+      timelineStartUs: 500_000,
+      timelineEndUs: 1_000_000,
+      sourceStartUs: 500_000,
+      sourceEndUs: 1_000_000,
+    },
+  ];
+  const result = reconcileProjectDraft(current, update);
+  assert.equal(result.status, "applied");
+  if (result.status !== "applied") return;
+  assert.deepEqual(result.value.clips, update.clips);
+  assert.equal(result.value.clips?.[2]?.id, "clip-right-2");
+  assert.equal(current.clips.length, 1);
+});

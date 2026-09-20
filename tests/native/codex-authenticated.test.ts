@@ -512,6 +512,8 @@ try {
   assert.equal(edit.kind, "apply");
   assert.equal(edit.status, "committed");
   assert.equal(edit.operations.length, 1);
+  if (edit.operations[0]!.operation_type !== "trim")
+    throw new Error("Expected a trim operation");
   assert.equal(edit.operations[0]!.edge, "start");
   assert.equal(edit.operations[0]!.timeline_position_us, 500000);
   assert.equal(edit.after.timeline.duration_us, 1000000);

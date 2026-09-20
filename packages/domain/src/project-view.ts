@@ -58,7 +58,7 @@ export interface ProjectDraftView {
     durationUs: number;
     frameRate: { numerator: number; denominator: number };
   };
-  /** Current committed, half-open clip map. Older exchange fixtures may omit it. */
+  /** Current committed, half-open fragment map. Older exchange fixtures may omit it. */
   clips?: ProjectClipView[];
 }
 export interface ProjectClipView {
@@ -88,6 +88,16 @@ export interface ManualTrimRequest {
   expectedTimelineSha256: string;
   clipId: string;
   edge: "start" | "end";
+  timelinePositionUs: number;
+}
+export interface ManualSplitRequest {
+  schema_version: "1.0";
+  projectId: string;
+  draftId: string;
+  baseRevisionId: string;
+  expectedSequence: number;
+  expectedTimelineSha256: string;
+  clipId: string;
   timelinePositionUs: number;
 }
 export interface ManualUndoRequest {
@@ -210,6 +220,23 @@ export function assertManualTrimRequest(
   if (value.edge !== "start" && value.edge !== "end") invalid();
   positive(value.timelinePositionUs);
 }
+export function assertManualSplitRequest(
+  value: unknown,
+): asserts value is ManualSplitRequest {
+  exact(value, [
+    "schema_version",
+    "projectId",
+    "draftId",
+    "baseRevisionId",
+    "expectedSequence",
+    "expectedTimelineSha256",
+    "clipId",
+    "timelinePositionUs",
+  ]);
+  assertManualHead(value);
+  opaqueId(value.clipId);
+  positive(value.timelinePositionUs);
+}
 export function assertManualUndoRequest(
   value: unknown,
 ): asserts value is ManualUndoRequest {
@@ -310,11 +337,17 @@ export function assertProjectDraftView(
   )
     invalid();
   if (hasClips) {
-    if (!Array.isArray(value.clips) || ![1, 2].includes(value.clips.length))
+    if (
+      !Array.isArray(value.clips) ||
+      value.clips.length < 1 ||
+      value.clips.length > 4096
+    )
       invalid();
     let position = 0;
     const clipIds = new Set<string>();
-    const sourceIds = new Set<string>();
+    const completedSources = new Set<string>();
+    let activeSource: string | undefined;
+    let priorSourceEnd = 0;
     for (const clip of value.clips) {
       exact(clip, [
         "id",
@@ -332,17 +365,26 @@ export function assertProjectDraftView(
       positive(clip.sourceEndUs);
       if (
         clipIds.has(clip.id) ||
-        sourceIds.has(clip.sourceId) ||
         clip.timelineStartUs !== position ||
         clip.sourceStartUs >= clip.sourceEndUs ||
+        (activeSource === clip.sourceId &&
+          clip.sourceStartUs < priorSourceEnd) ||
+        (activeSource !== clip.sourceId &&
+          completedSources.has(clip.sourceId)) ||
         clip.timelineEndUs - clip.timelineStartUs !==
           clip.sourceEndUs - clip.sourceStartUs
       )
         invalid();
       clipIds.add(clip.id);
-      sourceIds.add(clip.sourceId);
+      if (activeSource !== clip.sourceId) {
+        if (activeSource !== undefined) completedSources.add(activeSource);
+        activeSource = clip.sourceId;
+      }
+      priorSourceEnd = clip.sourceEndUs;
       position = clip.timelineEndUs;
     }
+    if (completedSources.size + (activeSource === undefined ? 0 : 1) > 2)
+      invalid();
     if (position !== value.timeline.durationUs) invalid();
   }
 }
@@ -414,19 +456,21 @@ export function assertProjectView(
     const sourceIds = hasSources
       ? (value.sources as MediaSummary[]).map((source) => source.id)
       : [value.source.id];
-    if (
-      clips.length !== sourceIds.length ||
-      clips.some(
-        (clip, index) =>
-          clip.sourceId !== sourceIds[index] ||
-          clip.sourceEndUs >
-            (hasSources
-              ? (value.sources as MediaSummary[])[index]!
-              : (value.source as MediaSummary)
-            ).durationUs,
+    let sourceIndex = 0;
+    for (const clip of clips) {
+      if (clip.sourceId !== sourceIds[sourceIndex]) sourceIndex += 1;
+      if (
+        sourceIndex >= sourceIds.length ||
+        clip.sourceId !== sourceIds[sourceIndex] ||
+        clip.sourceEndUs >
+          (hasSources
+            ? (value.sources as MediaSummary[])[sourceIndex]!
+            : (value.source as MediaSummary)
+          ).durationUs
       )
-    )
-      invalid();
+        invalid();
+    }
+    if (sourceIndex !== sourceIds.length - 1) invalid();
   }
   if (draftView.draft.baseRevisionId !== value.revisionId) invalid();
   if (

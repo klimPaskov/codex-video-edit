@@ -36,7 +36,7 @@ ADR 0013 brings only the necessary project foundation forward from P3. Stage nav
 - [ ] P2-02 Add ChatGPT-managed browser and optional device-code login, logout, account state, and rate-limit display. Keep the one-time device code in the explicit Settings attempt only; require an actual completion callback and reconciled signed-in account before claiming managed login completion.
 - [ ] P2-03 Discover models, reasoning options, skills, and skill changes at runtime.
 - [ ] P2-04 Implement durable project threads, streaming items, interrupt, retry, and compact user-facing activity. Filter native child notifications from the parent projection and require correlated server history before claiming a subagent ran.
-- [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and shared validated transaction engine, including expected draft sequence, durable journal, atomic persistence, deterministic inverse/undo, and committed-transaction recovery required by the real fixture edit (ADR 0013). A partial native Edit control now routes playhead trim and newest undo through this same journal, with committed clip-map refresh. Complete guarded-tool policy and editorial pass groups, current sequence/hash preconditions and truthful verified checkpoints in docs/47_EDITORIAL_FIRST_CUT.md.
+- [ ] P2-05 Implement the guarded codex-video-edit MCP tool server and shared validated transaction engine, including expected draft sequence, durable journal, atomic persistence, deterministic inverse/undo, and committed-transaction recovery required by the real fixture edit (ADR 0013). Partial native Edit controls now route playhead trim, split and newest undo through this same journal, with committed clip-map refresh. Complete guarded-tool policy and editorial pass groups, current sequence/hash preconditions and truthful verified checkpoints in docs/47_EDITORIAL_FIRST_CUT.md.
 - [ ] P2-06 Prove a real authenticated Codex turn can inspect a fixture project and apply a draft-only edit. Bootstrap read tools on create/resume with the main-owned validated project identity; obtain current draft identifiers, sequence and hash through those tools before mutation.
 - [ ] P2-07 Reject fake responses and stale protocol assumptions. Distinguish offline guarded-service freshness on a real Codex edit from live stdio error relay, bounded native non-use of a forbidden command from complete tool unavailability, and model subagent claims from a completed spawn and child read.
 - [ ] P2-08 Add fixed-endpoint OpenAI API and DeepSeek key connections beside Codex. Keep key entry and provider network calls in main, use OS-backed encryption or session-only fallback, and never expose key material in renderer state, projects, logs or Git.
@@ -52,7 +52,7 @@ Use P1's actual project foundation and the shared transaction engine for the aut
 - [ ] P3-01 Create project storage, source manifests, autosave, locks, and recovery.
 - [ ] P3-02 Import and hash media without mutating it.
 - [ ] P3-03 Probe streams and build edit, audio, and thumbnail proxies.
-- [ ] P3-04 Implement the canonical microsecond timeline and deterministic frame conversion. Partial foundations now include a verified source PTS/final-packet boundary and an ordered two-source clip map with trim/undo; synchronized A/V, canonical multi-source render and broader timing/format fixtures remain open.
+- [ ] P3-04 Implement the canonical microsecond timeline and deterministic frame conversion. Partial foundations now include a verified source PTS/final-packet boundary and an ordered two-source fragment map with trim/split/undo; synchronized A/V, canonical multi-source render and broader timing/format fixtures remain open.
 - [ ] P3-05 Build smooth preview playback with source-to-output mapping.
 - [ ] P3-06 Add recent projects, open, rename, duplicate, archive, and delete-project safeguards.
 
@@ -85,7 +85,7 @@ Acceptance: Magic Wand improves a fixture while preserving meaning and source by
 
 ## P6: simple editor
 
-- [ ] P6-01 Implement select, split, trim, ripple delete, restore, move, snap, undo, and redo. A partial native Edit control now trims the current clip edge at the playhead and undoes the newest transaction; the rest of the toolset remains open.
+- [ ] P6-01 Implement select, split, trim, ripple delete, restore, move, snap, undo, and redo. Partial native Edit controls now trim or split the current clip at the playhead and undo the newest transaction; selection, ripple delete, restore, move, snap, redo and broader edit flows remain open.
 - [ ] P6-02 Implement fixed screen, camera, audio, B-roll, text, and caption tracks with collapsible detail.
 - [ ] P6-03 Show only the inspector for the current selection or tool.
 - [ ] P6-04 Add selection-aware Codex commands that update the same draft history.

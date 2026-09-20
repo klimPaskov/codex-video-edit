@@ -40,6 +40,7 @@ const editActions = element("edit-actions"),
   editClip = element("edit-clip"),
   trimStart = element<HTMLButtonElement>("trim-start"),
   trimEnd = element<HTMLButtonElement>("trim-end"),
+  splitClip = element<HTMLButtonElement>("split-clip"),
   undoEdit = element<HTMLButtonElement>("undo-edit");
 let selected: MediaSummary | undefined;
 let selectedButton: HTMLButtonElement | undefined;
@@ -129,8 +130,10 @@ function renderEditTools(): void {
     : `Part ${project.clips.indexOf(clip!) + 1}`;
   trimStart.setAttribute("aria-label", `Trim start of ${part} to playhead`);
   trimEnd.setAttribute("aria-label", `Trim end of ${part} to playhead`);
+  splitClip.setAttribute("aria-label", `Split ${part} at playhead`);
   trimStart.disabled = !interior || manualEditPending || navigating;
   trimEnd.disabled = !interior || manualEditPending || navigating;
+  splitClip.disabled = !interior || manualEditPending || navigating;
   undoEdit.disabled =
     !project.draft.undoTransactionId || manualEditPending || navigating;
 }
@@ -687,6 +690,46 @@ async function submitManualTrim(edge: "start" | "end"): Promise<void> {
     renderEditTools();
   }
 }
+async function submitManualSplit(): Promise<void> {
+  const project = activeProject,
+    clip = currentClip(),
+    position = Number(seek.value),
+    generation = routeGeneration;
+  if (
+    !project ||
+    project.stage !== "edit" ||
+    !clip ||
+    position <= clip.timelineStartUs ||
+    position >= clip.timelineEndUs ||
+    manualEditPending
+  )
+    return;
+  manualEditPending = true;
+  back.disabled = true;
+  renderEditTools();
+  clearError();
+  try {
+    const reply = await window.desktop.applyManualSplit({
+      schema_version: "1.0",
+      projectId: project.id,
+      draftId: project.draft.id,
+      baseRevisionId: project.draft.baseRevisionId,
+      expectedSequence: project.draft.sequence,
+      expectedTimelineSha256: project.draft.timelineSha256,
+      clipId: clip.id,
+      timelinePositionUs: position,
+    });
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      applyProjectDraft(reply);
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      showError("The split could not be saved. Try again.");
+  } finally {
+    manualEditPending = false;
+    back.disabled = false;
+    renderEditTools();
+  }
+}
 async function submitManualUndo(): Promise<void> {
   const project = activeProject,
     target = project?.draft.undoTransactionId,
@@ -720,6 +763,7 @@ async function submitManualUndo(): Promise<void> {
 }
 trimStart.addEventListener("click", () => void submitManualTrim("start"));
 trimEnd.addEventListener("click", () => void submitManualTrim("end"));
+splitClip.addEventListener("click", () => void submitManualSplit());
 undoEdit.addEventListener("click", () => void submitManualUndo());
 window.desktop.onProjectDraftChanged(applyProjectDraft);
 void loadLibrary().catch(() =>

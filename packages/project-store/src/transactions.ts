@@ -23,12 +23,12 @@ import {
   passCheckpointRequestSha256,
   type ApplyDraftTransactionRequest,
   type DraftOrigin,
+  type DraftOperationRecord,
   type DraftState,
   type DraftTransactionAuthority,
   type DraftTransactionRecord,
   type PassCheckpointRecord,
   type PassCheckpointRequest,
-  type TrimOperationRecord,
   type UndoDraftTransactionRequest,
 } from "../../domain/src/draft-transaction.ts";
 import {
@@ -475,7 +475,7 @@ function prepareApply(
   )
     fail("invalid");
   const timeline = structuredClone(before.timeline),
-    records: TrimOperationRecord[] = [];
+    records: DraftOperationRecord[] = [];
   for (let index = 0; index < request.operations.length; index++) {
     const intent = request.operations[index]!,
       operationId = authority.operation_ids[index]!;
@@ -491,16 +491,68 @@ function prepareApply(
       intent.timeline_position_us >= current.timeline_end_us
     )
       fail("conflict");
-    const next = structuredClone(current);
-    if (intent.edge === "start") {
-      const removed = intent.timeline_position_us - current.timeline_start_us;
-      next.source_start_us += removed;
-    } else {
-      next.source_end_us =
+    if (intent.type === "split") {
+      if (timeline.clips.length >= 4096) fail("conflict");
+      const splitSourceUs =
         current.source_start_us +
         (intent.timeline_position_us - current.timeline_start_us);
+      const left = {
+        ...current,
+        source_end_us: splitSourceUs,
+        timeline_end_us: intent.timeline_position_us,
+      };
+      const right = {
+        ...current,
+        clip_id: `clip-${canonicalSha256({ operation_id: operationId, clip_id: intent.clip_id }).slice(0, 32)}`,
+        source_start_us: splitSourceUs,
+        timeline_start_us: intent.timeline_position_us,
+      };
+      if (
+        timeline.clips.some((candidate) => candidate.clip_id === right.clip_id)
+      )
+        fail("conflict");
+      timeline.clips.splice(clipIndex, 1, left, right);
+      records.push({
+        schema_version: "1.0",
+        operation_id: operationId,
+        operation_type: "split",
+        clip_id: intent.clip_id,
+        timeline_position_us: intent.timeline_position_us,
+        before: structuredClone(current),
+        after: [structuredClone(left), structuredClone(right)],
+        inverse: {
+          type: "merge_split",
+          clip: structuredClone(current),
+          expected_after_sha256: canonicalSha256([left, right]),
+        },
+      });
+    } else {
+      const next = structuredClone(current);
+      if (intent.edge === "start") {
+        const removed = intent.timeline_position_us - current.timeline_start_us;
+        next.source_start_us += removed;
+      } else {
+        next.source_end_us =
+          current.source_start_us +
+          (intent.timeline_position_us - current.timeline_start_us);
+      }
+      timeline.clips[clipIndex] = next;
+      records.push({
+        schema_version: "1.0",
+        operation_id: operationId,
+        operation_type: "trim",
+        clip_id: intent.clip_id,
+        edge: intent.edge,
+        timeline_position_us: intent.timeline_position_us,
+        before: structuredClone(current),
+        after: structuredClone(next),
+        inverse: {
+          type: "restore_clip",
+          clip: structuredClone(current),
+          expected_after_sha256: canonicalSha256(next),
+        },
+      });
     }
-    timeline.clips[clipIndex] = next;
     let position = 0;
     for (const candidate of timeline.clips) {
       candidate.timeline_start_us = position;
@@ -509,21 +561,6 @@ function prepareApply(
     }
     timeline.duration_us = position;
     timeline.operation_ids.push(operationId);
-    records.push({
-      schema_version: "1.0",
-      operation_id: operationId,
-      operation_type: "trim",
-      clip_id: intent.clip_id,
-      edge: intent.edge,
-      timeline_position_us: intent.timeline_position_us,
-      before: structuredClone(current),
-      after: structuredClone(next),
-      inverse: {
-        type: "restore_clip",
-        clip: structuredClone(current),
-        expected_after_sha256: canonicalSha256(next),
-      },
-    });
   }
   const after = nextState(before, timeline);
   assertDraftState(after, baseline);
@@ -740,12 +777,20 @@ export class DraftTransactionStore {
           expected_timeline_sha256: record.before.timeline_sha256,
           pass_group: record.pass_group,
           reason: record.reason,
-          operations: record.operations.map((operation) => ({
-            type: "trim",
-            clip_id: operation.clip_id,
-            edge: operation.edge,
-            timeline_position_us: operation.timeline_position_us,
-          })),
+          operations: record.operations.map((operation) =>
+            operation.operation_type === "split"
+              ? {
+                  type: "split" as const,
+                  clip_id: operation.clip_id,
+                  timeline_position_us: operation.timeline_position_us,
+                }
+              : {
+                  type: "trim" as const,
+                  clip_id: operation.clip_id,
+                  edge: operation.edge,
+                  timeline_position_us: operation.timeline_position_us,
+                },
+          ),
         };
         assertApplyDraftTransactionRequest(request);
         replay = prepareApply(baseline, state, request, {

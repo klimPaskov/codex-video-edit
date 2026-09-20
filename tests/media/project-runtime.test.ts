@@ -185,6 +185,64 @@ test("committed project views and frames follow trim and undo state without chan
   );
 });
 
+test("preview maps every committed fragment through its own source interval", async () => {
+  const { baseline, drafts } = await fixture();
+  const committed = structuredClone(
+    await drafts.snapshotWithProject(baseline.project.project_id),
+  );
+  const original = committed.draft.timeline.clips[0]!;
+  committed.draft.timeline.clips = [
+    {
+      ...original,
+      clip_id: "clip-first",
+      source_start_us: 0,
+      source_end_us: 300_000,
+      timeline_start_us: 0,
+      timeline_end_us: 300_000,
+    },
+    {
+      ...original,
+      clip_id: "clip-middle",
+      source_start_us: 400_000,
+      source_end_us: 700_000,
+      timeline_start_us: 300_000,
+      timeline_end_us: 600_000,
+    },
+    {
+      ...original,
+      clip_id: "clip-last",
+      source_start_us: 900_000,
+      source_end_us: 1_500_000,
+      timeline_start_us: 600_000,
+      timeline_end_us: 1_200_000,
+    },
+  ];
+  committed.draft.timeline.duration_us = 1_200_000;
+  committed.draft.timeline_sha256 = "b".repeat(64);
+  committed.draft.draft_sequence = 1;
+  const requested: number[] = [];
+  const runtime = new DesktopProjectRuntime(
+    { snapshotWithProject: async () => structuredClone(committed) },
+    {
+      frame: async (_id, sourceTimeUs) => {
+        requested.push(sourceTimeUs);
+        return { width: 1, height: 1, rgbaBase64: "AAAAAA==" };
+      },
+    },
+  );
+  const project = await runtime.view(baseline.project.project_id);
+  assert.equal(project.clips?.length, 3);
+  assert.deepEqual(
+    project.clips?.map((clip) => clip.id),
+    ["clip-first", "clip-middle", "clip-last"],
+  );
+  for (const timeUs of [299_999, 300_000, 599_999, 600_000, 1_199_999]) {
+    const result = await runtime.frame(frameRequest(project, timeUs));
+    assert.equal(result.status, "ready");
+  }
+  assert.deepEqual(requested, [299_999, 400_000, 699_999, 900_000, 1_499_999]);
+});
+
 test("tagged H.264 project frames follow the committed trim without using display pixels as source", async () => {
   const base = resolve("test-results/project-runtime");
   await mkdir(base, { recursive: true });
@@ -406,4 +464,21 @@ test("rejected manual edits publish the current committed clip map without claim
     assert.equal(notice.value.draft.sequence, 1);
     assert.equal(notice.value.clips?.[0]?.sourceStartUs, 500_000);
   }
+});
+
+test("split tool outcomes publish an authoritative committed fragment map", async () => {
+  const { baseline, drafts } = await fixture();
+  const notices: ProjectDraftNotice[] = [];
+  const result = await invokeWithProjectDraftRefresh({
+    toolName: "timeline.split",
+    projectId: baseline.project.project_id,
+    activeProjectId: () => baseline.project.project_id,
+    work: async () => "split-result",
+    drafts,
+    notify: (notice) => notices.push(notice),
+  });
+  assert.equal(result, "split-result");
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0]?.ok, true);
+  if (notices[0]?.ok) assert.equal(notices[0].value.clips?.length, 1);
 });

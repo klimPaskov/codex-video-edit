@@ -1034,6 +1034,22 @@
       "additionalProperties": false,
       "required": ["channel", "payload", "response"],
       "properties": {
+        "channel": { "const": "projects:manual-split" },
+        "payload": { "$ref": "#/$defs/manualSplitRequest" },
+        "response": { "oneOf": [
+          { "$ref": "#/$defs/error" },
+          { "type": "object", "additionalProperties": false,
+            "required": ["ok", "value"],
+            "properties": { "ok": { "const": true }, "value": { "$ref": "#/$defs/projectDraftView" } }
+          }
+        ] }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel", "payload", "response"],
+      "properties": {
         "channel": { "const": "projects:manual-undo" },
         "payload": { "$ref": "#/$defs/manualUndoRequest" },
         "response": { "oneOf": [
@@ -1307,7 +1323,7 @@
           "description": "Present only for a two-source project, in timeline order. Runtime requires source to equal the first item and IDs to be distinct."
         },
         "clips": {
-          "type": "array", "minItems": 1, "maxItems": 2,
+          "type": "array", "minItems": 1, "maxItems": 4096,
           "items": { "$ref": "#/$defs/projectClipView" },
           "description": "Optional for older exchange fixtures. Runtime emits exact ordered committed clips and matches their source IDs to source or sources."
         },
@@ -1972,7 +1988,7 @@
           "$ref": "#/$defs/projectTimelineView"
         },
         "clips": {
-          "type": "array", "minItems": 1, "maxItems": 2,
+          "type": "array", "minItems": 1, "maxItems": 4096,
           "items": { "$ref": "#/$defs/projectClipView" }
         }
       },
@@ -1993,6 +2009,21 @@
         "timelinePositionUs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
       },
       "description": "Renderer sends intent and freshness. Main injects request, pass and operation IDs, origin, and reason."
+    },
+    "manualSplitRequest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "projectId", "draftId", "baseRevisionId", "expectedSequence", "expectedTimelineSha256", "clipId", "timelinePositionUs"],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "projectId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+        "draftId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$" },
+        "baseRevisionId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+        "expectedSequence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "expectedTimelineSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "clipId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$" },
+        "timelinePositionUs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
+      },
+      "description": "Renderer sends split intent and freshness. Main injects transaction, pass and operation IDs and manual origin."
     },
     "manualUndoRequest": {
       "type": "object", "additionalProperties": false,

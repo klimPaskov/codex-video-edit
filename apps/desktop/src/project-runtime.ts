@@ -82,6 +82,7 @@ export async function invokeWithProjectDraftRefresh<T>(options: {
 }): Promise<T> {
   const mutation =
     options.toolName === "cut.trim_edge" ||
+    options.toolName === "timeline.split" ||
     options.toolName === "timeline.undo";
   try {
     return await options.work();
@@ -167,7 +168,8 @@ export class DesktopProjectRuntime {
       return { status: "stale", draft: committedDraftView(before) };
     if (
       request.timelineTimeUs >= draft.timeline.duration_us ||
-      ![1, 2].includes(draft.timeline.clips.length) ||
+      draft.timeline.clips.length < 1 ||
+      draft.timeline.clips.length > 4096 ||
       draft.timeline.speed_ids.length !== 0
     )
       invalid();
