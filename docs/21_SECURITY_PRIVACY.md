@@ -51,6 +51,8 @@ Thread resume consumes at most one validated page of 100 newest full turns and 1
 
 The private thread registry tags each version 2 binding with its tool route. Version 1 entries are interpreted only as MCP, and an incompatible process route fails before resume. A dynamic thread projects no MCP calls; an MCP thread rejects host calls even if an internal invoker exists. Corrupt or unknown routes fail without replacing the registry. Product main selects host-defined tools for new conversations and retains MCP for existing bindings; both reach the same guarded active-project service. Packaged dynamic edit/Undo/reopen and separate v1 MCP read passed. Complete effective-tool confinement remains open.
 
+A packaged native dynamic stale-draft turn also passed: the host tool returned an unsuccessful bounded response for an obsolete sequence/hash, while the authoritative draft, two journal entries, original, managed copy and baseline remained unchanged. Keep the safe error contract for this route and continue to distinguish a rejected owned call from proof that unrelated built-in tools are unavailable.
+
 For the dynamic route, a host call received before the `turn/start` RPC response requires a validated `turn/started` notification naming the registry-owned thread and a single provisional turn. The response must agree with that turn; a call before notification, after buffered completion, or after contradiction cannot reach the guarded invoker. Notifications stay buffered until reconciliation. Unit tests exercise those races, and a direct isolated App Server run completed one owned read. A packaged dynamic negative-command probe observed no forbidden invocation in that exact turn; this does not prove full upstream tool confinement.
 
 ## Secrets
