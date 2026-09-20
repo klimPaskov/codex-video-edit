@@ -55,6 +55,16 @@ store the exact inverse in the shared journal, and refresh the committed fragmen
 before another manual or assistant edit. Split must be undoable and replay identically
 after reopen; it is not a ripple delete or an audio/video render.
 
+For the partial marked range cut, bind both marks to the current committed head and
+send only a strict `projects:manual-range-cut` output interval. Reject empty, reversed,
+out-of-bounds and whole-draft intervals. The half-open interval may cross fragment or
+source joins and may remove one source's complete visible span. Keep the immutable
+source inventory and baseline, reflow surviving fragment positions, derive any new
+right fragment ID from trusted operation authority, and store an exact inverse in the
+shared durable journal. Refresh preview and tool targeting from the committed map;
+newest Undo must restore the previous map after reopen. Do not call this a general
+transcript cut, synchronized A/V render, or model-visible Codex tool.
+
 ## Validation
 
 Test zero and final boundaries, overlapping operations, ripple mapping, speed mapping, zoom blocks, transcript restore, batch undo, crash replay, stale dependencies, and revision compare. The first bounded reducer must also test immutable source/baseline bytes, reopen replay, postcommit-unknown recovery, strict input rejection, stale-head concurrency, and checkpoint invalidation. For split, test exact interior/boundary behavior, fragment IDs/order/limits, seek equivalence on both sides, trim-after-split, undo and replay. Use Playwright Electron for pointer and keyboard flows once the transaction path changes native UI behavior.

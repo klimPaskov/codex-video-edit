@@ -100,6 +100,17 @@ export interface ManualSplitRequest {
   clipId: string;
   timelinePositionUs: number;
 }
+/** Half-open output-timeline interval to remove from the active draft. */
+export interface ManualRangeCutRequest {
+  schema_version: "1.0";
+  projectId: string;
+  draftId: string;
+  baseRevisionId: string;
+  expectedSequence: number;
+  expectedTimelineSha256: string;
+  startUs: number;
+  endUs: number;
+}
 export interface ManualUndoRequest {
   schema_version: "1.0";
   projectId: string;
@@ -236,6 +247,24 @@ export function assertManualSplitRequest(
   assertManualHead(value);
   opaqueId(value.clipId);
   positive(value.timelinePositionUs);
+}
+export function assertManualRangeCutRequest(
+  value: unknown,
+): asserts value is ManualRangeCutRequest {
+  exact(value, [
+    "schema_version",
+    "projectId",
+    "draftId",
+    "baseRevisionId",
+    "expectedSequence",
+    "expectedTimelineSha256",
+    "startUs",
+    "endUs",
+  ]);
+  assertManualHead(value);
+  integer(value.startUs);
+  positive(value.endUs);
+  if (value.startUs >= value.endUs) invalid();
 }
 export function assertManualUndoRequest(
   value: unknown,
@@ -456,21 +485,21 @@ export function assertProjectView(
     const sourceIds = hasSources
       ? (value.sources as MediaSummary[]).map((source) => source.id)
       : [value.source.id];
-    let sourceIndex = 0;
+    let sourceIndex = -1;
     for (const clip of clips) {
-      if (clip.sourceId !== sourceIds[sourceIndex]) sourceIndex += 1;
+      const clipSourceIndex = sourceIds.indexOf(clip.sourceId);
       if (
-        sourceIndex >= sourceIds.length ||
-        clip.sourceId !== sourceIds[sourceIndex] ||
+        clipSourceIndex < sourceIndex ||
+        clipSourceIndex === -1 ||
         clip.sourceEndUs >
           (hasSources
-            ? (value.sources as MediaSummary[])[sourceIndex]!
+            ? (value.sources as MediaSummary[])[clipSourceIndex]!
             : (value.source as MediaSummary)
           ).durationUs
       )
         invalid();
+      sourceIndex = clipSourceIndex;
     }
-    if (sourceIndex !== sourceIds.length - 1) invalid();
   }
   if (draftView.draft.baseRevisionId !== value.revisionId) invalid();
   if (

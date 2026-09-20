@@ -83,6 +83,7 @@ export async function invokeWithProjectDraftRefresh<T>(options: {
   const mutation =
     options.toolName === "cut.trim_edge" ||
     options.toolName === "timeline.split" ||
+    options.toolName === "timeline.ripple_delete" ||
     options.toolName === "timeline.undo";
   try {
     return await options.work();

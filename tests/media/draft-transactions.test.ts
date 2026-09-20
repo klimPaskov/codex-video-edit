@@ -101,6 +101,67 @@ function split(
   };
 }
 
+function rippleDelete(
+  draft: DraftState,
+  startUs: number,
+  endUs: number,
+  requestId = "request-ripple-001",
+): ApplyDraftTransactionRequest {
+  return {
+    ...trim(draft),
+    request_id: requestId,
+    reason: "Remove the selected range and close the gap.",
+    operations: [{ type: "ripple_delete", start_us: startUs, end_us: endUs }],
+  };
+}
+
+async function twoSourceFixture() {
+  const base = resolve("test-results/draft-transactions");
+  await mkdir(base, { recursive: true });
+  const root = await mkdtemp(join(base, "two-source-"));
+  const library = new MediaLibrary(join(root, "library"));
+  const paths: string[] = [];
+  const ids: string[] = [];
+  for (const pattern of ["testsrc", "testsrc2"]) {
+    const path = join(root, `${pattern}.mp4`);
+    await runProcess({
+      executable: "ffmpeg",
+      args: [
+        "-v",
+        "error",
+        "-nostdin",
+        "-f",
+        "lavfi",
+        "-i",
+        `${pattern}=size=16x16:rate=30:duration=1`,
+        "-vf",
+        "setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
+        "-c:v",
+        "libx264",
+        "-qp",
+        "0",
+        "-pix_fmt",
+        "yuv420p",
+        "-color_range",
+        "tv",
+        "-colorspace",
+        "bt709",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        path,
+      ],
+    });
+    paths.push(path);
+    ids.push((await library.importFile(path)).id);
+  }
+  const projects = join(root, "projects");
+  const projectStore = new ProjectStore(projects, library);
+  const baseline = await projectStore.createFromTwoMedia(ids[0]!, ids[1]!);
+  return { root, paths, ids, library, projects, projectStore, baseline };
+}
+
 function undo(draft: DraftState, target: string): UndoDraftTransactionRequest {
   return {
     schema_version: "1.0",
@@ -543,6 +604,204 @@ test("split after an earlier trim maps the output cut back to the exact source o
       )
     ).draft,
     result.draft,
+  );
+});
+
+test("ripple delete across sources preserves exact source spans, replay, undo, and immutable bytes", async () => {
+  const { paths, ids, library, projects, projectStore, baseline } =
+    await twoSourceFixture();
+  const folder = join(projects, baseline.project.project_id);
+  const protectedPaths = [
+    ...paths,
+    join(folder, "baseline.json"),
+    join(folder, "project.json"),
+    (await library.verifiedSource(ids[0]!)).managedPath,
+    (await library.verifiedSource(ids[1]!)).managedPath,
+  ];
+  const protectedBefore = await Promise.all(
+    protectedPaths.map((path) => readFile(path)),
+  );
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const applied = await store.applyManual(
+    rippleDelete(initial, 800_000, 1_200_000),
+  );
+  assert.equal(applied.draft.timeline.duration_us, 1_600_000);
+  assert.deepEqual(
+    applied.draft.timeline.clips.map((clip) => ({
+      id: clip.clip_id,
+      source: clip.source_id,
+      sourceStart: clip.source_start_us,
+      sourceEnd: clip.source_end_us,
+      start: clip.timeline_start_us,
+      end: clip.timeline_end_us,
+    })),
+    [
+      {
+        id: "clip-main",
+        source: ids[0],
+        sourceStart: 0,
+        sourceEnd: 800_000,
+        start: 0,
+        end: 800_000,
+      },
+      {
+        id: "clip-following",
+        source: ids[1],
+        sourceStart: 200_000,
+        sourceEnd: 1_000_000,
+        start: 800_000,
+        end: 1_600_000,
+      },
+    ],
+  );
+  assert.equal(
+    applied.transaction.operations[0]?.operation_type,
+    "ripple_delete",
+  );
+  const operation = applied.transaction.operations[0]!;
+  if (operation.operation_type !== "ripple_delete")
+    throw new Error("Expected a ripple delete");
+  assert.deepEqual(operation.before, initial.timeline.clips);
+  assert.deepEqual(operation.after, applied.draft.timeline.clips);
+  assert.deepEqual(operation.inverse.clips, initial.timeline.clips);
+  const reopened = new DraftTransactionStore(projects, projectStore);
+  assert.deepEqual(
+    (await reopened.snapshot(baseline.project.project_id)).draft,
+    applied.draft,
+  );
+  const undone = await reopened.undoManual(
+    undo(applied.draft, applied.transaction.transaction_id),
+  );
+  assert.deepEqual(undone.draft.timeline.clips, initial.timeline.clips);
+  assert.deepEqual(
+    await Promise.all(protectedPaths.map((path) => readFile(path))),
+    protectedBefore,
+  );
+});
+
+test("ripple delete may remove one complete source group and retain the later source", async () => {
+  const { projects, projectStore, baseline, ids } = await twoSourceFixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const applied = await store.applyManual(rippleDelete(initial, 0, 1_000_000));
+  assert.equal(applied.draft.timeline.duration_us, 1_000_000);
+  assert.equal(applied.draft.timeline.clips.length, 1);
+  assert.equal(applied.draft.timeline.clips[0]?.source_id, ids[1]);
+  assert.equal(applied.draft.timeline.clips[0]?.clip_id, "clip-following");
+  assert.equal(applied.draft.timeline.clips[0]?.timeline_start_us, 0);
+  assert.deepEqual(
+    (
+      await new DraftTransactionStore(projects, projectStore).snapshot(
+        baseline.project.project_id,
+      )
+    ).draft,
+    applied.draft,
+  );
+});
+
+test("interior ripple delete retains the left ID and derives the right ID, then replays", async () => {
+  const { projects, projectStore, baseline } = await fixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const applied = await store.applyManual(
+    rippleDelete(initial, 250_000, 750_000),
+  );
+  const [left, right] = applied.draft.timeline.clips;
+  assert.equal(applied.draft.timeline.duration_us, 500_000);
+  assert.equal(left?.clip_id, initial.timeline.clips[0]?.clip_id);
+  assert.equal(left?.source_end_us, 250_000);
+  assert.match(right?.clip_id ?? "", /^clip-[a-f0-9]{32}$/u);
+  assert.notEqual(right?.clip_id, left?.clip_id);
+  assert.equal(right?.source_start_us, 750_000);
+  assert.equal(right?.timeline_start_us, 250_000);
+  assert.deepEqual(
+    (
+      await new DraftTransactionStore(projects, projectStore).snapshot(
+        baseline.project.project_id,
+      )
+    ).draft,
+    applied.draft,
+  );
+  const removedLeft = await store.applyManual(
+    rippleDelete(applied.draft, 0, 250_000, "request-ripple-remove-left"),
+  );
+  assert.equal(removedLeft.draft.timeline.clips.length, 1);
+  assert.equal(removedLeft.draft.timeline.clips[0]?.clip_id, right?.clip_id);
+  assert.equal(removedLeft.draft.timeline.clips[0]?.source_start_us, 750_000);
+  assert.equal(removedLeft.draft.timeline.clips[0]?.timeline_start_us, 0);
+  assert.deepEqual(
+    (
+      await new DraftTransactionStore(projects, projectStore).snapshot(
+        baseline.project.project_id,
+      )
+    ).draft,
+    removedLeft.draft,
+  );
+});
+
+test("ripple delete rejects zero, whole, over-end, malformed, and stale ranges", async () => {
+  const { projects, projectStore, baseline } = await fixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  assert.throws(
+    () => store.applyManual(rippleDelete(initial, 0, 0)),
+    code("invalid"),
+  );
+  assert.throws(
+    () => store.applyManual(rippleDelete(initial, -1, 100_000)),
+    code("invalid"),
+  );
+  assert.throws(
+    () => store.applyManual(rippleDelete(initial, 500_000, 400_000)),
+    code("invalid"),
+  );
+  assert.throws(
+    () =>
+      store.applyManual({
+        ...rippleDelete(initial, 100_000, 200_000),
+        operations: [
+          { type: "ripple_delete", start_us: 100_000, end_us: 200_000 },
+          { type: "ripple_delete", start_us: 300_000, end_us: 400_000 },
+        ],
+      }),
+    code("invalid"),
+  );
+  await assert.rejects(
+    store.applyManual(rippleDelete(initial, 0, 1_000_000)),
+    code("conflict"),
+  );
+  await assert.rejects(
+    store.applyManual(rippleDelete(initial, 0, 1_000_001)),
+    code("conflict"),
+  );
+  const applied = await store.applyManual(rippleDelete(initial, 0, 100_000));
+  assert.equal(applied.draft.timeline.clips[0]?.source_start_us, 100_000);
+  await assert.rejects(
+    store.applyManual(
+      rippleDelete(initial, 100_000, 200_000, "request-stale-001"),
+    ),
+    code("stale"),
+  );
+  assert.equal(
+    (await store.snapshot(baseline.project.project_id)).draft.draft_sequence,
+    1,
   );
 });
 

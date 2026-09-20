@@ -41,6 +41,7 @@ import {
   assertTwoSourceProjectRequest,
   assertManualTrimRequest,
   assertManualSplitRequest,
+  assertManualRangeCutRequest,
   assertManualUndoRequest,
 } from "../../../packages/domain/src/project-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
@@ -605,6 +606,44 @@ async function start(): Promise<void> {
                 type: "split",
                 clip_id: request.clipId,
                 timeline_position_us: request.timelinePositionUs,
+              },
+            ],
+          }),
+      });
+      return committedDraftView(committed);
+    } catch (error) {
+      if (error instanceof DraftTransactionError)
+        throw new UserFacingError(error.message);
+      throw error;
+    }
+  });
+  register(channels.projectManualRangeCut, async (request) => {
+    assertManualRangeCutRequest(request);
+    if (activeProjectId !== request.projectId)
+      throw new UserFacingError("Open this project before editing it.");
+    try {
+      const committed = await invokeWithProjectDraftRefresh({
+        toolName: "timeline.ripple_delete",
+        projectId: request.projectId,
+        activeProjectId: () => activeProjectId,
+        drafts,
+        notify: publishDraftNotice,
+        work: () =>
+          drafts.applyManual({
+            schema_version: "1.0",
+            request_id: randomUUID(),
+            project_id: request.projectId,
+            draft_id: request.draftId,
+            base_revision_id: request.baseRevisionId,
+            expected_sequence: request.expectedSequence,
+            expected_timeline_sha256: request.expectedTimelineSha256,
+            pass_group: { pass_group_id: randomUUID(), kind: "manual" },
+            reason: "Manual range cut.",
+            operations: [
+              {
+                type: "ripple_delete",
+                start_us: request.startUs,
+                end_us: request.endUs,
               },
             ],
           }),

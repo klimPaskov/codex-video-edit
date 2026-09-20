@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 
 import {
@@ -98,6 +98,28 @@ function trimRequest(
         edge,
         timeline_position_us: timelinePositionUs,
       },
+    ],
+  };
+}
+
+function rangeCutRequest(
+  current: Awaited<ReturnType<DraftTransactionStore["snapshot"]>>,
+  requestId: string,
+  startUs: number,
+  endUs: number,
+) {
+  return {
+    schema_version: "1.0" as const,
+    request_id: requestId,
+    project_id: current.draft.project_id,
+    draft_id: current.draft.draft_id,
+    base_revision_id: current.draft.base_revision_id,
+    expected_sequence: current.draft.draft_sequence,
+    expected_timeline_sha256: current.draft.timeline_sha256,
+    pass_group: { pass_group_id: `pass-${requestId}`, kind: "manual" as const },
+    reason: "Verify committed ripple-cut preview mapping.",
+    operations: [
+      { type: "ripple_delete" as const, start_us: startUs, end_us: endUs },
     ],
   };
 }
@@ -241,6 +263,115 @@ test("preview maps every committed fragment through its own source interval", as
     assert.equal(result.status, "ready");
   }
   assert.deepEqual(requested, [299_999, 400_000, 699_999, 900_000, 1_499_999]);
+});
+
+test("ripple cut preview maps surviving fragments and keeps both immutable source summaries", async () => {
+  const { source, library, projects, baseline, drafts } = await fixture();
+  const secondVideoPath = join(dirname(source), "second.bgra");
+  const secondAudioPath = join(dirname(source), "second.s16le");
+  const secondSourcePath = join(dirname(source), "second.mkv");
+  const pixels = Buffer.alloc(16 * 16 * 4 * 3);
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    pixels[offset] = 205;
+    pixels[offset + 1] = 65;
+    pixels[offset + 2] = 25;
+    pixels[offset + 3] = 255;
+  }
+  await writeFile(secondVideoPath, pixels);
+  await writeFile(secondAudioPath, Buffer.alloc(48_000 * 3));
+  await encodeVerifiedMaster(
+    {
+      videoPath: secondVideoPath,
+      audioPath: secondAudioPath,
+      role: "canonical",
+      format: {
+        width: 16,
+        height: 16,
+        frameRate: { numerator: 2, denominator: 1 },
+        pixelFormat: "bgra",
+        color: {
+          range: "pc",
+          space: "gbr",
+          primaries: "bt709",
+          transfer: "bt709",
+        },
+        audio: { format: "s16le", sampleRate: 48_000, channelLayout: "mono" },
+      },
+    },
+    secondSourcePath,
+  );
+  const second = await library.importFile(secondSourcePath);
+  const joined = await projects.createFromTwoMedia(
+    baseline.source.source_id,
+    second.id,
+  );
+  const projectId = joined.project.project_id;
+  const runtime = new DesktopProjectRuntime(drafts, library);
+  const original = await runtime.view(projectId);
+  assert.equal(original.timeline.durationUs, 3_000_000);
+
+  const cut = await drafts.applyManual(
+    rangeCutRequest(
+      await drafts.snapshot(projectId),
+      "runtime-ripple-001",
+      750_000,
+      2_250_000,
+    ),
+  );
+  const edited = await runtime.view(projectId);
+  assert.equal(edited.timeline.durationUs, 1_500_000);
+  assert.equal(edited.draft.sequence, 1);
+  assert.deepEqual(
+    edited.sources?.map((item) => item.id),
+    [joined.sources[0]!.source_id, second.id],
+  );
+  assert.deepEqual(
+    edited.clips?.map((clip) => [
+      clip.sourceId,
+      clip.timelineStartUs,
+      clip.timelineEndUs,
+      clip.sourceStartUs,
+      clip.sourceEndUs,
+    ]),
+    [
+      [joined.sources[0]!.source_id, 0, 750_000, 0, 750_000],
+      [second.id, 750_000, 1_500_000, 750_000, 1_500_000],
+    ],
+  );
+  const beforeJoin = await runtime.frame(frameRequest(edited, 749_999));
+  const atJoin = await runtime.frame(frameRequest(edited, 750_000));
+  assert.equal(beforeJoin.status, "ready");
+  assert.equal(atJoin.status, "ready");
+  if (beforeJoin.status !== "ready" || atJoin.status !== "ready") return;
+  assert.deepEqual(
+    beforeJoin.frame,
+    await library.frame(joined.sources[0]!.source_id, 749_999),
+  );
+  assert.deepEqual(atJoin.frame, await library.frame(second.id, 750_000));
+
+  await drafts.applyManual(
+    rangeCutRequest(
+      await drafts.snapshot(projectId),
+      "runtime-ripple-002",
+      0,
+      750_000,
+    ),
+  );
+  const secondOnly = await runtime.view(projectId);
+  assert.equal(secondOnly.clips?.length, 1);
+  assert.equal(secondOnly.clips?.[0]?.sourceId, second.id);
+  assert.deepEqual(
+    secondOnly.sources?.map((item) => item.id),
+    [joined.sources[0]!.source_id, second.id],
+  );
+  const secondOnlyFrame = await runtime.frame(frameRequest(secondOnly, 0));
+  assert.equal(secondOnlyFrame.status, "ready");
+  if (secondOnlyFrame.status === "ready")
+    assert.deepEqual(
+      secondOnlyFrame.frame,
+      await library.frame(second.id, 750_000),
+    );
+  assert.equal(cut.draft.timeline.duration_us, 1_500_000);
 });
 
 test("tagged H.264 project frames follow the committed trim without using display pixels as source", async () => {
@@ -481,4 +612,49 @@ test("split tool outcomes publish an authoritative committed fragment map", asyn
   assert.equal(notices.length, 1);
   assert.equal(notices[0]?.ok, true);
   if (notices[0]?.ok) assert.equal(notices[0].value.clips?.length, 1);
+});
+
+test("ripple-delete tool outcomes publish the surviving committed map after an uncertain reply", async () => {
+  const { baseline, drafts } = await fixture();
+  const projectId = baseline.project.project_id;
+  const notices: ProjectDraftNotice[] = [];
+  const uncertain = new Error("reply lost after committed cut");
+  await assert.rejects(
+    invokeWithProjectDraftRefresh({
+      toolName: "timeline.ripple_delete",
+      projectId,
+      activeProjectId: () => projectId,
+      work: async () => {
+        await drafts.applyManual(
+          rangeCutRequest(
+            await drafts.snapshot(projectId),
+            "runtime-refresh-cut-001",
+            500_000,
+            1_000_000,
+          ),
+        );
+        throw uncertain;
+      },
+      drafts,
+      notify: (notice) => notices.push(notice),
+    }),
+    (error) => error === uncertain,
+  );
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0]?.ok, true);
+  if (!notices[0]?.ok) return;
+  assert.equal(notices[0].value.draft.sequence, 1);
+  assert.equal(notices[0].value.timeline.durationUs, 1_000_000);
+  assert.deepEqual(
+    notices[0].value.clips?.map((clip) => [
+      clip.timelineStartUs,
+      clip.timelineEndUs,
+      clip.sourceStartUs,
+      clip.sourceEndUs,
+    ]),
+    [
+      [0, 500_000, 0, 500_000],
+      [500_000, 1_000_000, 1_000_000, 1_500_000],
+    ],
+  );
 });
