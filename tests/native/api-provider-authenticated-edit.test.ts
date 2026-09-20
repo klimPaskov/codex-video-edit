@@ -26,15 +26,30 @@ assert.equal(process.env.DISPLAY, ":99");
 await access("/.dockerenv");
 const executablePath = process.argv[2];
 const privateKeyPath = process.argv[3];
-if (process.argv[4] && process.argv[4] !== "--deepseek")
+if (
+  process.argv[4] &&
+  process.argv[4] !== "--deepseek" &&
+  process.argv[4] !== "--gemini"
+)
   throw new Error("Unsupported test provider option");
-const provider = process.argv[4] === "--deepseek" ? "deepseek" : "openai";
+const provider =
+  process.argv[4] === "--deepseek"
+    ? "deepseek"
+    : process.argv[4] === "--gemini"
+      ? "gemini"
+      : "openai";
 const preferredModel =
-  provider === "deepseek" ? "deepseek-chat" : "gpt-4.1-mini";
+  provider === "deepseek"
+    ? "deepseek-chat"
+    : provider === "gemini"
+      ? "gemini-3.1-flash-lite"
+      : "gpt-4.1-mini";
 const completionUrl =
   provider === "deepseek"
     ? "https://api.deepseek.com/chat/completions"
-    : "https://api.openai.com/v1/chat/completions";
+    : provider === "gemini"
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://api.openai.com/v1/chat/completions";
 if (
   !executablePath?.startsWith("/home/node/") ||
   privateKeyPath !== join(resolve("test-results"), `private-${provider}.key`)
@@ -173,25 +188,101 @@ try {
       throw new Error("External launch disabled");
     };
   });
-  await electron.evaluate((_electron, selectedCompletionUrl) => {
-    const scope = globalThis as typeof globalThis & {
-      nativeProviderStatuses?: number[];
-    };
-    scope.nativeProviderStatuses = [];
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (input, init) => {
-      if (String(input) !== selectedCompletionUrl)
-        return originalFetch(input, init);
-      try {
-        const response = await originalFetch(input, init);
-        scope.nativeProviderStatuses?.push(response.status);
-        return response;
-      } catch (error) {
-        scope.nativeProviderStatuses?.push(-1);
-        throw error;
-      }
-    };
-  }, completionUrl);
+  await electron.evaluate(
+    (_electron, { selectedCompletionUrl, selectedProvider }) => {
+      const scope = globalThis as typeof globalThis & {
+        nativeProviderStatuses?: number[];
+        nativeGeminiSignatureAudit?: {
+          observed: number;
+          replayed: number;
+          mismatch: boolean;
+        };
+      };
+      scope.nativeProviderStatuses = [];
+      const signatureAudit = { observed: 0, replayed: 0, mismatch: false };
+      if (selectedProvider === "gemini")
+        scope.nativeGeminiSignatureAudit = signatureAudit;
+      const pendingSignatures = new Map<string, string>();
+      const record = (value: unknown): Record<string, unknown> | null =>
+        value !== null && typeof value === "object" && !Array.isArray(value)
+          ? (value as Record<string, unknown>)
+          : null;
+      const signedCalls = (value: unknown) => {
+        if (!Array.isArray(value)) return [];
+        const found: Array<{ id: string; signature: string }> = [];
+        for (const entry of value) {
+          const call = record(entry);
+          const google = record(record(call?.extra_content)?.google);
+          if (
+            typeof call?.id === "string" &&
+            call.id.length <= 256 &&
+            typeof google?.thought_signature === "string" &&
+            google.thought_signature.length <= 16_384
+          )
+            found.push({ id: call.id, signature: google.thought_signature });
+        }
+        return found;
+      };
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async (input, init) => {
+        if (String(input) !== selectedCompletionUrl)
+          return originalFetch(input, init);
+        if (selectedProvider === "gemini" && pendingSignatures.size) {
+          try {
+            const body =
+              typeof init?.body === "string"
+                ? record(JSON.parse(init.body))
+                : null;
+            const messages = body?.messages;
+            const replayed = new Map<string, string>();
+            if (Array.isArray(messages))
+              for (const entry of messages) {
+                const message = record(entry);
+                if (message?.role === "assistant")
+                  for (const call of signedCalls(message.tool_calls))
+                    replayed.set(call.id, call.signature);
+              }
+            for (const [id, signature] of pendingSignatures) {
+              if (replayed.get(id) === signature) signatureAudit.replayed++;
+              else signatureAudit.mismatch = true;
+              pendingSignatures.delete(id);
+            }
+          } catch {
+            signatureAudit.mismatch = true;
+            pendingSignatures.clear();
+          }
+        }
+        try {
+          const response = await originalFetch(input, init);
+          scope.nativeProviderStatuses?.push(response.status);
+          if (selectedProvider === "gemini" && response.ok) {
+            try {
+              const raw = await response.clone().text();
+              if (raw.length <= 2_000_000) {
+                const top = record(JSON.parse(raw));
+                const choices = top?.choices;
+                const first = Array.isArray(choices)
+                  ? record(choices[0])
+                  : null;
+                const message = record(first?.message);
+                for (const call of signedCalls(message?.tool_calls)) {
+                  pendingSignatures.set(call.id, call.signature);
+                  signatureAudit.observed++;
+                }
+              }
+            } catch {
+              signatureAudit.mismatch = true;
+            }
+          }
+          return response;
+        } catch (error) {
+          scope.nativeProviderStatuses?.push(-1);
+          throw error;
+        }
+      };
+    },
+    { selectedCompletionUrl: completionUrl, selectedProvider: provider },
+  );
 
   step = "import-fixture";
   const before = await page.evaluate(() => window.desktop.listProjects());
@@ -246,7 +337,10 @@ try {
   assert.ok(!JSON.stringify(catalog.value).includes(key));
   const model = selected.models.includes(preferredModel)
     ? preferredModel
-    : selected.models[0]!;
+    : provider === "gemini"
+      ? selected.models.find((id) => id.startsWith("gemini-3."))
+      : selected.models[0];
+  assert.ok(model, "Live catalog has no reviewed Gemini 3 editing model");
   await page.locator("#api-provider-model").selectOption(model);
   await expect
     .poll(async () => {
@@ -303,6 +397,29 @@ try {
       }),
     ),
   );
+  if (provider === "gemini") {
+    const signatureAudit = await electron.evaluate(() => {
+      const scope = globalThis as typeof globalThis & {
+        nativeGeminiSignatureAudit?: {
+          observed: number;
+          replayed: number;
+          mismatch: boolean;
+        };
+      };
+      return scope.nativeGeminiSignatureAudit;
+    });
+    assert.ok(signatureAudit, "Gemini signature audit was unavailable");
+    await writeFile(
+      join(evidence, "gemini-signature-counts.json"),
+      JSON.stringify(signatureAudit),
+    );
+    assert.ok(
+      signatureAudit.observed > 0,
+      "No live Gemini 3 signature was observed",
+    );
+    assert.equal(signatureAudit.replayed, signatureAudit.observed);
+    assert.equal(signatureAudit.mismatch, false);
+  }
   assert.equal(
     settled.status,
     "ready",
