@@ -52,7 +52,7 @@ Use P1's actual project foundation and the shared transaction engine for the aut
 - [ ] P3-01 Create project storage, source manifests, autosave, locks, and recovery.
 - [ ] P3-02 Import and hash media without mutating it.
 - [ ] P3-03 Probe streams and build edit, audio, and thumbnail proxies.
-- [ ] P3-04 Implement the canonical microsecond timeline and deterministic frame conversion.
+- [ ] P3-04 Implement the canonical microsecond timeline and deterministic frame conversion. A source still-frame PTS seek index is implemented as a partial foundation; canonical multi-source and final-frame timing remain open.
 - [ ] P3-05 Build smooth preview playback with source-to-output mapping.
 - [ ] P3-06 Add recent projects, open, rename, duplicate, archive, and delete-project safeguards.
 

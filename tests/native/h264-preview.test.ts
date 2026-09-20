@@ -123,6 +123,21 @@ try {
     );
   await expect(page.locator("#time")).toHaveText("0:00.000");
   assert.deepEqual(await canvasBytes(page), await expected(0));
+  await page.locator("#seek").evaluate((node) => {
+    const input = node as HTMLInputElement;
+    input.value = "250000";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(page.locator("#time")).toHaveText("0:00.250");
+  await expect
+    .poll(async () => (await canvasBytes(page)).equals(await expected(0)))
+    .toBe(true);
+  await page.locator("#seek").evaluate((node) => {
+    const input = node as HTMLInputElement;
+    input.value = "0";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(page.locator("#time")).toHaveText("0:00.000");
   await page.getByRole("button", { name: "Next frame", exact: true }).click();
   await expect(page.locator("#time")).toHaveText("0:00.500");
   assert.deepEqual(await canvasBytes(page), await expected(500_000));

@@ -6,6 +6,8 @@ Use `media-engine`, `timeline-editor`, `native-app-testing`, and `spec-sync`. Im
 
 Import through the native file picker. Reject source mutation and recover from interruption. Keep destructive project actions deliberate and separate from source files.
 
+The partial source still-frame seek index sorts verified presentation PTS from packet decode order and handles variable-cadence gaps. Complete P3-04 by defining the final-frame boundary and source-to-output mapping for the canonical microsecond timeline; do not infer timing from nominal or average frame rate, and do not feed display pixels into the master.
+
 Acceptance:
 
 - valid, corrupt, missing-audio, variable-frame-rate, and duplicate fixtures are covered

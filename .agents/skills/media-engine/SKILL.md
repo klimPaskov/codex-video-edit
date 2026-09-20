@@ -18,6 +18,7 @@ Changing FFmpeg, ffprobe, transcription, proxies, render, mux, export, or media 
 - Stage to temporary paths, validate, then promote atomically.
 - Reuse cache only when keys and output hashes match.
 - Preserve source bytes.
+- For source-frame seeks, sort verified presentation timestamps; packet order can be decode order. Use exact rational time-base comparisons rather than average frame rate, and do not use packet duration as each displayed frame's interval without validation.
 
 ## Required checks
 
