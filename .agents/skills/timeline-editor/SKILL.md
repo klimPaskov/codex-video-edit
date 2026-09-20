@@ -41,6 +41,12 @@ half-open contiguous timeline intervals. A trim on the first clip must reflow th
 through the same transaction and undo journal. Do not mutate either immutable source or
 the baseline, and do not treat this still-frame map as synchronized A/V playback or export.
 
+The first native Edit controls use exact head-bound manual trim and newest undo through
+the same store as Codex. Main injects the manual origin and operation identity; renderer
+input carries only bounded intent. Return the committed clip map with every draft refresh
+so an assistant edit cannot leave the next manual target stale. Disable trims at clip
+boundaries and keep failure/uncertain outcomes truthful.
+
 ## Validation
 
 Test zero and final boundaries, overlapping operations, ripple mapping, speed mapping, zoom blocks, transcript restore, batch undo, crash replay, stale dependencies, and revision compare. The first bounded reducer must also test immutable source/baseline bytes, reopen replay, postcommit-unknown recovery, strict input rejection, stale-head concurrency, and checkpoint invalidation. Use Playwright Electron for pointer and keyboard flows once the transaction path changes native UI behavior.

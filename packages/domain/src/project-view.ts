@@ -58,6 +58,16 @@ export interface ProjectDraftView {
     durationUs: number;
     frameRate: { numerator: number; denominator: number };
   };
+  /** Current committed, half-open clip map. Older exchange fixtures may omit it. */
+  clips?: ProjectClipView[];
+}
+export interface ProjectClipView {
+  id: string;
+  sourceId: string;
+  timelineStartUs: number;
+  timelineEndUs: number;
+  sourceStartUs: number;
+  sourceEndUs: number;
 }
 /** Path-free view of a committed project, never a renderer-owned persistence model. */
 export interface ProjectView extends Omit<ProjectDraftView, "projectId"> {
@@ -68,6 +78,26 @@ export interface ProjectView extends Omit<ProjectDraftView, "projectId"> {
   source: MediaSummary;
   /** Present only for an ordered two-source project; source aliases sources[0]. */
   sources?: MediaSummary[];
+}
+export interface ManualTrimRequest {
+  schema_version: "1.0";
+  projectId: string;
+  draftId: string;
+  baseRevisionId: string;
+  expectedSequence: number;
+  expectedTimelineSha256: string;
+  clipId: string;
+  edge: "start" | "end";
+  timelinePositionUs: number;
+}
+export interface ManualUndoRequest {
+  schema_version: "1.0";
+  projectId: string;
+  draftId: string;
+  baseRevisionId: string;
+  expectedSequence: number;
+  expectedTimelineSha256: string;
+  targetTransactionId: string;
 }
 function invalid(): never {
   throw new Error("Invalid project exchange.");
@@ -149,6 +179,52 @@ export function assertProjectFrameRequest(
   )
     invalid();
 }
+function assertManualHead(value: Record<string, unknown>): void {
+  if (value.schema_version !== "1.0") invalid();
+  id(value.projectId);
+  opaqueId(value.draftId);
+  id(value.baseRevisionId);
+  integer(value.expectedSequence);
+  hash(value.expectedTimelineSha256);
+  if (
+    new Set([value.projectId, value.draftId, value.baseRevisionId]).size !== 3
+  )
+    invalid();
+}
+export function assertManualTrimRequest(
+  value: unknown,
+): asserts value is ManualTrimRequest {
+  exact(value, [
+    "schema_version",
+    "projectId",
+    "draftId",
+    "baseRevisionId",
+    "expectedSequence",
+    "expectedTimelineSha256",
+    "clipId",
+    "edge",
+    "timelinePositionUs",
+  ]);
+  assertManualHead(value);
+  opaqueId(value.clipId);
+  if (value.edge !== "start" && value.edge !== "end") invalid();
+  positive(value.timelinePositionUs);
+}
+export function assertManualUndoRequest(
+  value: unknown,
+): asserts value is ManualUndoRequest {
+  exact(value, [
+    "schema_version",
+    "projectId",
+    "draftId",
+    "baseRevisionId",
+    "expectedSequence",
+    "expectedTimelineSha256",
+    "targetTransactionId",
+  ]);
+  assertManualHead(value);
+  opaqueId(value.targetTransactionId);
+}
 export function assertProjectFrameView(
   value: unknown,
 ): asserts value is ProjectFrameView {
@@ -193,7 +269,17 @@ export function assertProjectFrameResult(
 export function assertProjectDraftView(
   value: unknown,
 ): asserts value is ProjectDraftView {
-  exact(value, ["projectId", "draft", "timeline"]);
+  const hasClips =
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.hasOwn(value, "clips");
+  exact(
+    value,
+    hasClips
+      ? ["projectId", "draft", "timeline", "clips"]
+      : ["projectId", "draft", "timeline"],
+  );
   id(value.projectId);
   exact(value.draft, [
     "id",
@@ -223,6 +309,42 @@ export function assertProjectDraftView(
     ]).size !== 4
   )
     invalid();
+  if (hasClips) {
+    if (!Array.isArray(value.clips) || ![1, 2].includes(value.clips.length))
+      invalid();
+    let position = 0;
+    const clipIds = new Set<string>();
+    const sourceIds = new Set<string>();
+    for (const clip of value.clips) {
+      exact(clip, [
+        "id",
+        "sourceId",
+        "timelineStartUs",
+        "timelineEndUs",
+        "sourceStartUs",
+        "sourceEndUs",
+      ]);
+      opaqueId(clip.id);
+      id(clip.sourceId);
+      integer(clip.timelineStartUs);
+      positive(clip.timelineEndUs);
+      integer(clip.sourceStartUs);
+      positive(clip.sourceEndUs);
+      if (
+        clipIds.has(clip.id) ||
+        sourceIds.has(clip.sourceId) ||
+        clip.timelineStartUs !== position ||
+        clip.sourceStartUs >= clip.sourceEndUs ||
+        clip.timelineEndUs - clip.timelineStartUs !==
+          clip.sourceEndUs - clip.sourceStartUs
+      )
+        invalid();
+      clipIds.add(clip.id);
+      sourceIds.add(clip.sourceId);
+      position = clip.timelineEndUs;
+    }
+    if (position !== value.timeline.durationUs) invalid();
+  }
 }
 export function assertProjectView(
   value: unknown,
@@ -241,7 +363,16 @@ export function assertProjectView(
     typeof value === "object" &&
     !Array.isArray(value) &&
     Object.hasOwn(value, "sources");
-  exact(value, hasSources ? [...keys, "sources"] : keys);
+  const hasClips =
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.hasOwn(value, "clips");
+  exact(value, [
+    ...keys,
+    ...(hasSources ? ["sources"] : []),
+    ...(hasClips ? ["clips"] : []),
+  ]);
   id(value.id);
   id(value.revisionId);
   if (
@@ -274,8 +405,29 @@ export function assertProjectView(
     projectId: value.id,
     draft: value.draft,
     timeline: value.timeline,
+    ...(hasClips ? { clips: value.clips } : {}),
   };
   assertProjectDraftView(draftView);
+  if (hasClips) {
+    const clips = draftView.clips;
+    if (!clips) invalid();
+    const sourceIds = hasSources
+      ? (value.sources as MediaSummary[]).map((source) => source.id)
+      : [value.source.id];
+    if (
+      clips.length !== sourceIds.length ||
+      clips.some(
+        (clip, index) =>
+          clip.sourceId !== sourceIds[index] ||
+          clip.sourceEndUs >
+            (hasSources
+              ? (value.sources as MediaSummary[])[index]!
+              : (value.source as MediaSummary)
+            ).durationUs,
+      )
+    )
+      invalid();
+  }
   if (draftView.draft.baseRevisionId !== value.revisionId) invalid();
   if (
     [

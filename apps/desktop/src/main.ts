@@ -21,7 +21,10 @@ import {
 } from "../../../packages/domain/src/codex-device-login.ts";
 import { PreferencesStore } from "./preferences.ts";
 import { ProjectStore } from "../../../packages/project-store/src/store.ts";
-import { DraftTransactionStore } from "../../../packages/project-store/src/transactions.ts";
+import {
+  DraftTransactionError,
+  DraftTransactionStore,
+} from "../../../packages/project-store/src/transactions.ts";
 import {
   CodexMcpBroker,
   resolveCodexMcpScript,
@@ -36,6 +39,8 @@ import {
   assertProjectNavigation,
   assertProjectList,
   assertTwoSourceProjectRequest,
+  assertManualTrimRequest,
+  assertManualUndoRequest,
 } from "../../../packages/domain/src/project-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
@@ -50,6 +55,7 @@ import {
 } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
 import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { channels, assertEmptyRequest } from "./bridge.ts";
 import {
@@ -66,6 +72,7 @@ import {
 import { MediaLibrary } from "../../../packages/media-engine/src/library.ts";
 import {
   DesktopProjectRuntime,
+  committedDraftView,
   invokeWithProjectDraftRefresh,
 } from "./project-runtime.ts";
 import type { ProjectDraftNotice } from "./project-runtime.ts";
@@ -529,6 +536,76 @@ async function start(): Promise<void> {
       return value;
     } finally {
       frameRequests.delete(controller);
+    }
+  });
+  register(channels.projectManualTrim, async (request) => {
+    assertManualTrimRequest(request);
+    if (activeProjectId !== request.projectId)
+      throw new UserFacingError("Open this project before editing it.");
+    try {
+      const committed = await invokeWithProjectDraftRefresh({
+        toolName: "cut.trim_edge",
+        projectId: request.projectId,
+        activeProjectId: () => activeProjectId,
+        drafts,
+        notify: publishDraftNotice,
+        work: () =>
+          drafts.applyManual({
+            schema_version: "1.0",
+            request_id: randomUUID(),
+            project_id: request.projectId,
+            draft_id: request.draftId,
+            base_revision_id: request.baseRevisionId,
+            expected_sequence: request.expectedSequence,
+            expected_timeline_sha256: request.expectedTimelineSha256,
+            pass_group: { pass_group_id: randomUUID(), kind: "manual" },
+            reason: "Manual trim.",
+            operations: [
+              {
+                type: "trim",
+                clip_id: request.clipId,
+                edge: request.edge,
+                timeline_position_us: request.timelinePositionUs,
+              },
+            ],
+          }),
+      });
+      return committedDraftView(committed);
+    } catch (error) {
+      if (error instanceof DraftTransactionError)
+        throw new UserFacingError(error.message);
+      throw error;
+    }
+  });
+  register(channels.projectManualUndo, async (request) => {
+    assertManualUndoRequest(request);
+    if (activeProjectId !== request.projectId)
+      throw new UserFacingError("Open this project before editing it.");
+    try {
+      const committed = await invokeWithProjectDraftRefresh({
+        toolName: "timeline.undo",
+        projectId: request.projectId,
+        activeProjectId: () => activeProjectId,
+        drafts,
+        notify: publishDraftNotice,
+        work: () =>
+          drafts.undoManual({
+            schema_version: "1.0",
+            request_id: randomUUID(),
+            project_id: request.projectId,
+            draft_id: request.draftId,
+            base_revision_id: request.baseRevisionId,
+            expected_sequence: request.expectedSequence,
+            expected_timeline_sha256: request.expectedTimelineSha256,
+            target_transaction_id: request.targetTransactionId,
+            reason: "Undo last edit.",
+          }),
+      });
+      return committedDraftView(committed);
+    } catch (error) {
+      if (error instanceof DraftTransactionError)
+        throw new UserFacingError(error.message);
+      throw error;
     }
   });
   register(channels.cancel, async (request) => {

@@ -91,3 +91,37 @@ test("renderer reconciliation ignores duplicates and old events but rejects dive
     { status: "invalid" },
   );
 });
+
+test("a committed trim replaces the clip map used by manual controls", () => {
+  const current = project();
+  current.clips = [
+    {
+      id: "clip-main",
+      sourceId: current.source.id,
+      timelineStartUs: 0,
+      timelineEndUs: 1_000_000,
+      sourceStartUs: 0,
+      sourceEndUs: 1_000_000,
+    },
+  ];
+  const update = changed(3);
+  update.clips = [
+    {
+      id: "clip-main",
+      sourceId: current.source.id,
+      timelineStartUs: 0,
+      timelineEndUs: 500_000,
+      sourceStartUs: 500_000,
+      sourceEndUs: 1_000_000,
+    },
+  ];
+  const result = reconcileProjectDraft(current, update);
+  assert.equal(result.status, "applied");
+  if (result.status !== "applied") return;
+  assert.deepEqual(result.value.clips, update.clips);
+  assert.equal(current.clips[0]?.sourceStartUs, 0);
+  const missingMap = reconcileProjectDraft(current, changed(4));
+  assert.equal(missingMap.status, "applied");
+  if (missingMap.status === "applied")
+    assert.equal(missingMap.value.clips, undefined);
+});

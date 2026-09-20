@@ -108,6 +108,28 @@ test("two verified sources form one editable draft with an exact seek join and u
     ids,
   );
   assert.equal(view.timeline.durationUs, 2_000_000);
+  assert.deepEqual(
+    view.clips?.map((clip) => ({
+      id: clip.id,
+      sourceId: clip.sourceId,
+      timelineStartUs: clip.timelineStartUs,
+      timelineEndUs: clip.timelineEndUs,
+    })),
+    [
+      {
+        id: "clip-main",
+        sourceId: ids[0],
+        timelineStartUs: 0,
+        timelineEndUs: 1_000_000,
+      },
+      {
+        id: "clip-following",
+        sourceId: ids[1],
+        timelineStartUs: 1_000_000,
+        timelineEndUs: 2_000_000,
+      },
+    ],
+  );
   const summary = await new CodexVideoEditToolService(view.id, drafts).invoke(
     "project.get_summary",
     { schema_version: "1.0", project_id: view.id },
@@ -152,6 +174,8 @@ test("two verified sources form one editable draft with an exact seek join and u
   assert.equal(edited.draft.timeline.clips[1]!.timeline_start_us, 800_000);
   assert.equal(edited.draft.timeline.duration_us, 1_800_000);
   const editedView = await runtime.view(view.id);
+  assert.equal(editedView.clips?.[0]?.sourceStartUs, 200_000);
+  assert.equal(editedView.clips?.[1]?.timelineStartUs, 800_000);
   const editedJoin = await runtime.frame(request(editedView, 800_000));
   assert.equal(editedJoin.status, "ready");
   if (editedJoin.status === "ready")

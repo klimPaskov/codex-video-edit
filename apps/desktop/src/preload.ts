@@ -19,6 +19,8 @@ import {
   assertProjectDraftView,
   assertProjectFrameRequest,
   assertProjectFrameResult,
+  assertManualTrimRequest,
+  assertManualUndoRequest,
   assertProjectRequest,
   assertTwoSourceProjectRequest,
   assertProjectNavigation,
@@ -177,6 +179,14 @@ const bridge: DesktopBridge = {
   readProjectFrame: (request) => {
     assertProjectFrameRequest(request);
     return invoke(channels.projectFrame, request, assertProjectFrameResult);
+  },
+  applyManualTrim: (request) => {
+    assertManualTrimRequest(request);
+    return invoke(channels.projectManualTrim, request, assertProjectDraftView);
+  },
+  undoManualEdit: (request) => {
+    assertManualUndoRequest(request);
+    return invoke(channels.projectManualUndo, request, assertProjectDraftView);
   },
   onProjectDraftChanged: (listener) => {
     if (typeof listener !== "function")

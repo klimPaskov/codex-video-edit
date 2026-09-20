@@ -144,6 +144,35 @@ try {
   await expect(page.locator("#source-properties")).toContainText("Part 1");
   await expect(page.locator("#source-properties")).toContainText("Part 2");
   await page.screenshot({ path: join(evidence, "two-source-join.png") });
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await expect(page.locator("#edit-actions")).toBeVisible();
+  await expect(page.locator("#trim-start")).toBeDisabled();
+  await expect(page.locator("#trim-end")).toBeDisabled();
+  await expect(page.locator("#undo-edit")).toBeDisabled();
+  await seek(page, 750_000);
+  await expect(page.locator("#trim-start")).toBeEnabled();
+  await page.locator("#trim-start").click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:01.250");
+  const editedProjects = await page.evaluate(() =>
+    window.desktop.listProjects(),
+  );
+  assert.ok(editedProjects.ok);
+  const edited = editedProjects.value.find(
+    (project) => project.id === combined.id,
+  );
+  assert.equal(edited?.clips?.[0]?.sourceStartUs, 750_000);
+  assert.equal(edited?.clips?.[1]?.timelineStartUs, 250_000);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:02.000");
+  const restoredProjects = await page.evaluate(() =>
+    window.desktop.listProjects(),
+  );
+  assert.ok(restoredProjects.ok);
+  const restored = restoredProjects.value.find(
+    (project) => project.id === combined.id,
+  );
+  assert.equal(restored?.clips?.[0]?.sourceStartUs, 0);
+  assert.equal(restored?.clips?.[1]?.timelineStartUs, 1_000_000);
   await electron.close();
 
   electron = await _electron.launch({
@@ -168,6 +197,24 @@ try {
     );
   }
   await page.screenshot({ path: join(evidence, "two-source-reopened.png") });
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.locator("#interface-scale").selectOption("2");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator("#settings-dialog")).toBeHidden();
+  assert.equal(
+    await electron.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0]!.webContents.getZoomFactor(),
+    ),
+    2,
+  );
+  await page.locator("#edit-actions").scrollIntoViewIfNeeded();
+  await expect(page.locator("#edit-actions")).toBeInViewport();
+  const actionBounds = await page.locator("#edit-actions").boundingBox();
+  assert.ok(actionBounds);
+  assert.ok(actionBounds.x >= 0);
+  const viewportWidth = await page.evaluate(() => window.innerWidth);
+  assert.ok(actionBounds.x + actionBounds.width <= viewportWidth);
+  await page.screenshot({ path: join(evidence, "two-source-edit-200.png") });
   if (process.argv.includes("--inspect")) {
     await writeFile(join(evidence, "inspection.ready"), "ready\n");
     const deadline = Date.now() + 120_000;

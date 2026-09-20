@@ -10,6 +10,10 @@
       "example": "docs/examples/desktop_ipc_two_source.example.json"
     },
     {
+      "schema": "docs/schemas/desktop_ipc.schema.json",
+      "example": "docs/examples/desktop_ipc_manual_edit.example.json"
+    },
+    {
       "schema": "docs/schemas/draft_snapshot.schema.json",
       "example": "docs/examples/draft_snapshot.example.json"
     },

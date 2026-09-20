@@ -119,6 +119,16 @@ test("committed project views and frames follow trim and undo state without chan
     );
   assert.equal(initialView.draft.sequence, 0);
   assert.equal(initialView.timeline.durationUs, 1_500_000);
+  assert.deepEqual(initialView.clips, [
+    {
+      id: baseline.timeline.clips[0]!.clip_id,
+      sourceId: baseline.source.source_id,
+      timelineStartUs: 0,
+      timelineEndUs: 1_500_000,
+      sourceStartUs: 0,
+      sourceEndUs: 1_500_000,
+    },
+  ]);
 
   const initial = await drafts.snapshot(baseline.project.project_id),
     startTrim = await drafts.applyManual(
@@ -127,6 +137,8 @@ test("committed project views and frames follow trim and undo state without chan
     trimmedView = await runtime.view(baseline.project.project_id);
   assert.equal(trimmedView.draft.sequence, 1);
   assert.equal(trimmedView.timeline.durationUs, 1_000_000);
+  assert.equal(trimmedView.clips?.[0]?.sourceStartUs, 500_000);
+  assert.equal(trimmedView.clips?.[0]?.timelineEndUs, 1_000_000);
   const trimmedFrame = await runtime.frame(frameRequest(trimmedView));
   assert.equal(trimmedFrame.status, "ready");
   if (trimmedFrame.status !== "ready") throw new Error("Expected frame");
@@ -157,6 +169,8 @@ test("committed project views and frames follow trim and undo state without chan
   });
   const restored = await runtime.view(baseline.project.project_id);
   assert.equal(restored.timeline.durationUs, 1_000_000);
+  assert.equal(restored.clips?.[0]?.sourceStartUs, 500_000);
+  assert.equal(restored.clips?.[0]?.sourceEndUs, 1_500_000);
   const restoredFrame = await runtime.frame(frameRequest(restored));
   assert.equal(restoredFrame.status, "ready");
   if (restoredFrame.status !== "ready") throw new Error("Expected frame");
@@ -341,6 +355,7 @@ test("settled mutations refresh after an uncertain committed outcome without rep
   if (!notices[0]?.ok) throw new Error("Expected committed refresh");
   assert.equal(notices[0].value.draft.sequence, 1);
   assert.equal(notices[0].value.timeline.durationUs, 1_000_000);
+  assert.equal(notices[0].value.clips?.[0]?.sourceStartUs, 500_000);
 
   assert.equal(
     await invokeWithProjectDraftRefresh({
@@ -355,4 +370,40 @@ test("settled mutations refresh after an uncertain committed outcome without rep
     }),
     "tool-result",
   );
+});
+test("rejected manual edits publish the current committed clip map without claiming success", async () => {
+  const { baseline, drafts } = await fixture();
+  const projectId = baseline.project.project_id;
+  const initial = await drafts.snapshot(projectId);
+  await drafts.applyManual(
+    trimRequest(initial, "manual-fresh-001", "start", 500_000),
+  );
+  const notices: ProjectDraftNotice[] = [];
+  for (const bad of [
+    trimRequest(initial, "manual-stale-001", "end", 500_000),
+    trimRequest(
+      await drafts.snapshot(projectId),
+      "manual-invalid-001",
+      "end",
+      0,
+    ),
+  ]) {
+    await assert.rejects(
+      invokeWithProjectDraftRefresh({
+        toolName: "cut.trim_edge",
+        projectId,
+        activeProjectId: () => projectId,
+        work: () => drafts.applyManual(bad),
+        drafts,
+        notify: (notice) => notices.push(notice),
+      }),
+    );
+  }
+  assert.equal(notices.length, 2);
+  for (const notice of notices) {
+    assert.equal(notice.ok, true);
+    if (!notice.ok) continue;
+    assert.equal(notice.value.draft.sequence, 1);
+    assert.equal(notice.value.clips?.[0]?.sourceStartUs, 500_000);
+  }
 });
