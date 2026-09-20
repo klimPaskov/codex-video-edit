@@ -238,6 +238,19 @@ canvas {
 .transport button {
   min-width: 50px;
 }
+.edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+}
+#edit-clip {
+  color: #b6bac8;
+  font-size: 13px;
+  margin-right: 4px;
+}
 #preview-time {
   font-variant-numeric: tabular-nums;
   color: #b6bac8;

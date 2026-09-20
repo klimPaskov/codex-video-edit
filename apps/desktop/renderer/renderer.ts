@@ -36,6 +36,11 @@ const seek = element<HTMLInputElement>("seek"),
   canvas = element<HTMLCanvasElement>("frame");
 const previous = element<HTMLButtonElement>("previous"),
   next = element<HTMLButtonElement>("next");
+const editActions = element("edit-actions"),
+  editClip = element("edit-clip"),
+  trimStart = element<HTMLButtonElement>("trim-start"),
+  trimEnd = element<HTMLButtonElement>("trim-end"),
+  undoEdit = element<HTMLButtonElement>("undo-edit");
 let selected: MediaSummary | undefined;
 let selectedButton: HTMLButtonElement | undefined;
 let requestedTime: number | undefined;
@@ -47,6 +52,7 @@ let routeGeneration = 0;
 let loadingHome = 0;
 let navigating = false;
 let addingFootage = false;
+let manualEditPending = false;
 const stageLabels: Record<ProjectStage, string> = {
   record_import: "Record or Import",
   auto_edit: "Auto Edit",
@@ -90,9 +96,52 @@ function renderStage(): void {
       button.setAttribute("aria-current", "step");
     else button.removeAttribute("aria-current");
   }
+  renderEditTools();
+}
+function currentClip(): NonNullable<ProjectView["clips"]>[number] | undefined {
+  if (!activeProject?.clips) return undefined;
+  const position = Number(seek.value);
+  return activeProject.clips.find(
+    (clip) => position >= clip.timelineStartUs && position < clip.timelineEndUs,
+  );
+}
+function renderEditTools(): void {
+  const project = activeProject;
+  if (!project || project.stage !== "edit" || !project.clips) {
+    editActions.hidden = true;
+    return;
+  }
+  editActions.hidden = false;
+  editActions.setAttribute("aria-busy", String(manualEditPending));
+  const clip = currentClip(),
+    position = Number(seek.value),
+    interior =
+      !!clip &&
+      position > clip.timelineStartUs &&
+      position < clip.timelineEndUs;
+  const part =
+    clip && project.clips.length > 1
+      ? `part ${project.clips.indexOf(clip) + 1}`
+      : "clip";
+  editClip.hidden = !clip || project.clips.length === 1;
+  editClip.textContent = editClip.hidden
+    ? ""
+    : `Part ${project.clips.indexOf(clip!) + 1}`;
+  trimStart.setAttribute("aria-label", `Trim start of ${part} to playhead`);
+  trimEnd.setAttribute("aria-label", `Trim end of ${part} to playhead`);
+  trimStart.disabled = !interior || manualEditPending || navigating;
+  trimEnd.disabled = !interior || manualEditPending || navigating;
+  undoEdit.disabled =
+    !project.draft.undoTransactionId || manualEditPending || navigating;
 }
 async function navigate(stage: ProjectStage): Promise<void> {
-  if (!activeProject || navigating || stage === activeProject.stage) return;
+  if (
+    !activeProject ||
+    navigating ||
+    manualEditPending ||
+    stage === activeProject.stage
+  )
+    return;
   const project = activeProject,
     generation = routeGeneration;
   const origin = document.activeElement;
@@ -192,6 +241,8 @@ async function createProject(
 function showError(message: string): void {
   error.textContent = message;
   error.hidden = false;
+  if (activeProject?.stage === "edit")
+    error.scrollIntoView({ block: "nearest" });
 }
 function clearError(): void {
   error.hidden = true;
@@ -339,6 +390,7 @@ function requestFrame(value: number): void {
   canvas.hidden = true;
   previous.disabled = requestedTime === 0;
   next.disabled = requestedTime >= Number(seek.max);
+  renderEditTools();
   if (!decoding) void decodeFrames();
 }
 async function decodeFrames(): Promise<void> {
@@ -498,6 +550,7 @@ element("cancel").addEventListener("click", () => {
   void window.desktop.cancelImport();
 });
 back.addEventListener("click", async () => {
+  if (manualEditPending) return;
   const previousProject = activeProject?.id;
   back.disabled = true;
   if (previousProject) {
@@ -591,7 +644,83 @@ function applyProjectDraft(reply: Reply<ProjectDraftView>): void {
   );
   clearError();
   requestFrame(position);
+  renderEditTools();
 }
+async function submitManualTrim(edge: "start" | "end"): Promise<void> {
+  const project = activeProject,
+    clip = currentClip(),
+    position = Number(seek.value),
+    generation = routeGeneration;
+  if (
+    !project ||
+    project.stage !== "edit" ||
+    !clip ||
+    position <= clip.timelineStartUs ||
+    position >= clip.timelineEndUs ||
+    manualEditPending
+  )
+    return;
+  manualEditPending = true;
+  back.disabled = true;
+  renderEditTools();
+  clearError();
+  try {
+    const reply = await window.desktop.applyManualTrim({
+      schema_version: "1.0",
+      projectId: project.id,
+      draftId: project.draft.id,
+      baseRevisionId: project.draft.baseRevisionId,
+      expectedSequence: project.draft.sequence,
+      expectedTimelineSha256: project.draft.timelineSha256,
+      clipId: clip.id,
+      edge,
+      timelinePositionUs: position,
+    });
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      applyProjectDraft(reply);
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      showError("The trim could not be saved. Try again.");
+  } finally {
+    manualEditPending = false;
+    back.disabled = false;
+    renderEditTools();
+  }
+}
+async function submitManualUndo(): Promise<void> {
+  const project = activeProject,
+    target = project?.draft.undoTransactionId,
+    generation = routeGeneration;
+  if (!project || project.stage !== "edit" || !target || manualEditPending)
+    return;
+  manualEditPending = true;
+  back.disabled = true;
+  renderEditTools();
+  clearError();
+  try {
+    const reply = await window.desktop.undoManualEdit({
+      schema_version: "1.0",
+      projectId: project.id,
+      draftId: project.draft.id,
+      baseRevisionId: project.draft.baseRevisionId,
+      expectedSequence: project.draft.sequence,
+      expectedTimelineSha256: project.draft.timelineSha256,
+      targetTransactionId: target,
+    });
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      applyProjectDraft(reply);
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      showError("Undo could not be saved. Try again.");
+  } finally {
+    manualEditPending = false;
+    back.disabled = false;
+    renderEditTools();
+  }
+}
+trimStart.addEventListener("click", () => void submitManualTrim("start"));
+trimEnd.addEventListener("click", () => void submitManualTrim("end"));
+undoEdit.addEventListener("click", () => void submitManualUndo());
 window.desktop.onProjectDraftChanged(applyProjectDraft);
 void loadLibrary().catch(() =>
   showError(

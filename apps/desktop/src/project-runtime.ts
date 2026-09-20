@@ -59,6 +59,14 @@ export function committedDraftView(result: DraftReadResult): ProjectDraftView {
       durationUs: draft.timeline.duration_us,
       frameRate: structuredClone(draft.timeline.frame_rate),
     },
+    clips: draft.timeline.clips.map((clip) => ({
+      id: clip.clip_id,
+      sourceId: clip.source_id,
+      timelineStartUs: clip.timeline_start_us,
+      timelineEndUs: clip.timeline_end_us,
+      sourceStartUs: clip.source_start_us,
+      sourceEndUs: clip.source_end_us,
+    })),
   };
   assertProjectDraftView(value);
   return value;
@@ -142,6 +150,7 @@ export class DesktopProjectRuntime {
       source: summaries[0]!,
       ...(snapshot.schema_version === "1.1" ? { sources: summaries } : {}),
       timeline: draft.timeline,
+      clips: draft.clips!,
     };
     assertProjectView(value);
     return value;

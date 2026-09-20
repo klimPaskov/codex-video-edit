@@ -5,6 +5,8 @@ import {
   assertProjectDraftView,
   assertProjectFrameRequest,
   assertProjectFrameResult,
+  assertManualTrimRequest,
+  assertManualUndoRequest,
   assertProjectNavigation,
   assertProjectRequest,
   assertTwoSourceProjectRequest,
@@ -156,6 +158,104 @@ test("project frame exchanges bind decoded pixels to one committed draft head", 
     { ...request, timelineTimeUs: 0.5 },
   ])
     assert.throws(() => assertProjectFrameRequest(extra));
+});
+test("manual edit IPC accepts only exact intent and a valid draft head", () => {
+  const project = view();
+  const head = {
+    schema_version: "1.0",
+    projectId: project.id,
+    draftId: project.draft.id,
+    baseRevisionId: project.revisionId,
+    expectedSequence: 0,
+    expectedTimelineSha256: project.draft.timelineSha256,
+  };
+  const trim = {
+    ...head,
+    clipId: "clip-main",
+    edge: "start",
+    timelinePositionUs: 500_000,
+  };
+  const undo = { ...head, targetTransactionId: "transaction-1" };
+  assertManualTrimRequest(trim);
+  assertManualUndoRequest(undo);
+  for (const bad of [
+    { ...trim, path: "/private/source.mp4" },
+    { ...trim, schema_version: "2.0" },
+    { ...trim, clipId: "../private" },
+    { ...trim, edge: "middle" },
+    { ...trim, timelinePositionUs: 0 },
+    { ...trim, timelinePositionUs: 0.5 },
+    { ...trim, expectedTimelineSha256: "bad" },
+    { ...trim, projectId: project.revisionId },
+  ])
+    assert.throws(() => assertManualTrimRequest(bad));
+  for (const bad of [
+    { ...undo, targetTransactionId: "" },
+    { ...undo, expectedSequence: -1 },
+    { ...undo, request_id: "renderer-owned" },
+  ])
+    assert.throws(() => assertManualUndoRequest(bad));
+});
+test("committed clip maps enforce contiguous ordered half-open source mapping", () => {
+  const first = view();
+  const firstClip = {
+    id: "clip-main",
+    sourceId: first.source.id,
+    timelineStartUs: 0,
+    timelineEndUs: first.timeline.durationUs,
+    sourceStartUs: 0,
+    sourceEndUs: first.timeline.durationUs,
+  };
+  assertProjectView({ ...first, clips: [firstClip] });
+  const secondSource = {
+    ...first.source,
+    id: "55555555-5555-4555-8555-555555555555",
+    name: "Second.mkv",
+  };
+  const secondClip = {
+    ...firstClip,
+    id: "clip-following",
+    sourceId: secondSource.id,
+    timelineStartUs: firstClip.timelineEndUs,
+    timelineEndUs: firstClip.timelineEndUs * 2,
+  };
+  const joined: ProjectView = {
+    ...first,
+    sources: [first.source, secondSource],
+    clips: [firstClip, secondClip],
+    timeline: { ...first.timeline, durationUs: firstClip.timelineEndUs * 2 },
+  };
+  assertProjectView(joined);
+  const draftOnly = {
+    projectId: joined.id,
+    draft: joined.draft,
+    timeline: joined.timeline,
+    clips: joined.clips,
+  };
+  assertProjectDraftView(draftOnly);
+  for (const clips of [
+    [],
+    [firstClip],
+    [secondClip, firstClip],
+    [
+      firstClip,
+      { ...secondClip, timelineStartUs: secondClip.timelineStartUs + 1 },
+    ],
+    [firstClip, { ...secondClip, sourceEndUs: secondClip.sourceEndUs + 1 }],
+    [firstClip, { ...secondClip, sourceId: firstClip.sourceId }],
+    [firstClip, { ...secondClip, sourceEndUs: secondSource.durationUs + 1 }],
+    [firstClip, { ...secondClip, path: "/private" }],
+  ])
+    assert.throws(() => assertProjectView({ ...joined, clips }));
+  assert.throws(() =>
+    assertProjectDraftView({
+      ...draftOnly,
+      clips: [
+        firstClip,
+        { ...secondClip, timelineEndUs: secondClip.timelineEndUs + 1 },
+      ],
+    }),
+  );
 });
 test("project views reject unsafe numeric formats, private fields and malformed shapes", () => {
   for (const bad of [

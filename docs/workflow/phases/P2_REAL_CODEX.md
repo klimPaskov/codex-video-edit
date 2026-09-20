@@ -8,6 +8,8 @@ Expose only guarded codex-video-edit MCP tools. The AI selector offers Codex, Op
 
 Apply ADR 0013: use P1's real project foundation and implement the shared validated transaction core in P2-05 before the authenticated P2-06 edit. Require expected draft sequence, durable journaling, atomic persistence before notification, deterministic inverse/undo and recovery of complete committed transactions. Manual and later Magic Wand tools must reuse this engine; no AI-only mutation store or UI-only edit is acceptable. Persisted navigation state is separate from draft sequence and operation history. Full P3/P6 acceptance remains required.
 
+The partial manual Edit surface uses the same main-owned transaction service for playhead-based clip-edge trim and newest undo. Its IPC carries a strict committed draft head and bounded intent, while main supplies the trusted manual origin and generated journal IDs. The projected clip map must update after manual and assistant commits before further tool targeting. This does not satisfy the remaining guarded-tool policy, provider access, or P2 phase gates.
+
 Acceptance:
 
 - parser, recovery, stale protocol, and tool validation tests pass

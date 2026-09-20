@@ -25,12 +25,15 @@ export function reconcileProjectDraft(
     return changed.draft.timelineSha256 === current.draft.timelineSha256
       ? { status: "unchanged" }
       : { status: "invalid" };
+  const next = { ...current };
+  delete next.clips;
   return {
     status: "applied",
     value: {
-      ...current,
+      ...next,
       draft: changed.draft,
       timeline: changed.timeline,
+      ...(changed.clips ? { clips: changed.clips } : {}),
     },
   };
 }
