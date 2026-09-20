@@ -487,6 +487,80 @@ try {
     "utf8",
   );
   assert.ok(!conversation.includes(key));
+
+  step = "shared-manual-undo";
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await expect(page.locator("#undo-edit")).toBeVisible();
+  await page.locator("#undo-edit").click();
+  await expect
+    .poll(
+      async () =>
+        (await readdir(join(folder, "draft/journal"))).filter((name) =>
+          /^\d{12}\..+\.json$/u.test(name),
+        ).length,
+      { timeout: 60000 },
+    )
+    .toBe(2);
+  const undoneNames = (await readdir(join(folder, "draft/journal")))
+    .filter((name) => /^\d{12}\..+\.json$/u.test(name))
+    .sort();
+  const undo = JSON.parse(
+    await readFile(join(folder, "draft/journal", undoneNames[1]!), "utf8"),
+  ) as DraftTransactionRecord;
+  assert.equal(undo.origin, "manual");
+  assert.equal(undo.kind, "undo");
+  assert.equal(undo.target_transaction_id, record.transaction_id);
+  assert.deepEqual(undo.after.timeline, baseline.timeline);
+  await expect(page.locator("#seek")).toHaveAttribute("max", "1000000");
+  await expect
+    .poll(
+      async () => {
+        try {
+          await assertFrame(page, 0);
+          return true;
+        } catch (error) {
+          if (error instanceof assert.AssertionError) return false;
+          throw error;
+        }
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true);
+  await page.screenshot({
+    path: join(evidence, "authenticated-undo-private.png"),
+  });
+
+  step = "reopen-undone-project";
+  await electron.close();
+  electron = await launch();
+  page = await electron.firstWindow();
+  await page
+    .locator('#projects [data-project-id="' + project.id + '"]')
+    .click();
+  await expect(page.locator("#seek")).toHaveAttribute("max", "1000000");
+  await expect
+    .poll(
+      async () => {
+        try {
+          await assertFrame(page, 0);
+          return true;
+        } catch (error) {
+          if (error instanceof assert.AssertionError) return false;
+          throw error;
+        }
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true);
+  assert.equal(sha256(await readFile(source)), sourceHash);
+  assert.equal(
+    sha256(await readFile(baseline.source.managed_path)),
+    sourceHash,
+  );
+  assert.deepEqual(
+    await readFile(join(folder, "baseline.json")),
+    baselineBytes,
+  );
   passed = true;
   await writeFile(
     join(evidence, "result.json"),
@@ -498,6 +572,8 @@ try {
       liveCatalog: true,
       explicitPaidSend: true,
       committedTrim: true,
+      sharedManualUndo: true,
+      restoredExactPreview: true,
       sourceAndBaselineUnchanged: true,
       projectReopened: true,
       sessionKeyNotRestored: true,
