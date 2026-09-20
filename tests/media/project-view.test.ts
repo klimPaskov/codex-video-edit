@@ -7,6 +7,7 @@ import {
   assertProjectFrameResult,
   assertProjectNavigation,
   assertProjectRequest,
+  assertTwoSourceProjectRequest,
   assertProjectView,
   projectStages,
 } from "../../packages/domain/src/project-view.ts";
@@ -76,6 +77,48 @@ test("project requests reject paths, malformed IDs, unknown stages and excess fi
   ]) {
     assert.throws(() => assertProjectNavigation(value));
   }
+});
+test("two-source project requests require two distinct path-free library IDs", () => {
+  const firstId = view().source.id;
+  const secondId = "55555555-5555-4555-8555-555555555555";
+  assertTwoSourceProjectRequest({ firstId, secondId });
+  for (const bad of [
+    null,
+    {},
+    { firstId },
+    { firstId, secondId: firstId },
+    { firstId: "../private", secondId },
+    { firstId, secondId: "C:\\private\\video.mp4" },
+    { firstId, secondId, path: "/private/source.mp4" },
+  ])
+    assert.throws(() => assertTwoSourceProjectRequest(bad));
+});
+test("project views accept exactly two ordered summaries and preserve legacy view shape", () => {
+  const legacy = view();
+  assertProjectView(legacy);
+  assert.equal(Object.keys(legacy).length, 7);
+  const second = {
+    ...legacy.source,
+    id: "55555555-5555-4555-8555-555555555555",
+    name: "Second.mkv",
+  };
+  const joined: ProjectView = {
+    ...legacy,
+    sources: [{ ...legacy.source }, second],
+  };
+  assertProjectView(joined);
+  for (const sources of [
+    [],
+    [legacy.source],
+    [legacy.source, second, second],
+    [second, legacy.source],
+    [legacy.source, { ...legacy.source }],
+    [{ ...legacy.source, name: "Changed.mkv" }, second],
+    [legacy.source, { ...second, path: "/private/video.mp4" }],
+    [legacy.source, { ...second, id: legacy.id }],
+  ])
+    assert.throws(() => assertProjectView({ ...joined, sources }));
+  assert.throws(() => assertProjectView({ ...joined, path: "/private" }));
 });
 test("project frame exchanges bind decoded pixels to one committed draft head", () => {
   const project = view();

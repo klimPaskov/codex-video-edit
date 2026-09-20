@@ -6,6 +6,8 @@ export interface PresentationTiming {
   readonly timeBaseNumerator: number;
   readonly timeBaseDenominator: number;
   readonly variableCadence: boolean;
+  readonly lastDurationTicks: number | null;
+  readonly presentationEndUs: number | null;
 }
 
 function invalidTiming(): never {
@@ -33,13 +35,27 @@ export function parsePresentationTiming(
     invalidTiming();
   const lines = csv.trim().split(/\r?\n/u);
   if (lines.length === 0 || lines.length > 5_000_000) invalidTiming();
-  const pts = lines.map((line) => {
-    if (!/^(0|[1-9]\d*)$/u.test(line)) invalidTiming();
-    const value = Number(line);
-    if (!Number.isSafeInteger(value)) invalidTiming();
-    return value;
+  const packets = lines.map((line) => {
+    const parts = line.split(",");
+    if (
+      parts.length < 1 ||
+      parts.length > 2 ||
+      !/^(0|[1-9]\d*)$/u.test(parts[0]!) ||
+      (parts.length === 2 && !/^(0|[1-9]\d*|N\/A)$/u.test(parts[1]!))
+    )
+      invalidTiming();
+    const pts = Number(parts[0]);
+    const duration =
+      parts.length === 1 || parts[1] === "N/A" ? null : Number(parts[1]);
+    if (
+      !Number.isSafeInteger(pts) ||
+      (duration !== null && (!Number.isSafeInteger(duration) || duration <= 0))
+    )
+      invalidTiming();
+    return { pts, duration };
   });
-  pts.sort((a, b) => a - b);
+  packets.sort((a, b) => a.pts - b.pts);
+  const pts = packets.map((packet) => packet.pts);
   if (pts[0] !== 0) invalidTiming();
   let firstDelta = 0;
   let variableCadence = false;
@@ -54,11 +70,23 @@ export function parsePresentationTiming(
     if (Number.isSafeInteger(count) && count > 0 && count !== pts.length)
       invalidTiming();
   }
+  const last = packets.at(-1)!;
+  const endTicks =
+    last.duration === null ? null : BigInt(last.pts) + BigInt(last.duration);
+  const endUs =
+    endTicks === null
+      ? null
+      : (endTicks * BigInt(numerator) * 1_000_000n + BigInt(denominator) - 1n) /
+        BigInt(denominator);
+  if (endUs !== null && endUs > BigInt(Number.MAX_SAFE_INTEGER))
+    invalidTiming();
   return {
     pts,
     timeBaseNumerator: numerator,
     timeBaseDenominator: denominator,
     variableCadence,
+    lastDurationTicks: last.duration,
+    presentationEndUs: endUs === null ? null : Number(endUs),
   };
 }
 
@@ -104,7 +132,7 @@ export async function probePresentationTiming(
       "v:0",
       "-show_packets",
       "-show_entries",
-      "packet=pts",
+      "packet=pts,duration",
       "-of",
       "csv=p=0",
       path,

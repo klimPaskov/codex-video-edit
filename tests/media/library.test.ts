@@ -19,13 +19,18 @@ import {
 } from "../../packages/media-engine/src/presentation-timing.ts";
 
 test("presentation seek sorts decode-order packets and respects variable cadence", () => {
-  const timing = parsePresentationTiming("0\n3000\n1500\n6000\n", {
-    time_base: "1/3000",
-    start_pts: 0,
-    nb_frames: "4",
-  });
+  const timing = parsePresentationTiming(
+    "0,1500\n3000,3000\n1500,1500\n6000,1500\n",
+    {
+      time_base: "1/3000",
+      start_pts: 0,
+      nb_frames: "4",
+    },
+  );
   assert.deepEqual(timing.pts, [0, 1500, 3000, 6000]);
   assert.equal(timing.variableCadence, true);
+  assert.equal(timing.lastDurationTicks, 1500);
+  assert.equal(timing.presentationEndUs, 2_500_000);
   assert.equal(presentationSeekUs(timing, 999_999), 500_000);
   assert.equal(presentationSeekUs(timing, 1_000_000), 1_000_000);
   assert.equal(presentationSeekUs(timing, 1_999_999), 1_000_000);
@@ -36,7 +41,16 @@ test("presentation seek sorts decode-order packets and respects variable cadence
     nb_frames: "3",
   });
   assert.equal(presentationSeekUs(fractional, 16_678), 16_677);
-  for (const csv of ["", "0\n0\n", "0\nN/A\n", "0\n-1\n", "0\n1.5\n"])
+  assert.equal(fractional.presentationEndUs, null);
+  for (const csv of [
+    "",
+    "0\n0\n",
+    "0\nN/A\n",
+    "0\n-1\n",
+    "0\n1.5\n",
+    "0,0\n",
+    "0,-1\n",
+  ])
     assert.throws(() =>
       parsePresentationTiming(csv, { time_base: "1/90000", start_pts: 0 }),
     );
@@ -194,6 +208,9 @@ test("tagged H.264/AAC imports byte-identically and decodes deterministic displa
   assert.equal(summary.frameRate, 2);
   assert.equal(summary.durationUs, 1_500_000);
   const verified = await library.verifiedSource(summary.id);
+  const timing = await library.verifiedPresentationTiming(summary.id);
+  assert.equal(timing.frameCount, 3);
+  assert.equal(timing.presentationEndUs, summary.durationUs);
   assert.equal(
     verified.sha256,
     createHash("sha256").update(sourceBytes).digest("hex"),
@@ -267,6 +284,10 @@ test("H.264 variable-cadence gaps resolve to the preceding displayed frame", asy
   const library = new MediaLibrary(join(dir, "library"));
   const summary = await library.importFile(source);
   assert.equal(summary.previewAvailable, true);
+  const timing = await library.verifiedPresentationTiming(summary.id);
+  assert.equal(timing.frameCount, 4);
+  assert.equal(timing.variableCadence, true);
+  assert.equal(timing.presentationEndUs, summary.durationUs);
   const first = await library.frame(summary.id, 0);
   const second = await library.frame(summary.id, 250_000);
   const third = await library.frame(summary.id, 1_000_000);

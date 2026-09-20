@@ -121,17 +121,26 @@ export class DesktopProjectRuntime {
       draft.timeline.id !== snapshot.timeline.timeline_id
     )
       invalid();
+    const sources =
+      snapshot.schema_version === "1.1" ? snapshot.sources : [snapshot.source];
+    const probes =
+      snapshot.schema_version === "1.1"
+        ? snapshot.source_probes
+        : [snapshot.source_probe];
+    const summaries = sources.map((source, index) => ({
+      id: source.source_id,
+      name: path.basename(source.original_path),
+      ...mediaMeasurements(probes[index]!),
+      durationUs: source.duration_us,
+    }));
     const value: ProjectView = {
       id: snapshot.project.project_id,
       name: snapshot.project.name,
       stage: snapshot.project.workflow_step,
       revisionId: draft.draft.baseRevisionId,
       draft: draft.draft,
-      source: {
-        id: snapshot.source.source_id,
-        name: path.basename(snapshot.source.original_path),
-        ...mediaMeasurements(snapshot.source_probe),
-      },
+      source: summaries[0]!,
+      ...(snapshot.schema_version === "1.1" ? { sources: summaries } : {}),
       timeline: draft.timeline,
     };
     assertProjectView(value);
@@ -149,19 +158,23 @@ export class DesktopProjectRuntime {
       return { status: "stale", draft: committedDraftView(before) };
     if (
       request.timelineTimeUs >= draft.timeline.duration_us ||
-      draft.timeline.clips.length !== 1 ||
+      ![1, 2].includes(draft.timeline.clips.length) ||
       draft.timeline.speed_ids.length !== 0
     )
       invalid();
-    const clip = draft.timeline.clips[0]!;
+    const clip = draft.timeline.clips.find(
+      (candidate) =>
+        request.timelineTimeUs >= candidate.timeline_start_us &&
+        request.timelineTimeUs < candidate.timeline_end_us,
+    );
     if (
+      !clip ||
       !clip.enabled ||
-      clip.timeline_start_us !== 0 ||
-      clip.timeline_end_us !== draft.timeline.duration_us ||
-      clip.source_id !== before.project.source.source_id
+      !before.project.project.source_ids.includes(clip.source_id)
     )
       invalid();
-    const sourceTimeUs = clip.source_start_us + request.timelineTimeUs;
+    const sourceTimeUs =
+      clip.source_start_us + request.timelineTimeUs - clip.timeline_start_us;
     if (
       sourceTimeUs < clip.source_start_us ||
       sourceTimeUs >= clip.source_end_us

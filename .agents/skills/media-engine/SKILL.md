@@ -19,6 +19,7 @@ Changing FFmpeg, ffprobe, transcription, proxies, render, mux, export, or media 
 - Reuse cache only when keys and output hashes match.
 - Preserve source bytes.
 - For source-frame seeks, sort verified presentation timestamps; packet order can be decode order. Use exact rational time-base comparisons rather than average frame rate, and do not use packet duration as each displayed frame's interval without validation.
+- For a two-source project, validate the last presented packet's duration and compare its end to the source probe. Persist timing evidence with both immutable source identities; use half-open adjacent output intervals and select the source before display decode. Nominal frame rate is only a navigation grid for variable-cadence media. Reject mixed metadata until an explicit working-format adapter is implemented. Keep the display index out of master rendering.
 
 ## Required checks
 

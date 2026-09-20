@@ -13,18 +13,49 @@ import { isAbsolute, join, resolve } from "node:path";
 import { mediaIdPattern } from "../../domain/src/library.ts";
 import {
   assertInitialProjectSnapshot,
+  assertTwoSourceInitialProjectSnapshot,
   createInitialProject,
+  createTwoSourceInitialProject,
   projectCanonicalJson,
   projectStages,
 } from "../../domain/src/project.ts";
 import type {
   InitialProjectSnapshot,
   ProjectStage,
+  TwoSourceInitialProjectSnapshot,
+  TwoSourceTimingEvidence,
 } from "../../domain/src/project.ts";
-import type { MediaLibrary } from "../../media-engine/src/library.ts";
+import type {
+  MediaLibrary,
+  VerifiedPresentationTiming,
+} from "../../media-engine/src/library.ts";
 import { sameProjectStorePath, serializeProjectStore } from "./serialize.ts";
 
 const jsonLimit = 8 * 1024 * 1024;
+type ProjectBaseline = InitialProjectSnapshot | TwoSourceInitialProjectSnapshot;
+function timingEvidence(
+  timing: VerifiedPresentationTiming,
+): TwoSourceTimingEvidence {
+  return {
+    timeBaseNumerator: timing.timeBaseNumerator,
+    timeBaseDenominator: timing.timeBaseDenominator,
+    firstPts: timing.firstPts,
+    lastPts: timing.lastPts,
+    lastDurationTicks: timing.lastDurationTicks,
+    frameCount: timing.frameCount,
+    presentationEndUs: timing.presentationEndUs,
+  };
+}
+function assertBaseline(value: unknown): asserts value is ProjectBaseline {
+  if (
+    value &&
+    typeof value === "object" &&
+    "schema_version" in value &&
+    value.schema_version === "1.1"
+  )
+    assertTwoSourceInitialProjectSnapshot(value);
+  else assertInitialProjectSnapshot(value);
+}
 function invalid(): never {
   throw new Error(
     "The project could not be opened or saved. Check its local files and try again.",
@@ -77,6 +108,7 @@ async function writeNew(path: string, value: unknown): Promise<void> {
 export class ProjectStore {
   private readonly root: string;
   private readonly library: MediaLibrary;
+  private readonly verifiedTimings = new Map<string, TwoSourceTimingEvidence>();
   constructor(rootAbsolute: string, library: MediaLibrary) {
     if (!isAbsolute(rootAbsolute)) invalid();
     this.root = resolve(rootAbsolute);
@@ -93,11 +125,11 @@ export class ProjectStore {
     if (!mediaIdPattern.test(id)) invalid();
     return join(this.root, id);
   }
-  private async read(id: string): Promise<InitialProjectSnapshot> {
+  private async read(id: string): Promise<ProjectBaseline> {
     const folder = this.folder(id);
     await safeDirectory(folder);
     const baseline = await json(join(folder, "baseline.json"));
-    assertInitialProjectSnapshot(baseline);
+    assertBaseline(baseline);
     if (
       baseline.project.project_id !== id ||
       !sameProjectStorePath(baseline.project.storage.project_root, folder) ||
@@ -107,7 +139,7 @@ export class ProjectStore {
       invalid();
     const project = await json(join(folder, "project.json"));
     const combined: unknown = { ...baseline, project };
-    assertInitialProjectSnapshot(combined);
+    assertBaseline(combined);
     const expected = {
       ...baseline.project,
       workflow_step: combined.project.workflow_step,
@@ -117,17 +149,68 @@ export class ProjectStore {
       projectCanonicalJson(expected) !== projectCanonicalJson(combined.project)
     )
       invalid();
-    const source = await this.library.verifiedSource(baseline.source.source_id);
-    if (
-      source.managedPath !== baseline.source.managed_path ||
-      source.originalPath !== baseline.source.original_path ||
-      source.sha256 !== baseline.source.sha256 ||
-      source.sizeBytes !== baseline.source.size_bytes ||
-      projectCanonicalJson(source.probe) !==
-        projectCanonicalJson(baseline.source_probe)
-    )
-      invalid();
+    const sources =
+      baseline.schema_version === "1.1" ? baseline.sources : [baseline.source];
+    const probes =
+      baseline.schema_version === "1.1"
+        ? baseline.source_probes
+        : [baseline.source_probe];
+    for (let index = 0; index < sources.length; index++) {
+      const expectedSource = sources[index]!;
+      const source = await this.library.verifiedSource(
+        expectedSource.source_id,
+      );
+      if (
+        source.managedPath !== expectedSource.managed_path ||
+        source.originalPath !== expectedSource.original_path ||
+        source.sha256 !== expectedSource.sha256 ||
+        source.sizeBytes !== expectedSource.size_bytes ||
+        projectCanonicalJson(source.probe) !==
+          projectCanonicalJson(probes[index])
+      )
+        invalid();
+      if (baseline.schema_version === "1.1") {
+        const timingKey = `${expectedSource.source_id}:${source.sha256}`;
+        let measured = this.verifiedTimings.get(timingKey);
+        if (!measured) {
+          measured = timingEvidence(
+            await this.library.verifiedPresentationTiming(
+              expectedSource.source_id,
+            ),
+          );
+          this.verifiedTimings.set(timingKey, measured);
+        }
+        if (
+          projectCanonicalJson(measured) !==
+          projectCanonicalJson(baseline.source_timings[index])
+        )
+          invalid();
+      }
+    }
     return combined;
+  }
+  private async publish(snapshot: ProjectBaseline): Promise<void> {
+    const projectId = snapshot.project.project_id,
+      folder = this.folder(projectId),
+      staged = join(this.root, `.creating-${projectId}`);
+    await mkdir(staged, { mode: 0o700 });
+    await writeNew(join(staged, "baseline.json"), snapshot);
+    await writeNew(join(staged, "project.json"), snapshot.project);
+    await safeDirectory(this.root);
+    await safeDirectory(staged);
+    try {
+      await lstat(folder);
+      invalid();
+    } catch (error) {
+      if (
+        !error ||
+        typeof error !== "object" ||
+        !("code" in error) ||
+        error.code !== "ENOENT"
+      )
+        throw error;
+    }
+    await rename(staged, folder);
   }
   createFromMedia(mediaId: string): Promise<InitialProjectSnapshot> {
     return this.serialize(async () => {
@@ -152,35 +235,64 @@ export class ProjectStore {
         probe: source.probe,
       });
       assertInitialProjectSnapshot(snapshot);
-      const staged = join(this.root, `.creating-${projectId}`);
-      await mkdir(staged, { mode: 0o700 });
-      await writeNew(join(staged, "baseline.json"), snapshot);
-      await writeNew(join(staged, "project.json"), snapshot.project);
-      await safeDirectory(this.root);
-      await safeDirectory(staged);
-      // Random UUID and in-process serialization avoid collisions; never reuse a published folder.
-      try {
-        await lstat(folder);
-        invalid();
-      } catch (error) {
-        if (
-          !error ||
-          typeof error !== "object" ||
-          !("code" in error) ||
-          error.code !== "ENOENT"
-        )
-          throw error;
-      }
-      await rename(staged, folder);
+      await this.publish(snapshot);
       return snapshot;
     });
   }
-  list(): Promise<InitialProjectSnapshot[]> {
+  createFromTwoMedia(
+    firstMediaId: string,
+    secondMediaId: string,
+  ): Promise<TwoSourceInitialProjectSnapshot> {
+    return this.serialize(async () => {
+      await this.initialize();
+      if (firstMediaId === secondMediaId) invalid();
+      const first = await this.library.verifiedSource(firstMediaId),
+        second = await this.library.verifiedSource(secondMediaId);
+      const firstTiming =
+          await this.library.verifiedPresentationTiming(firstMediaId),
+        secondTiming =
+          await this.library.verifiedPresentationTiming(secondMediaId);
+      const projectId = randomUUID(),
+        folder = this.folder(projectId);
+      const snapshot = createTwoSourceInitialProject({
+        projectId,
+        timelineId: randomUUID(),
+        revisionId: randomUUID(),
+        name: first.summary.name.slice(0, 160),
+        createdAt: new Date().toISOString(),
+        projectRoot: folder,
+        sources: [
+          {
+            sourceId: firstMediaId,
+            originalPath: first.originalPath,
+            managedPath: first.managedPath,
+            sha256: first.sha256,
+            sizeBytes: first.sizeBytes,
+            probe: first.probe,
+            timing: timingEvidence(firstTiming),
+          },
+          {
+            sourceId: secondMediaId,
+            originalPath: second.originalPath,
+            managedPath: second.managedPath,
+            sha256: second.sha256,
+            sizeBytes: second.sizeBytes,
+            probe: second.probe,
+            timing: timingEvidence(secondTiming),
+          },
+        ],
+      });
+      assertTwoSourceInitialProjectSnapshot(snapshot);
+      await this.publish(snapshot);
+      return snapshot;
+    });
+  }
+  list(): Promise<ProjectBaseline[]> {
     return this.serialize(async () => {
       await this.initialize();
       const entries = await readdir(this.root);
       if (entries.length > 1000) invalid();
-      const result: InitialProjectSnapshot[] = [];
+      const result: ProjectBaseline[] = [];
       for (const entry of entries.sort()) {
         // Interrupted, unpublished directories remain private for explicit later recovery/cleanup.
         if (
@@ -195,23 +307,18 @@ export class ProjectStore {
       return result;
     });
   }
-  open(projectId: string): Promise<InitialProjectSnapshot> {
+  open(projectId: string): Promise<ProjectBaseline> {
     return this.serialize(async () => {
       await this.initialize();
       return this.read(projectId);
     });
   }
   /** Internal verified read for DraftTransactionStore while it owns the shared root queue. */
-  async readForDraftTransaction(
-    projectId: string,
-  ): Promise<InitialProjectSnapshot> {
+  async readForDraftTransaction(projectId: string): Promise<ProjectBaseline> {
     await this.initialize();
     return this.read(projectId);
   }
-  navigate(
-    projectId: string,
-    stage: ProjectStage,
-  ): Promise<InitialProjectSnapshot> {
+  navigate(projectId: string, stage: ProjectStage): Promise<ProjectBaseline> {
     return this.serialize(async () => {
       if (!projectStages.includes(stage)) invalid();
       await this.initialize();
@@ -220,7 +327,7 @@ export class ProjectStore {
       snapshot.project.updated_at = new Date(
         Math.max(Date.now(), Date.parse(snapshot.project.updated_at)),
       ).toISOString();
-      assertInitialProjectSnapshot(snapshot);
+      assertBaseline(snapshot);
       const folder = this.folder(projectId),
         staged = join(folder, `.project-${randomUUID()}.tmp`);
       let unpublished = true;

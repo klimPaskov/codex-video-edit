@@ -26,7 +26,7 @@ For the two current mutations, main refreshes the atomic project/draft authority
 
 ### `project.get_summary`
 
-Returns project name, current step, source roles, duration, revision, QA state, and active work.
+Returns project name, current step, ordered source roles, duration, revision, QA state, and active work. The implemented bounded project summary reports both source IDs and clip order for a two-source draft without exposing filesystem paths, source bytes, or private probe data.
 
 ### `timeline.get_summary`
 

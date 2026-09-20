@@ -2,6 +2,14 @@
   "schema_version": "1.0",
   "pairs": [
     {
+      "schema": "docs/schemas/two_source_initial_project.schema.json",
+      "example": "docs/examples/two_source_initial_project.example.json"
+    },
+    {
+      "schema": "docs/schemas/desktop_ipc.schema.json",
+      "example": "docs/examples/desktop_ipc_two_source.example.json"
+    },
+    {
       "schema": "docs/schemas/draft_snapshot.schema.json",
       "example": "docs/examples/draft_snapshot.example.json"
     },

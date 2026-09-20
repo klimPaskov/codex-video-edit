@@ -20,6 +20,7 @@ import {
   assertProjectFrameRequest,
   assertProjectFrameResult,
   assertProjectRequest,
+  assertTwoSourceProjectRequest,
   assertProjectNavigation,
   assertProjectView,
   assertProjectList,
@@ -154,6 +155,10 @@ const bridge: DesktopBridge = {
   createProject: (request) => {
     assertProjectRequest(request);
     return invoke(channels.projectCreate, request, assertProjectView);
+  },
+  createTwoSourceProject: (request) => {
+    assertTwoSourceProjectRequest(request);
+    return invoke(channels.projectCreateTwo, request, assertProjectView);
   },
   openProject: (request) => {
     assertProjectRequest(request);

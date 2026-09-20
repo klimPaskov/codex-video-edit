@@ -17,6 +17,7 @@ import type {
   ProjectView,
   ProjectRequest,
   ProjectNavigation,
+  TwoSourceProjectRequest,
 } from "../../../packages/domain/src/project-view.ts";
 import type {
   FrameRequest,
@@ -76,6 +77,9 @@ export interface DesktopBridge {
   ): Promise<Reply<CodexThreadView>>;
   listProjects(): Promise<Reply<ProjectView[]>>;
   createProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
+  createTwoSourceProject(
+    request: TwoSourceProjectRequest,
+  ): Promise<Reply<ProjectView>>;
   openProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
   closeProject(request: ProjectRequest): Promise<Reply<null>>;
   navigateProject(request: ProjectNavigation): Promise<Reply<ProjectView>>;
@@ -115,6 +119,7 @@ export const channels = Object.freeze({
   codexThreadInterrupt: "codex-thread:interrupt",
   projectList: "projects:list",
   projectCreate: "projects:create",
+  projectCreateTwo: "projects:create-two",
   projectOpen: "projects:open",
   projectClose: "projects:close",
   projectNavigate: "projects:navigate",

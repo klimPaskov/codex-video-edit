@@ -1,4 +1,8 @@
-import type { InitialProjectSnapshot } from "./project.ts";
+import type {
+  InitialProjectSnapshot,
+  TwoSourceInitialProjectSnapshot,
+} from "./project.ts";
+type ProjectBaseline = InitialProjectSnapshot | TwoSourceInitialProjectSnapshot;
 import {
   canonicalSha256,
   projectCanonicalJson,
@@ -262,7 +266,7 @@ function clip(value: unknown): asserts value is DraftTimeline["clips"][number] {
     invalid();
 }
 
-/** P2's first reducer is restricted to the imported single-main-clip baseline. */
+/** Preserve the baseline's ordered source identity and contiguous half-open clip map. */
 export function assertDraftTimeline(
   value: unknown,
   baseline: DraftTimeline,
@@ -301,34 +305,38 @@ export function assertDraftTimeline(
     !Array.isArray(value.operation_ids) ||
     value.operation_ids.length > 100_000 ||
     !Array.isArray(value.clips) ||
-    value.clips.length !== 1 ||
-    baseline.clips.length !== 1
+    ![1, 2].includes(baseline.clips.length) ||
+    value.clips.length !== baseline.clips.length
   )
     invalid();
   for (const operationId of value.operation_ids) id(operationId);
   if (new Set(value.operation_ids).size !== value.operation_ids.length)
     invalid();
-  const current = value.clips[0],
-    original = baseline.clips[0];
-  clip(current);
-  clip(original);
-  if (
-    current.clip_id !== original.clip_id ||
-    current.track_id !== original.track_id ||
-    current.source_id !== original.source_id ||
-    current.source_start_us < original.source_start_us ||
-    current.source_end_us > original.source_end_us ||
-    current.timeline_start_us !== 0 ||
-    current.timeline_end_us !==
-      current.source_end_us - current.source_start_us ||
-    value.duration_us !== current.timeline_end_us
-  )
-    invalid();
+  let position = 0;
+  for (let index = 0; index < baseline.clips.length; index++) {
+    const current = value.clips[index],
+      original = baseline.clips[index];
+    clip(current);
+    clip(original);
+    if (
+      current.clip_id !== original.clip_id ||
+      current.track_id !== original.track_id ||
+      current.source_id !== original.source_id ||
+      current.source_start_us < original.source_start_us ||
+      current.source_end_us > original.source_end_us ||
+      current.timeline_start_us !== position ||
+      current.timeline_end_us !==
+        position + current.source_end_us - current.source_start_us
+    )
+      invalid();
+    position = current.timeline_end_us;
+  }
+  if (value.duration_us !== position) invalid();
 }
 
 export function assertDraftState(
   value: unknown,
-  baseline: InitialProjectSnapshot,
+  baseline: ProjectBaseline,
 ): asserts value is DraftState {
   exact(value, [
     "schema_version",
@@ -479,7 +487,7 @@ export function cloneDraftState(value: DraftState): DraftState {
 }
 
 export function initialDraftState(
-  baseline: InitialProjectSnapshot,
+  baseline: ProjectBaseline,
   draftId: string,
 ): DraftState {
   id(draftId);

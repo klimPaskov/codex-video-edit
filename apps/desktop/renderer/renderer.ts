@@ -28,6 +28,8 @@ const home = element("home"),
   viewer = element("viewer"),
   back = element<HTMLButtonElement>("back");
 const importButton = element<HTMLButtonElement>("import"),
+  addFootageButton = element<HTMLButtonElement>("add-footage"),
+  appendProgress = element("append-progress"),
   progress = element("progress"),
   error = element("error");
 const seek = element<HTMLInputElement>("seek"),
@@ -44,6 +46,7 @@ let activeProject: ProjectView | undefined;
 let routeGeneration = 0;
 let loadingHome = 0;
 let navigating = false;
+let addingFootage = false;
 const stageLabels: Record<ProjectStage, string> = {
   record_import: "Record or Import",
   auto_edit: "Auto Edit",
@@ -73,6 +76,12 @@ stageSelect.addEventListener("change", () => {
 });
 function renderStage(): void {
   element("project-navigation").hidden = !activeProject;
+  addFootageButton.hidden =
+    !activeProject ||
+    activeProject.stage !== "record_import" ||
+    activeProject.sources !== undefined ||
+    activeProject.draft.sequence !== 0;
+  addFootageButton.disabled = addingFootage || navigating;
   stageSelect.disabled = navigating;
   if (activeProject) stageSelect.value = activeProject.stage;
   for (const [stage, button] of stageButtons) {
@@ -210,7 +219,7 @@ async function loadLibrary(): Promise<void> {
         name = document.createElement("span"),
         detail = document.createElement("small");
       name.textContent = project.name;
-      detail.textContent = `${time(project.timeline.durationUs)} · ${stageLabels[project.stage]}`;
+      detail.textContent = `${time(project.timeline.durationUs)} · ${project.sources?.length ?? 1} source${project.sources ? "s" : ""} · ${stageLabels[project.stage]}`;
       button.append(name, detail);
       button.dataset.projectId = project.id;
       button.addEventListener("click", () => {
@@ -412,6 +421,7 @@ async function decodeFrames(): Promise<void> {
     showError("The frame could not be shown. Select the video again to retry.");
   } finally {
     decoding = false;
+    if (selected && requestedTime !== undefined) void decodeFrames();
   }
 }
 importButton.addEventListener("click", async () => {
@@ -438,6 +448,50 @@ importButton.addEventListener("click", async () => {
     progress.hidden = true;
     element("progress-label").textContent = "Importing video…";
     element("cancel").hidden = false;
+  }
+});
+addFootageButton.addEventListener("click", async () => {
+  if (!activeProject || addingFootage || activeProject.sources) return;
+  const project = activeProject,
+    generation = routeGeneration;
+  if (project.stage !== "record_import" || project.draft.sequence !== 0) return;
+  addingFootage = true;
+  appendProgress.hidden = false;
+  renderStage();
+  clearError();
+  try {
+    const imported = await window.desktop.importVideo();
+    if (!imported.ok) {
+      if (activeProject?.id === project.id) showError(imported.message);
+      return;
+    }
+    if (!imported.value) return;
+    if (generation !== routeGeneration || activeProject?.id !== project.id)
+      return;
+    const combined = await window.desktop.createTwoSourceProject({
+      firstId: project.source.id,
+      secondId: imported.value.id,
+    });
+    if (generation !== routeGeneration || activeProject?.id !== project.id)
+      return;
+    if (!combined.ok) {
+      showError(
+        `${combined.message} The imported footage remains in the source library.`,
+      );
+      return;
+    }
+    routeGeneration++;
+    selectProject(combined.value);
+    await loadLibrary();
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      showError(
+        "Footage could not be added. Any completed import remains in the source library.",
+      );
+  } finally {
+    addingFootage = false;
+    appendProgress.hidden = true;
+    renderStage();
   }
 });
 element("cancel").addEventListener("click", () => {
@@ -565,12 +619,18 @@ function setInspector(open: boolean): void {
   if (open && selected) {
     const list = element("source-properties");
     list.replaceChildren();
-    for (const [label, value] of [
-      ["File", selected.name],
-      ["Dimensions", `${selected.width} × ${selected.height}`],
-      ["Duration", time(selected.durationUs)],
-      ["Frame rate", `${Number(selected.frameRate.toFixed(3))} fps`],
-    ]) {
+    const details = activeProject?.sources
+      ? activeProject.sources.flatMap((source, index) => [
+          [`Part ${index + 1}`, source.name],
+          [`Duration ${index + 1}`, time(source.durationUs)],
+        ])
+      : [
+          ["File", selected.name],
+          ["Dimensions", `${selected.width} × ${selected.height}`],
+          ["Duration", time(selected.durationUs)],
+          ["Frame rate", `${Number(selected.frameRate.toFixed(3))} fps`],
+        ];
+    for (const [label, value] of details) {
       const term = document.createElement("dt"),
         definition = document.createElement("dd");
       term.textContent = label!;

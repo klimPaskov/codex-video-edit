@@ -36,11 +36,13 @@ import {
   projectCanonicalJson,
   timelineSha256,
   type InitialProjectSnapshot,
+  type TwoSourceInitialProjectSnapshot,
 } from "../../domain/src/project.ts";
 import { sameProjectStorePath, serializeProjectStore } from "./serialize.ts";
 
+type ProjectBaseline = InitialProjectSnapshot | TwoSourceInitialProjectSnapshot;
 type ProjectReader = {
-  readForDraftTransaction(projectId: string): Promise<InitialProjectSnapshot>;
+  readForDraftTransaction(projectId: string): Promise<ProjectBaseline>;
 };
 
 export type DraftTransactionErrorCode =
@@ -96,7 +98,7 @@ export interface DraftReadResult {
   current_pass_checkpoint: PassCheckpointRecord | null;
 }
 export interface DraftProjectReadResult extends DraftReadResult {
-  project: InitialProjectSnapshot;
+  project: ProjectBaseline;
 }
 
 export interface DraftCommitResult extends DraftReadResult {
@@ -109,7 +111,7 @@ export interface PassCheckpointCommitResult extends DraftReadResult {
   replayed: boolean;
 }
 
-interface DraftMeta {
+interface DraftMetaV1 {
   schema_version: "1.0";
   project_id: string;
   draft_id: string;
@@ -118,9 +120,27 @@ interface DraftMeta {
   source_sha256: string;
   created_at: string;
 }
+interface DraftMetaV2 {
+  schema_version: "1.1";
+  project_id: string;
+  draft_id: string;
+  base_revision_id: string;
+  baseline_timeline_sha256: string;
+  sources_sha256: string;
+  created_at: string;
+}
+type DraftMeta = DraftMetaV1 | DraftMetaV2;
+function sourcesSha256(baseline: TwoSourceInitialProjectSnapshot): string {
+  return canonicalSha256(
+    baseline.sources.map((source) => ({
+      source_id: source.source_id,
+      sha256: source.sha256,
+    })),
+  );
+}
 
 interface LoadedDraft {
-  baseline: InitialProjectSnapshot;
+  baseline: ProjectBaseline;
   state: DraftState;
   records: Map<string, DraftTransactionRecord>;
   requests: Map<string, DraftTransactionRecord>;
@@ -243,26 +263,38 @@ function same(left: unknown, right: unknown): boolean {
   return projectCanonicalJson(left) === projectCanonicalJson(right);
 }
 
-function assertMeta(
-  value: unknown,
-  baseline: InitialProjectSnapshot,
-): DraftMeta {
-  const meta = exact(value, [
-    "schema_version",
-    "project_id",
-    "draft_id",
-    "base_revision_id",
-    "baseline_timeline_sha256",
-    "source_sha256",
-    "created_at",
-  ]);
+function assertMeta(value: unknown, baseline: ProjectBaseline): DraftMeta {
+  const meta = exact(
+    value,
+    baseline.schema_version === "1.1"
+      ? [
+          "schema_version",
+          "project_id",
+          "draft_id",
+          "base_revision_id",
+          "baseline_timeline_sha256",
+          "sources_sha256",
+          "created_at",
+        ]
+      : [
+          "schema_version",
+          "project_id",
+          "draft_id",
+          "base_revision_id",
+          "baseline_timeline_sha256",
+          "source_sha256",
+          "created_at",
+        ],
+  );
   if (
-    meta.schema_version !== "1.0" ||
+    meta.schema_version !== baseline.schema_version ||
     meta.project_id !== baseline.project.project_id ||
     !validId(meta.draft_id) ||
     meta.base_revision_id !== baseline.revision.revision_id ||
     meta.baseline_timeline_sha256 !== timelineSha256(baseline.timeline) ||
-    meta.source_sha256 !== baseline.source.sha256 ||
+    (baseline.schema_version === "1.1"
+      ? meta.sources_sha256 !== sourcesSha256(baseline)
+      : meta.source_sha256 !== baseline.source.sha256) ||
     !validTimestamp(meta.created_at)
   )
     fail();
@@ -431,7 +463,7 @@ function nextState(
 }
 
 function prepareApply(
-  baseline: InitialProjectSnapshot,
+  baseline: ProjectBaseline,
   before: DraftState,
   request: ApplyDraftTransactionRequest,
   authority: DraftTransactionAuthority,
@@ -468,10 +500,14 @@ function prepareApply(
         current.source_start_us +
         (intent.timeline_position_us - current.timeline_start_us);
     }
-    next.timeline_start_us = 0;
-    next.timeline_end_us = next.source_end_us - next.source_start_us;
     timeline.clips[clipIndex] = next;
-    timeline.duration_us = next.timeline_end_us;
+    let position = 0;
+    for (const candidate of timeline.clips) {
+      candidate.timeline_start_us = position;
+      position += candidate.source_end_us - candidate.source_start_us;
+      candidate.timeline_end_us = position;
+    }
+    timeline.duration_us = position;
     timeline.operation_ids.push(operationId);
     records.push({
       schema_version: "1.0",
@@ -517,7 +553,7 @@ function prepareApply(
 }
 
 function prepareUndo(
-  baseline: InitialProjectSnapshot,
+  baseline: ProjectBaseline,
   before: DraftState,
   request: UndoDraftTransactionRequest,
   authority: DraftTransactionAuthority,
@@ -585,7 +621,7 @@ export class DraftTransactionStore {
   }
 
   private async load(projectId: string): Promise<LoadedDraft> {
-    let baseline: InitialProjectSnapshot;
+    let baseline: ProjectBaseline;
     try {
       baseline = await this.projects.readForDraftTransaction(projectId);
     } catch {
@@ -625,15 +661,25 @@ export class DraftTransactionStore {
       const draftId = `draft-${this.dependencies.id()}`,
         createdAt = this.dependencies.now();
       if (!validId(draftId) || !validTimestamp(createdAt)) fail("invalid");
-      meta = {
-        schema_version: "1.0",
+      const common = {
         project_id: baseline.project.project_id,
         draft_id: draftId,
         base_revision_id: baseline.revision.revision_id,
         baseline_timeline_sha256: timelineSha256(baseline.timeline),
-        source_sha256: baseline.source.sha256,
         created_at: createdAt,
       };
+      meta =
+        baseline.schema_version === "1.1"
+          ? {
+              schema_version: "1.1",
+              ...common,
+              sources_sha256: sourcesSha256(baseline),
+            }
+          : {
+              schema_version: "1.0",
+              ...common,
+              source_sha256: baseline.source.sha256,
+            };
       await writeNew(metaPath, meta);
     }
     const entries = await readdir(journal);
