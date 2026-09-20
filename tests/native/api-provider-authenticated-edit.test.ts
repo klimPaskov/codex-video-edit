@@ -1,4 +1,4 @@
-/** A paid, user-started OpenAI fixture edit in packaged isolated Electron. */
+/** A paid, user-started API-provider fixture edit in packaged isolated Electron. */
 import assert from "node:assert/strict";
 import {
   access,
@@ -26,9 +26,18 @@ assert.equal(process.env.DISPLAY, ":99");
 await access("/.dockerenv");
 const executablePath = process.argv[2];
 const privateKeyPath = process.argv[3];
+if (process.argv[4] && process.argv[4] !== "--deepseek")
+  throw new Error("Unsupported test provider option");
+const provider = process.argv[4] === "--deepseek" ? "deepseek" : "openai";
+const preferredModel =
+  provider === "deepseek" ? "deepseek-chat" : "gpt-4.1-mini";
+const completionUrl =
+  provider === "deepseek"
+    ? "https://api.deepseek.com/chat/completions"
+    : "https://api.openai.com/v1/chat/completions";
 if (
   !executablePath?.startsWith("/home/node/") ||
-  privateKeyPath !== join(resolve("test-results"), "private-openai.key")
+  privateKeyPath !== join(resolve("test-results"), `private-${provider}.key`)
 )
   throw new Error(
     "Packaged executable and key input must stay inside the guest",
@@ -164,14 +173,14 @@ try {
       throw new Error("External launch disabled");
     };
   });
-  await electron.evaluate(() => {
+  await electron.evaluate((_electron, selectedCompletionUrl) => {
     const scope = globalThis as typeof globalThis & {
       nativeProviderStatuses?: number[];
     };
     scope.nativeProviderStatuses = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async (input, init) => {
-      if (String(input) !== "https://api.openai.com/v1/chat/completions")
+      if (String(input) !== selectedCompletionUrl)
         return originalFetch(input, init);
       try {
         const response = await originalFetch(input, init);
@@ -182,7 +191,7 @@ try {
         throw error;
       }
     };
-  });
+  }, completionUrl);
 
   step = "import-fixture";
   const before = await page.evaluate(() => window.desktop.listProjects());
@@ -221,7 +230,7 @@ try {
   await page
     .getByRole("button", { name: "API providers", exact: true })
     .click();
-  await page.locator("#api-provider-id").selectOption("openai");
+  await page.locator("#api-provider-id").selectOption(provider);
   await page.locator("#api-provider-remember").uncheck({ force: true });
   await page.locator("#api-provider-key").fill(key);
   await page.locator("#api-provider-connect").click();
@@ -232,24 +241,27 @@ try {
   await expect(page.locator("#api-provider-key")).toHaveValue("");
   const catalog = await page.evaluate(() => window.desktop.getApiProviders());
   assert.ok(catalog.ok);
-  const openai = catalog.value.providers.find((item) => item.id === "openai");
-  assert.ok(openai?.connected && openai.models.includes("gpt-4.1-mini"));
+  const selected = catalog.value.providers.find((item) => item.id === provider);
+  assert.ok(selected?.connected && selected.models.length > 0);
   assert.ok(!JSON.stringify(catalog.value).includes(key));
-  await page.locator("#api-provider-model").selectOption("gpt-4.1-mini");
+  const model = selected.models.includes(preferredModel)
+    ? preferredModel
+    : selected.models[0]!;
+  await page.locator("#api-provider-model").selectOption(model);
   await expect
     .poll(async () => {
       const reply = await page.evaluate(() => window.desktop.getApiProviders());
       return reply.ok
-        ? reply.value.providers.find((item) => item.id === "openai")
+        ? reply.value.providers.find((item) => item.id === provider)
             ?.selectedModel
         : null;
     })
-    .toBe("gpt-4.1-mini");
+    .toBe(model);
   await page.keyboard.press("Escape");
 
   step = "explicit-live-send";
   await page.getByRole("button", { name: "Codex", exact: true }).click();
-  await page.locator("#assistant-provider").selectOption("openai");
+  await page.locator("#assistant-provider").selectOption(provider);
   await expect(page.locator("#api-turn-notice")).toBeVisible();
   await page
     .getByRole("button", { name: "Open conversation", exact: true })
@@ -257,7 +269,7 @@ try {
   const threadRequest = {
     schema_version: "1.0",
     project_id: project.id,
-    provider: "openai",
+    provider,
   } as const;
   const thread = async () => {
     const reply = await page.evaluate(
@@ -349,12 +361,12 @@ try {
   );
   assert.ok(reopenedProviders.ok);
   assert.equal(
-    reopenedProviders.value.providers.find((item) => item.id === "openai")
+    reopenedProviders.value.providers.find((item) => item.id === provider)
       ?.connected,
     false,
   );
   const conversation = await readFile(
-    join(userData, "api-provider-threads", project.id + ".openai.json"),
+    join(userData, "api-provider-threads", project.id + `.${provider}.json`),
     "utf8",
   );
   assert.ok(!conversation.includes(key));
@@ -363,7 +375,8 @@ try {
     join(evidence, "result.json"),
     JSON.stringify({
       status: "pass",
-      scope: "P2-authenticated-OpenAI-provider-draft",
+      scope: "P2-authenticated-API-provider-draft",
+      provider,
       packagedNativeWindow: true,
       liveCatalog: true,
       explicitPaidSend: true,

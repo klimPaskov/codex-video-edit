@@ -61,6 +61,8 @@ const problems = {
   request:
     "The provider request failed. Check the connection and try a new turn.",
   rate: "The provider rate or quota limit was reached. Check your API account before sending again.",
+  authentication:
+    "The provider rejected this API connection. Check the key and account access in Settings before sending again.",
   response:
     "The provider rejected this response. Check the selected model and try a new turn.",
   stopped: "This turn stopped. Review the current draft before sending again.",
@@ -520,7 +522,10 @@ export class ApiProviderThreads {
         ? "stopped"
         : error instanceof ApiProviderError && error.code === "rate_limited"
           ? "rate"
-          : "request";
+          : error instanceof ApiProviderError &&
+              error.code === "authentication_failed"
+            ? "authentication"
+            : "request";
     }
     session.controller = null;
     session.view.status = failure ? "failed" : "ready";

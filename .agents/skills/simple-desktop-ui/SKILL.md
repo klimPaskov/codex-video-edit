@@ -31,6 +31,10 @@ Changing screen flow, visual hierarchy, design system, editor panels, or empty a
 6. Test at common desktop window sizes.
 7. Inspect with computer use and capture screenshots.
 
+For a long assistant conversation, bound the selected drawer and let the history scroll inside it while the composer and actionable error remain readable. At compact native sizes, assert the alert is inside the drawer and visible in the viewport; finding its text in the DOM is insufficient.
+
+At 200% interface scale, retain a minimum usable history height and let the drawer scroll to a changed error. Review preview and drawer states separately in a small window; do not claim they fit simultaneously when the viewport cannot show both.
+
 ## Reference rule
 
 Use future screenshots for principles and proportions. Do not copy brands, assets, or exact layouts.

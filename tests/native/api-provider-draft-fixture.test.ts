@@ -227,6 +227,8 @@ try {
             return respond({ error: "private-test-provider-detail" }, 503);
           if (user.includes("quota failure"))
             return respond({ error: "private-test-provider-detail" }, 429);
+          if (user.includes("authentication failure"))
+            return respond({ error: "private-test-provider-detail" }, 401);
           const tool = (name: string, input: unknown) =>
             respond({
               model: args.model,
@@ -316,6 +318,14 @@ try {
   };
   const connect = async (page: Page) => {
     await page.getByRole("button", { name: "Settings", exact: true }).click();
+    if (process.argv.includes("--scale-200")) {
+      await page
+        .getByRole("button", { name: "Appearance", exact: true })
+        .click();
+      await page.locator("#interface-scale").selectOption("2");
+      await page.getByRole("button", { name: "Save", exact: true }).click();
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+    }
     await page
       .getByRole("button", { name: "API providers", exact: true })
       .click();
@@ -341,6 +351,13 @@ try {
     await page.keyboard.press("Escape");
   };
   electron = await launch();
+  if (process.argv.includes("--compact")) {
+    const windowSize = await electron.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setSize(1366, 768);
+      return BrowserWindow.getAllWindows()[0]?.getSize();
+    });
+    assert.deepEqual(windowSize, [1366, 768]);
+  }
   let page = await electron.firstWindow();
   assert.equal(await electron.evaluate(({ app }) => app.isPackaged), true);
   assert.equal(page.url(), "codex-video-edit://app/index.html");
@@ -461,6 +478,7 @@ try {
   step = "trim-running";
   assert.equal((await thread()).status, "running");
   step = "trim-native-preview";
+  await page.locator("canvas").scrollIntoViewIfNeeded();
   const previewDeadline = Date.now() + 60000;
   let livePreviewObserved = false;
   do {
@@ -474,7 +492,7 @@ try {
     assert.equal(capture.display, ":99");
     assert.equal(capture.hostInput, false);
     assert.ok(capture.screenshot.startsWith("/home/node/evidence/visual/"));
-    const previewPixel = execFileSync(
+    const previewPixels = execFileSync(
       "ffmpeg",
       [
         "-hide_banner",
@@ -484,7 +502,7 @@ try {
         "-i",
         capture.screenshot,
         "-vf",
-        "crop=1:1:260:300,format=rgb24",
+        "crop=800:400:200:250,format=rgb24",
         "-frames:v",
         "1",
         "-f",
@@ -493,10 +511,15 @@ try {
       ],
       { timeout: 30000 },
     );
-    assert.equal(previewPixel.length, 3);
-    livePreviewObserved =
-      previewPixel[1]! > previewPixel[0]! + 50 &&
-      previewPixel[1]! > previewPixel[2]! + 50;
+    assert.equal(previewPixels.length, 800 * 400 * 3);
+    let greenPixels = 0;
+    for (let index = 0; index < previewPixels.length; index += 3)
+      if (
+        previewPixels[index + 1]! > previewPixels[index]! + 50 &&
+        previewPixels[index + 1]! > previewPixels[index + 2]! + 50
+      )
+        greenPixels++;
+    livePreviewObserved = greenPixels > 10_000;
     if (livePreviewObserved)
       await copyFile(
         capture.screenshot,
@@ -596,6 +619,9 @@ try {
   assert.ok(!JSON.stringify(quota).includes(testKey));
   assert.ok(!JSON.stringify(quota).includes("private-test-provider-detail"));
   await expect(page.locator("#codex-thread-error")).toHaveText(quota.message!);
+  await expect(page.locator("#codex-thread-error")).toBeInViewport({
+    ratio: 1,
+  });
   const quotaCapture = JSON.parse(
     execFileSync(
       "python3",
@@ -606,6 +632,52 @@ try {
   assert.equal(quotaCapture.display, ":99");
   assert.equal(quotaCapture.hostInput, false);
   await copyFile(quotaCapture.screenshot, join(evidence, "quota-native.png"));
+  step = "authentication-failure";
+  const authentication = await send(
+    "Test authentication failure without an edit.",
+  );
+  assert.equal(authentication.status, "failed");
+  assert.equal(
+    authentication.message,
+    "The provider rejected this API connection. Check the key and account access in Settings before sending again.",
+  );
+  assert.equal((await journal()).length, 2);
+  assert.ok(!JSON.stringify(authentication).includes(testKey));
+  assert.ok(
+    !JSON.stringify(authentication).includes("private-test-provider-detail"),
+  );
+  await expect(page.locator("#codex-thread-error")).toHaveText(
+    authentication.message!,
+  );
+  await expect(page.locator("#codex-thread-error")).toBeInViewport({
+    ratio: 1,
+  });
+  const drawerLayout = await page.evaluate(() => {
+    const alert = document.querySelector("#codex-thread-error")!;
+    const drawer = document.querySelector("#codex-drawer")!;
+    const messages = document.querySelector("#codex-thread-messages")!;
+    const issue = alert.getBoundingClientRect();
+    const panel = drawer.getBoundingClientRect();
+    return {
+      alertFits: issue.top >= panel.top && issue.bottom <= panel.bottom,
+      messageHeight: messages.getBoundingClientRect().height,
+    };
+  });
+  assert.equal(drawerLayout.alertFits, true);
+  assert.ok(drawerLayout.messageHeight >= 80);
+  const authenticationCapture = JSON.parse(
+    execFileSync(
+      "python3",
+      [resolve("tests/desktop/guest-input.py"), "capture"],
+      { encoding: "utf8", timeout: 30000 },
+    ),
+  ) as { screenshot: string; display: string; hostInput: boolean };
+  assert.equal(authenticationCapture.display, ":99");
+  assert.equal(authenticationCapture.hostInput, false);
+  await copyFile(
+    authenticationCapture.screenshot,
+    join(evidence, "authentication-native.png"),
+  );
   const conversation = await readFile(
     join(userData, "api-provider-threads", `${project.id}.${provider}.json`),
     "utf8",
@@ -619,8 +691,8 @@ try {
     return scope.nativeProviderFixture?.requests ?? [];
   });
   assert.equal(requests.filter((entry) => entry === "models").length, 1);
-  assert.equal(requests.filter((entry) => entry === "completion").length, 10);
-  assert.equal(requests.length, 11);
+  assert.equal(requests.filter((entry) => entry === "completion").length, 11);
+  assert.equal(requests.length, 12);
   step = "reopen-project";
   await electron.close();
   electron = await launch();
@@ -654,6 +726,7 @@ try {
       sourceAndBaselineUnchanged: true,
       providerFailureRedacted: true,
       quotaFailureActionable: true,
+      authenticationFailureActionable: true,
       projectReopened: true,
       paidTurnStarted: false,
       hostInput: false,

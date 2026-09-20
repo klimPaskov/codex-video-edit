@@ -96,6 +96,8 @@ The synthetic packaged API-provider draft fixture must run both OpenAI and DeepS
 
 For a live API-key fixture, make the explicit Send through packaged Electron and record only bounded HTTP status classifications in private evidence. A 429 may mean rate or quota; map it to fixed redacted recovery text, require no journal commit unless a validated tool succeeds, and stop paid retries until account state changes. Synthetic 429 injection can verify native error presentation but cannot satisfy authenticated edit acceptance.
 
+Classify generation-time 401/403 as a separate API-connection failure after a key was initially connected. Show fixed key/account-access recovery text without inferring its precise provider cause, preserve the submitted request, and keep raw response material out of the thread. The live fixture harness accepts OpenAI or DeepSeek only with that provider's private mode-600 key file; a synthetic 401/403 native pass is not authenticated edit evidence.
+
 ## Packaged account/settings validation
 
 Resolve only main-owned fixed packaged resources and verify the pinned runtime manifest, binary and licence before connection. Keep the official runtime outside ASAR and out of Git; preserve licensing in private packaged builds. A content hash is not a release signature. Test missing, damaged and redirected resources without launching test fixture bytes.
