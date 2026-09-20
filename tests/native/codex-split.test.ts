@@ -400,7 +400,7 @@ try {
       JSON.stringify({ answer: answer.slice(0, 500) }),
     );
     assert.match(answer, /"owned"\s*:\s*"function"/u);
-    assert.match(answer, /"ownedCount"\s*:\s*6\b/u);
+    assert.match(answer, /"ownedCount"\s*:\s*7\b/u);
     assert.match(answer, /"unownedCount"\s*:\s*0\b/u);
     for (const key of [
       "apps",

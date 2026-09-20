@@ -158,4 +158,38 @@ export const codexVideoEditMcpTools = [
       openWorldHint: false,
     },
   },
+  {
+    name: codexVideoEditToolNames[6],
+    description:
+      "Atomically ripple-delete 2–16 confirmed, disjoint half-open output-time ranges in descending start-time order. One transaction and one undo; no speech inference or join verification is performed.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: [...Object.keys(freshness), "pass_group_id", "ranges"],
+      properties: {
+        ...freshness,
+        pass_group_id: id,
+        ranges: {
+          type: "array",
+          minItems: 2,
+          maxItems: 16,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["start_us", "end_us"],
+            properties: {
+              start_us: { type: "integer", minimum: 0 },
+              end_us: { type: "integer", minimum: 1 },
+            },
+          },
+        },
+      },
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
 ] as const;

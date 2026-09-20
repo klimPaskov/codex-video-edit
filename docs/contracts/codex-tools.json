@@ -167,6 +167,21 @@
       ]
     },
     {
+      "name": "cut.delete_ranges",
+      "mode": "mutation",
+      "description": "Atomically ripple-delete 2–16 confirmed disjoint output-time ranges in descending order.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
+    },
+    {
       "name": "cut.restore_range",
       "mode": "mutation",
       "description": "Restore source material where unambiguous.",

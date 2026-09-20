@@ -18,13 +18,13 @@ Each read request includes the schema version and active project ID. Every mutat
 
 Mutating calls also include a user-readable reason and, where relevant, a pass-group identity. The trusted manual, Codex, API-provider, or Magic Wand entrypoint injects origin, operation IDs, transaction ID, timestamp, and inverse data. Stale sequence, baseline revision, draft, or timeline hash values fail without partial mutation.
 
-The current P2 runtime exposes only `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, `cut.split`, `cut.delete_range`, and newest-transaction `timeline.undo` through the packaged owned stdio MCP adapter. Electron main remains the only transaction writer. App-server startup verifies that this is the exact MCP inventory before any project thread can open. The remaining catalog entries retain their later-phase dependencies.
+The current P2 runtime exposes `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, `cut.split`, `cut.delete_range`, `timeline.undo`, and `cut.delete_ranges` through the packaged owned stdio MCP adapter and the host-defined dynamic route. Electron main remains the only transaction writer. App-server startup verifies the exact MCP inventory before an MCP project thread can open. The remaining catalog entries retain their later-phase dependencies.
 
-An optional internal App Server host-tool adapter maps precisely those six dotted names to `project_get_summary`, `timeline_get_summary`, `cut_trim_edge`, `cut_split`, `cut_delete_range`, and `timeline_undo` in the `codex_video_edit` namespace, reusing the reviewed input schemas. It rejects other names and oversized input before dispatch and bounds safe results. This adapter is not registered by the packaged product, so it does not replace the active MCP route or prove a native draft edit.
+The App Server host-tool adapter maps precisely those seven dotted names to `project_get_summary`, `timeline_get_summary`, `cut_trim_edge`, `cut_split`, `cut_delete_range`, `timeline_undo`, and `cut_delete_ranges` in the `codex_video_edit` namespace, reusing the reviewed input schemas. It rejects other names and oversized input before dispatch and bounds safe results. New packaged project conversations use this dynamic route; existing MCP-bound conversations remain on their original route.
 
-The internal thread registry records which route created a project conversation. A new host-tool thread receives this exact six-tool definition at start; a legacy MCP binding remains MCP on resume. Route mismatch and cross-route activity fail closed. Packaged main continues to create MCP bindings.
+The internal thread registry records which route created a project conversation. A new host-tool thread receives this exact seven-tool definition at start; a legacy MCP binding remains MCP on resume. Route mismatch and cross-route activity fail closed.
 
-For the four current mutations, main refreshes the atomic project/draft authority after the tool settles rather than trusting model prose or MCP activity. This covers a journal commit followed by an uncertain response. The native project duration, seek bounds and preview mapping update only from that validated state; notification failure preserves the original tool outcome and asks the user to reopen.
+For current mutations, main refreshes the atomic project/draft authority after the tool settles rather than trusting model prose or tool activity. This covers a journal commit followed by an uncertain response. The native project duration, seek bounds and preview mapping update only from that validated state; notification failure preserves the original tool outcome and asks the user to reopen.
 
 ## Read-only tools
 
@@ -73,6 +73,10 @@ Splits one current clip at an exact interior output-time position without changi
 ### `cut.delete_range`
 
 Deletes a nonempty, non-whole-draft half-open output range by committing a reversible `ripple_delete` transaction. The range may cross fragment and source joins; main verifies exact draft identity, revision, sequence and hash, preserves immutable source inventory, and returns the committed head. The present read tools do not provide transcript or audio evidence, so this supports a direct user-specified time cut, not an inferred filler or speech-cleanup cut.
+
+### `cut.delete_ranges`
+
+Applies 2–16 confirmed, disjoint half-open output ranges in descending start-time order. Each range is measured against the same pre-transaction timeline; descending application keeps earlier positions stable. The shared reducer validates every operation before one durable journal commit, and newest Undo restores all ranges together. It does not select filler, verify joined speech, or checkpoint a spoken pass. The dynamic wire name is `codex_video_edit__cut_delete_ranges`.
 
 ### `cut.restore_range`
 

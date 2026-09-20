@@ -26,7 +26,7 @@ function outputText(response: DynamicToolCallResponse): string {
   return item.text;
 }
 
-test("host-defined namespace exposes exactly the reviewed six guarded schemas", () => {
+test("host-defined namespace exposes exactly the reviewed seven guarded schemas", () => {
   const specs = buildCodexVideoEditDynamicTools();
   assert.equal(specs.length, 1);
   const namespace = specs[0]!;
@@ -42,6 +42,7 @@ test("host-defined namespace exposes exactly the reviewed six guarded schemas", 
       "cut_split",
       "cut_delete_range",
       "timeline_undo",
+      "cut_delete_ranges",
     ],
   );
   for (const [index, tool] of namespace.tools.entries()) {

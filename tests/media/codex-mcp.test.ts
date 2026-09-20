@@ -125,6 +125,7 @@ test("packaged MCP protocol lists only reviewed tools and forwards a bounded cal
         "cut.split",
         "cut.delete_range",
         "timeline.undo",
+        "cut.delete_ranges",
       ],
     );
     assert.ok(!JSON.stringify(tools).includes(state.runtime.endpoint));
@@ -135,6 +136,10 @@ test("packaged MCP protocol lists only reviewed tools and forwards a bounded cal
     assert.ok(range.inputSchema.required.includes("end_us"));
     assert.ok(range.inputSchema.required.includes("expected_timeline_sha256"));
     assert.ok(!Object.hasOwn(range.inputSchema.properties, "origin"));
+    const batch = tools.find((tool) => tool.name === "cut.delete_ranges");
+    assert.ok(batch);
+    assert.ok(batch.inputSchema.required.includes("ranges"));
+    assert.ok(!Object.hasOwn(batch.inputSchema.properties, "origin"));
     const split = tools.find((tool) => tool.name === "cut.split");
     assert.ok(split);
     assert.equal(split.inputSchema.additionalProperties, false);

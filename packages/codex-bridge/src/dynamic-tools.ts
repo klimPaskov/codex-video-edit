@@ -21,6 +21,7 @@ const dynamicNames: Record<CodexVideoEditToolName, string> = {
   "cut.trim_edge": "cut_trim_edge",
   "cut.split": "cut_split",
   "cut.delete_range": "cut_delete_range",
+  "cut.delete_ranges": "cut_delete_ranges",
   "timeline.undo": "timeline_undo",
 };
 const internalNames = new Map(

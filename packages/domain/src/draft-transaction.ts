@@ -465,6 +465,7 @@ export function assertApplyDraftTransactionRequest(
   )
     invalid();
   const clips = new Set<string>();
+  let previousRangeStart: number | null = null;
   for (const operation of value.operations) {
     if (operation?.type === "ripple_delete") {
       exact(operation, ["type", "start_us", "end_us"]);
@@ -472,11 +473,17 @@ export function assertApplyDraftTransactionRequest(
       integer(operation.end_us, 1);
       if (
         operation.start_us >= operation.end_us ||
-        value.operations.length !== 1
+        (previousRangeStart !== null && operation.end_us > previousRangeStart)
       )
         invalid();
+      previousRangeStart = operation.start_us;
       continue;
     }
+    if (
+      previousRangeStart !== null ||
+      value.operations.some((item) => item?.type === "ripple_delete")
+    )
+      invalid();
     exact(
       operation,
       operation?.type === "split"

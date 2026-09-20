@@ -391,6 +391,57 @@ test("split function routes exact clip intent to the guarded shared tool", async
   }
 });
 
+test("range-batch function is offered to API providers and routes unchanged to the guard", async () => {
+  const input = {
+    schema_version: "1.0",
+    request_id: "api-range-batch-001",
+    project_id: project,
+    draft_id: "draft-001",
+    base_revision_id: "revision-001",
+    expected_sequence: 0,
+    expected_timeline_sha256: "a".repeat(64),
+    pass_group_id: "spoken-cuts-001",
+    reason: "Remove two confirmed pauses",
+    ranges: [
+      { start_us: 700_000, end_us: 800_000 },
+      { start_us: 100_000, end_us: 200_000 },
+    ],
+  };
+  let round = 0;
+  const invoked: Array<[string, unknown]> = [];
+  const f = await fixture(
+    async (_provider, _key, request) => {
+      round++;
+      if (round === 1) {
+        const batch = request.tools?.find(
+          (tool) => tool.name === "cut_delete_ranges",
+        );
+        assert.ok(batch);
+        assert.ok(Array.isArray(batch.parameters.required));
+        assert.ok(batch.parameters.required.includes("ranges"));
+        return call("cut_delete_ranges", input);
+      }
+      return stop("The confirmed ranges were committed.");
+    },
+    async (_project, name, parsed) => {
+      invoked.push([name, parsed]);
+      return { status: "committed" };
+    },
+  );
+  try {
+    await f.threads.open(project, provider);
+    const view = await f.threads.send(
+      project,
+      provider,
+      "Cut these two exact ranges",
+    );
+    assert.equal(view.status, "ready");
+    assert.deepEqual(invoked, [["cut.delete_ranges", input]]);
+  } finally {
+    await f.cleanup();
+  }
+});
+
 test("tool chain stops at the round limit before an unanswerable edit", async () => {
   let invoked = 0;
   const f = await fixture(

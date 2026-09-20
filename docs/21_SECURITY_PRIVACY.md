@@ -41,7 +41,7 @@
 
 Codex receives guarded codex-video-edit tools, not unrestricted filesystem or shell control. Tool calls validate project, draft, range, asset, and transaction identity.
 
-Electron main owns the active project and the only draft writer. The packaged MCP child accepts only the six reviewed P2 tools, including bounded reversible `cut.split` and `cut.delete_range`, and forwards bounded intent through a local broker authenticated by a random process-only credential. App-server startup verifies the exact server, tool names, and input schemas and refuses project threads on mismatch. The child cannot choose a project root, construct transaction authority, approve export/deletion/cleanup, or access a generic main RPC.
+Electron main owns the active project and the only draft writer. The packaged MCP child accepts only the seven reviewed P2 tools, including bounded reversible `cut.split`, `cut.delete_range`, and `cut.delete_ranges`, and forwards bounded intent through a local broker authenticated by a random process-only credential. App-server startup verifies the exact server, tool names, and input schemas and refuses MCP project threads on mismatch. The child cannot choose a project root, construct transaction authority, approve export/deletion/cleanup, or access a generic main RPC.
 
 Renderer project frames are bound to the exact draft ID, baseline revision, sequence and timeline hash. Main alone maps output time to the immutable source, rechecks the head after decode, and returns no stale pixels. Source IDs, mapped source times and paths stay out of this project-frame request and response. Draft-change events contain only the validated path-free identity and timeline view.
 
@@ -56,6 +56,10 @@ A packaged native dynamic stale-draft turn also passed: the host tool returned a
 For the dynamic route, a host call received before the `turn/start` RPC response requires a validated `turn/started` notification naming the registry-owned thread and a single provisional turn. The response must agree with that turn; a call before notification, after buffered completion, or after contradiction cannot reach the guarded invoker. Notifications stay buffered until reconciliation. Unit tests exercise those races, and a direct isolated App Server run completed one owned read. A packaged dynamic negative-command probe observed no forbidden invocation in that exact turn; this does not prove full upstream tool confinement.
 
 A packaged dynamic-route Luna/high inventory/split fixture observed exactly six owned and zero unowned nested code-mode tools in the tested turn. The same native test passed on synthetic and privately staged supplied footage with unchanged original/managed sources and baseline after shared Undo/reopen. Keep the private files, model answer and screenshots outside Git. One nested inventory and forbidden-command probe cannot establish complete upstream effective-tool confinement or child inheritance.
+
+The current reviewed host/MCP surface has seven tools after adding `cut.delete_ranges`. Its input permits only 2–16 strict, disjoint time intervals in descending order and carries no source path, arbitrary operation, export or cleanup authority. A real packaged Luna/high turn applied the batch on synthetic and private supplied footage; source and baseline bytes remained unchanged after manual Undo and reopen. The earlier six-tool inventory is historical, and no complete upstream tool-confinement claim follows from the new batch run.
+
+A separate fresh packaged Luna/high split turn on this seven-tool build observed exactly seven owned and zero unowned nested names in a bounded code-mode inventory, then passed guarded split, Undo and reopen. This establishes only that turn's nested inventory, not a complete permanent upstream or child tool policy.
 
 ## Secrets
 

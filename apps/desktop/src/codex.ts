@@ -84,13 +84,14 @@ const initialThread = (): CodexThreadView => ({
   message: null,
 });
 const PROJECT_THREAD_INSTRUCTIONS =
-  "You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user's requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. Describe an edit as applied only after its tool result confirms the commit. Native child agents are disabled in this build; do not spawn one or claim one was spawned. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.";
+  "You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user's requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. For cut.delete_ranges, provide 2–16 confirmed disjoint half-open ranges in descending start-time order. The app commits them as one undoable transaction, but does not verify speech meaning or the rendered joins. Never infer filler from timing alone. Describe an edit as applied only after its tool result confirms the commit. Native child agents are disabled in this build; do not spawn one or claim one was spawned. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.";
 const DYNAMIC_PROJECT_THREAD_INSTRUCTIONS = PROJECT_THREAD_INSTRUCTIONS.replace(
   "project.get_summary and timeline.get_summary",
   "codex_video_edit__project_get_summary and codex_video_edit__timeline_get_summary",
 )
   .replace("codex-video-edit MCP tools", "codex_video_edit host tools")
   .replace("cut.split", "codex_video_edit__cut_split")
+  .replace("cut.delete_ranges", "codex_video_edit__cut_delete_ranges")
   .replace("cut.delete_range", "codex_video_edit__cut_delete_range");
 const preferredSubscriptionModel: CodexSelection = {
   modelId: "gpt-5.6-luna",
