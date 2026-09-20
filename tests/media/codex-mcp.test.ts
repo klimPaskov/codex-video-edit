@@ -104,17 +104,36 @@ test("packaged MCP protocol lists only reviewed tools and forwards a bounded cal
       method: "tools/list",
       params: {},
     });
-    const tools = (listed.result as { tools: Array<{ name: string }> }).tools;
+    const tools = (
+      listed.result as {
+        tools: Array<{
+          name: string;
+          inputSchema: {
+            additionalProperties: boolean;
+            required: string[];
+            properties: Record<string, unknown>;
+          };
+        }>;
+      }
+    ).tools;
     assert.deepEqual(
       tools.map((tool) => tool.name),
       [
         "project.get_summary",
         "timeline.get_summary",
         "cut.trim_edge",
+        "cut.delete_range",
         "timeline.undo",
       ],
     );
     assert.ok(!JSON.stringify(tools).includes(state.runtime.endpoint));
+    const range = tools.find((tool) => tool.name === "cut.delete_range");
+    assert.ok(range);
+    assert.equal(range.inputSchema.additionalProperties, false);
+    assert.ok(range.inputSchema.required.includes("start_us"));
+    assert.ok(range.inputSchema.required.includes("end_us"));
+    assert.ok(range.inputSchema.required.includes("expected_timeline_sha256"));
+    assert.ok(!Object.hasOwn(range.inputSchema.properties, "origin"));
     const called = await rpc.request({
       jsonrpc: "2.0",
       id: 3,

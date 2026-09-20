@@ -658,3 +658,36 @@ test("ripple-delete tool outcomes publish the surviving committed map after an u
     ],
   );
 });
+
+test("Codex range-cut outcomes refresh the authoritative draft after an uncertain reply", async () => {
+  const { baseline, drafts } = await fixture();
+  const projectId = baseline.project.project_id;
+  const notices: ProjectDraftNotice[] = [];
+  await assert.rejects(
+    invokeWithProjectDraftRefresh({
+      toolName: "cut.delete_range",
+      projectId,
+      activeProjectId: () => projectId,
+      work: async () => {
+        await drafts.applyManual(
+          rangeCutRequest(
+            await drafts.snapshot(projectId),
+            "codex-refresh-cut-001",
+            500_000,
+            1_000_000,
+          ),
+        );
+        throw new Error("reply lost");
+      },
+      drafts,
+      notify: (notice) => notices.push(notice),
+    }),
+    /reply lost/,
+  );
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0]?.ok, true);
+  if (!notices[0]?.ok) return;
+  assert.equal(notices[0].value.draft.sequence, 1);
+  assert.equal(notices[0].value.timeline.durationUs, 1_000_000);
+  assert.equal(notices[0].value.clips?.length, 2);
+});

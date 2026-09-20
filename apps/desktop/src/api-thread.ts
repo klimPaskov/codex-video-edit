@@ -434,7 +434,7 @@ export class ApiProviderThreads {
       const transcript: ApiChatMessage[] = [
         {
           role: "system",
-          content: `You edit only the active local draft for project ${projectId}. Use the offered read tools to get current draft identifiers and freshness values before mutation. The app validates all tool inputs. Do not claim an edit until its tool succeeds. Do not request files, shell, export, deletion, cleanup or spending. Give a concise accurate response.`,
+          content: `You edit only the active local draft for project ${projectId}. Use the offered read tools to get current draft identifiers and freshness values before mutation. The app validates all tool inputs. For cut_delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer a range is filler or that joined speech is sound. Do not claim an edit until its tool succeeds. Do not request files, shell, export, deletion, cleanup or spending. Give a concise accurate response.`,
         },
         ...session.view.messages
           .slice(-maxContextMessages)

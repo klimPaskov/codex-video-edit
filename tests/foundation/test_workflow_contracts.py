@@ -56,7 +56,20 @@ class WorkflowContractsTests(unittest.TestCase):
                 if tool["allowed_scope"] in ["active_draft", "export_staging"]:
                     self.assertEqual(tool["user_confirmation"], "none", tool["name"])
                     self.assertIn("approve export", tool["forbidden_effects"])
-            self.assertEqual(by_name["export.prepare"]["allowed_scope"], "export_staging")
+            if path == "docs/contracts/codex-tools.json":
+                self.assertEqual(by_name["export.prepare"]["allowed_scope"], "export_staging")
+            else:
+                self.assertEqual(
+                    list(by_name),
+                    [
+                        "project.get_summary",
+                        "timeline.get_summary",
+                        "cut.trim_edge",
+                        "cut.delete_range",
+                        "timeline.undo",
+                    ],
+                )
+                self.assertNotIn("export.prepare", by_name)
             self.assertNotIn("export.start", by_name)
             self.assertNotIn("export.confirm", by_name)
 

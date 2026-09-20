@@ -6,7 +6,7 @@ Codex edits through a guarded project tool surface. It does not receive raw file
 
 ## Common request fields
 
-Every project tool request includes:
+Each read request includes the schema version and active project ID. Every mutation additionally includes:
 
 - `project_id`
 - `draft_id`
@@ -16,11 +16,11 @@ Every project tool request includes:
 - `request_id`
 - the smallest required time range or entity IDs
 
-Mutating calls also include a user-readable reason and, where relevant, a pass-group identity. The trusted manual, Codex, or Magic Wand entrypoint injects origin, operation IDs, transaction ID, timestamp, and inverse data. Stale sequence, baseline revision, draft, or timeline hash values fail without partial mutation.
+Mutating calls also include a user-readable reason and, where relevant, a pass-group identity. The trusted manual, Codex, API-provider, or Magic Wand entrypoint injects origin, operation IDs, transaction ID, timestamp, and inverse data. Stale sequence, baseline revision, draft, or timeline hash values fail without partial mutation.
 
-The current P2 runtime exposes only `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, and newest-transaction `timeline.undo` through the packaged owned stdio MCP adapter. Electron main remains the only transaction writer. App-server startup verifies that this is the exact MCP inventory before any project thread can open. The remaining catalog entries retain their later-phase dependencies.
+The current P2 runtime exposes only `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, `cut.delete_range`, and newest-transaction `timeline.undo` through the packaged owned stdio MCP adapter. Electron main remains the only transaction writer. App-server startup verifies that this is the exact MCP inventory before any project thread can open. The remaining catalog entries retain their later-phase dependencies.
 
-For the two current mutations, main refreshes the atomic project/draft authority after the tool settles rather than trusting model prose or MCP activity. This covers a journal commit followed by an uncertain response. The native project duration, seek bounds and preview mapping update only from that validated state; notification failure preserves the original tool outcome and asks the user to reopen.
+For the three current mutations, main refreshes the atomic project/draft authority after the tool settles rather than trusting model prose or MCP activity. This covers a journal commit followed by an uncertain response. The native project duration, seek bounds and preview mapping update only from that validated state; notification failure preserves the original tool outcome and asks the user to reopen.
 
 ## Read-only tools
 
@@ -68,7 +68,7 @@ Splits a supported clip at an exact mapped time.
 
 ### `cut.delete_range`
 
-Creates a non-destructive ripple-delete operation. Protected speech requires review or a direct user request.
+Deletes a nonempty, non-whole-draft half-open output range by committing a reversible `ripple_delete` transaction. The range may cross fragment and source joins; main verifies exact draft identity, revision, sequence and hash, preserves immutable source inventory, and returns the committed head. The present read tools do not provide transcript or audio evidence, so this supports a direct user-specified time cut, not an inferred filler or speech-cleanup cut.
 
 ### `cut.restore_range`
 
@@ -76,7 +76,7 @@ Restores source material when later operations do not make the request ambiguous
 
 ### `cut.trim_edge`
 
-Moves one clip boundary with snapping and minimum-duration validation.
+Moves one clip boundary to an exact output-time position with minimum-duration validation; this tool does not snap.
 
 ### `zoom.add`, `zoom.update`, `zoom.remove`
 

@@ -184,6 +184,49 @@ test("validated tools execute sequentially within four completions and eight cal
   }
 });
 
+test("range-cut function is offered to API providers and routes to the guarded dotted tool", async () => {
+  const input = {
+    schema_version: "1.0",
+    request_id: "api-range-cut-001",
+    project_id: project,
+    draft_id: "draft-001",
+    base_revision_id: "revision-001",
+    expected_sequence: 0,
+    expected_timeline_sha256: "a".repeat(64),
+    pass_group_id: "spoken-cuts-001",
+    reason: "Remove the selected pause",
+    start_us: 250_000,
+    end_us: 750_000,
+  };
+  let round = 0;
+  const invoked: Array<[string, unknown]> = [];
+  const f = await fixture(
+    async (_provider, _key, request) => {
+      round++;
+      if (round === 1) {
+        assert.ok(
+          request.tools?.some((tool) => tool.name === "cut_delete_range"),
+        );
+        return call("cut_delete_range", input);
+      }
+      assert.equal(request.messages.at(-1)?.role, "tool");
+      return stop("The range cut was committed.");
+    },
+    async (_project, name, parsed) => {
+      invoked.push([name, parsed]);
+      return { status: "committed" };
+    },
+  );
+  try {
+    await f.threads.open(project, provider);
+    const view = await f.threads.send(project, provider, "Cut the pause");
+    assert.equal(view.status, "ready");
+    assert.deepEqual(invoked, [["cut.delete_range", input]]);
+  } finally {
+    await f.cleanup();
+  }
+});
+
 test("tool chain stops at the round limit before an unanswerable edit", async () => {
   let invoked = 0;
   const f = await fixture(
