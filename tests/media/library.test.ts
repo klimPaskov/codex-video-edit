@@ -13,6 +13,41 @@ import {
   mediaMeasurements,
 } from "../../packages/media-engine/src/library.ts";
 import { runProcess } from "../../packages/media-engine/src/process.ts";
+import {
+  parsePresentationTiming,
+  presentationSeekUs,
+} from "../../packages/media-engine/src/presentation-timing.ts";
+
+test("presentation seek sorts decode-order packets and respects variable cadence", () => {
+  const timing = parsePresentationTiming("0\n3000\n1500\n6000\n", {
+    time_base: "1/3000",
+    start_pts: 0,
+    nb_frames: "4",
+  });
+  assert.deepEqual(timing.pts, [0, 1500, 3000, 6000]);
+  assert.equal(timing.variableCadence, true);
+  assert.equal(presentationSeekUs(timing, 999_999), 500_000);
+  assert.equal(presentationSeekUs(timing, 1_000_000), 1_000_000);
+  assert.equal(presentationSeekUs(timing, 1_999_999), 1_000_000);
+  assert.equal(presentationSeekUs(timing, 2_000_000), 2_000_000);
+  const fractional = parsePresentationTiming("0\n1501\n3002\n", {
+    time_base: "1/90000",
+    start_pts: 0,
+    nb_frames: "3",
+  });
+  assert.equal(presentationSeekUs(fractional, 16_678), 16_677);
+  for (const csv of ["", "0\n0\n", "0\nN/A\n", "0\n-1\n", "0\n1.5\n"])
+    assert.throws(() =>
+      parsePresentationTiming(csv, { time_base: "1/90000", start_pts: 0 }),
+    );
+  assert.throws(() =>
+    parsePresentationTiming("0\n1500\n", {
+      time_base: "1/90000",
+      start_pts: 0,
+      nb_frames: "3",
+    }),
+  );
+});
 
 async function fixture(pixel = "bgra") {
   const root = resolve("test-results/library");
@@ -181,7 +216,66 @@ test("tagged H.264/AAC imports byte-identically and decodes deterministic displa
     frames.push(createHash("sha256").update(rgba).digest("hex"));
   }
   assert.equal(new Set(frames).size, 3);
+  assert.deepEqual(
+    await library.frame(summary.id, 250_000),
+    await library.frame(summary.id, 0),
+  );
+  assert.deepEqual(
+    await library.frame(summary.id, 750_000),
+    await library.frame(summary.id, 500_000),
+  );
   assert.deepEqual(await readFile(verified.managedPath), sourceBytes);
+});
+
+test("H.264 variable-cadence gaps resolve to the preceding displayed frame", async () => {
+  const root = resolve("test-results/library");
+  await mkdir(root, { recursive: true });
+  const dir = await mkdtemp(join(root, "vfr-"));
+  const source = join(dir, "source.mp4");
+  await runProcess({
+    executable: "ffmpeg",
+    args: [
+      "-v",
+      "error",
+      "-nostdin",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=size=64x48:rate=4:duration=1",
+      "-vf",
+      "setpts=PTS+2*gte(N\\,2)/(4*TB),setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
+      "-fps_mode",
+      "vfr",
+      "-c:v",
+      "libx264",
+      "-qp",
+      "0",
+      "-pix_fmt",
+      "yuv420p",
+      "-color_range",
+      "tv",
+      "-colorspace",
+      "bt709",
+      "-color_primaries",
+      "bt709",
+      "-color_trc",
+      "bt709",
+      source,
+    ],
+  });
+  const original = await readFile(source);
+  const library = new MediaLibrary(join(dir, "library"));
+  const summary = await library.importFile(source);
+  assert.equal(summary.previewAvailable, true);
+  const first = await library.frame(summary.id, 0);
+  const second = await library.frame(summary.id, 250_000);
+  const third = await library.frame(summary.id, 1_000_000);
+  assert.notDeepEqual(first, second);
+  assert.notDeepEqual(second, third);
+  assert.deepEqual(await library.frame(summary.id, 249_999), first);
+  assert.deepEqual(await library.frame(summary.id, 750_000), second);
+  assert.deepEqual(await library.frame(summary.id, 1_100_000), third);
+  assert.deepEqual(await readFile(source), original);
 });
 
 test("H.264 preview rejects unknown color, higher precision, display transforms and non-square pixels", async () => {

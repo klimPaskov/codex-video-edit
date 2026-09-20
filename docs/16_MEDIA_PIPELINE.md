@@ -16,7 +16,7 @@
 5. Create thumbnails, waveform, and contact sheets.
 6. Record every artifact hash and tool version.
 
-The current still-frame preview decodes only verified BGRA or tagged 8-bit H.264 limited-range BT.709 profiles at native dimensions. H.264 uses an explicit BT.709/range conversion to BGRA for display; these bytes are never a canonical render or master input. The original compressed source remains byte-identical. Reject unsupported color/precision/display metadata for preview while retaining a valid import. Exact frame seek, continuous synchronized audio/video playback, variable-frame-rate mapping and multi-source render remain open P3 work.
+The current still-frame preview decodes only verified BGRA or tagged 8-bit H.264 limited-range BT.709 profiles at native dimensions. H.264 uses an explicit BT.709/range conversion to BGRA for display; these bytes are never a canonical render or master input. The original compressed source remains byte-identical. Reject unsupported color/precision/display metadata for preview while retaining a valid import. For these profiles, a bounded ffprobe packet timestamp index sorts decode-order PTS and maps a requested source microsecond to the preceding presented frame; its cache is keyed by verified source identity. Synthetic B-frame, fractional-tick, and variable-cadence gaps are covered. This is still-frame source seeking only. It does not establish a complete source end boundary, continuous synchronized audio/video playback, a canonical variable-frame-rate timeline, or multi-source render; those remain open P3 work.
 
 ## Render layers
 

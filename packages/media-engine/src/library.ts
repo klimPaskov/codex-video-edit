@@ -23,6 +23,11 @@ import {
 import type { MediaFrame, MediaSummary } from "../../domain/src/library.ts";
 import { assertNotCancelled, publishFileWithoutOverwrite } from "./files.ts";
 import { MediaError, runProcess } from "./process.ts";
+import {
+  presentationSeekUs,
+  probePresentationTiming,
+} from "./presentation-timing.ts";
+import type { PresentationTiming } from "./presentation-timing.ts";
 
 interface Entry {
   version: 1;
@@ -173,6 +178,10 @@ export class MediaLibrary {
   private readonly root: string;
   private readonly ffmpeg: string;
   private readonly ffprobe: string;
+  private readonly presentationTimings = new Map<
+    string,
+    Promise<PresentationTiming>
+  >();
   constructor(
     root: string,
     options: { ffmpeg?: string; ffprobe?: string } = {},
@@ -401,6 +410,19 @@ export class MediaLibrary {
         "FIDELITY_MISMATCH",
         "The managed source has changed.",
       );
+    const timingKey = `${id}:${entry.source.sha256}`;
+    let timing = this.presentationTimings.get(timingKey);
+    if (!timing) {
+      timing = probePresentationTiming(
+        this.ffprobe,
+        path,
+        video as Record<string, unknown>,
+        signal,
+      );
+      this.presentationTimings.set(timingKey, timing);
+      void timing.catch(() => this.presentationTimings.delete(timingKey));
+    }
+    const seekUs = presentationSeekUs(await timing, timeUs);
     const bytes = summary.width * summary.height * 4;
     const output = await runProcess({
       executable: this.ffmpeg,
@@ -413,7 +435,7 @@ export class MediaLibrary {
         "-format_whitelist",
         "matroska,webm,mov,avi",
         "-ss",
-        (timeUs / 1_000_000).toFixed(6),
+        (seekUs / 1_000_000).toFixed(6),
         "-noautorotate",
         "-i",
         path,
