@@ -2,7 +2,7 @@
 
 Refresh only facts that can change:
 
-- current Astra and Codex capabilities
+- current permitted Codex runtime capabilities and supported models
 - official Codex app-server protocol and authentication
 - supported model and skill discovery
 - Electron capture, security, packaging, and Playwright support

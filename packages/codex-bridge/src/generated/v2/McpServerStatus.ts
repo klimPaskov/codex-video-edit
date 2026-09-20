@@ -6,11 +6,22 @@ import type { Resource } from "../Resource.ts";
 import type { ResourceTemplate } from "../ResourceTemplate.ts";
 import type { Tool } from "../Tool.ts";
 import type { McpAuthStatus } from "./McpAuthStatus.ts";
+import type { McpServerConnectionStatus } from "./McpServerConnectionStatus.ts";
 
 export type McpServerStatus = {
   name: string;
+  /**
+   * Current thread-runtime connection state; null when unavailable or the configuration changed.
+   */
+  runtimeStatus: McpServerConnectionStatus | null;
+  pluginId: string | null;
   serverInfo: McpServerInfo | null;
   tools: { [key in string]?: Tool };
+  /**
+   * Tool discovery failed and no catalog was returned.
+   * Null when a catalog is returned, including cached or empty catalogs.
+   */
+  toolsError: string | null;
   resources: Array<Resource>;
   resourceTemplates: Array<ResourceTemplate>;
   authStatus: McpAuthStatus;

@@ -1,6 +1,6 @@
 # Subagent routing
 
-The main agent owns phase selection, integration, final judgment, and evidence. It may delegate bounded work, but it must inspect every returned result.
+The main agent owns phase selection, integration, final judgment, and evidence. It may delegate bounded work, but it must inspect every returned result. Do not spawn GPT-6 Astra subagents under any circumstances, including native Codex child tests. If a permitted non-Astra model cannot be selected or verified, do the work directly or report that test unavailable.
 
 | Need | Subagent | Required skill |
 | --- | --- | --- |
@@ -8,7 +8,7 @@ The main agent owns phase selection, integration, final judgment, and evidence. 
 | Flow, visual hierarchy, and simple screens | `ux-designer` | `simple-desktop-ui` |
 | Electron process and IPC design | `desktop-architect` | `native-electron` |
 | Codex protocol, auth, threads, and tools | `codex-bridge-engineer` | `codex-app-server`, `timeline-editor` |
-| OpenAI API and DeepSeek fixed-endpoint adapters, model discovery and guarded output | `codex-bridge-engineer` with `security-reviewer` | `codex-app-server`, `security-privacy`, `timeline-editor` |
+| OpenAI API, DeepSeek and Gemini API fixed-endpoint adapters, model discovery and guarded output | `codex-bridge-engineer` with `security-reviewer` | `codex-app-server`, `security-privacy`, `timeline-editor` |
 | Screen, audio, camera, and sync capture | `recording-engineer` | `recording-capture` |
 | FFmpeg, transcription, rendering, and media QA | `media-engineer` | `media-engine` |
 | Timeline interactions and history | `editor-engineer` | `timeline-editor` |
@@ -51,4 +51,4 @@ For five-stage navigation changes, the UX designer and native QA agent verify Ed
 
 For `docs/47_EDITORIAL_FIRST_CUT.md` and `docs/prompts/EDITORIAL_FIRST_CUT_PROMPT.md`, route source/synchronization/transcription-job evidence to the media and recording engineers; conservative spoken-cue, retake/coherence and pass planning to `automation-editor`; shared sequence/hash/undo/checkpoint behavior to the editor and Codex bridge engineers; approved-layout/occlusion and suggestion-only opportunity records to the automation/editor specialists; and actual joins, boundary/midpoint/interior renders and whole-video checks to `native-qa`. The security reviewer checks quoted/ambiguous cues, permission expansion, protected edits and unauthorized asset/export side effects. `spec-maintainer` closes the task/schema/example/prompt/skill/traceability sync.
 
-Pass explicit source scope, verified synchronized sets, current timeline identity and evidence requirements. Do not delegate operation of the reference editor, invent unavailable tools, create graphics from a recorded cue, or infer completion from planning. Codex and ADR 0014's two explicit API providers share one guarded draft history; an API key grants no Codex-native capabilities. The main agent reviews the measured final report and every claimed pass, leaving later feature acceptance incomplete until proved.
+Pass explicit source scope, verified synchronized sets, current timeline identity and evidence requirements. Do not delegate operation of the reference editor, invent unavailable tools, create graphics from a recorded cue, or infer completion from planning. Codex and ADRs 0014/0015's three explicit API providers share one guarded draft history; an API key grants no Codex-native capabilities. The main agent reviews the measured final report and every claimed pass, leaving later feature acceptance incomplete until proved.

@@ -92,7 +92,7 @@ export interface ExperimentalInitializeRequest {
 }
 
 /**
- * Application-owned initialize payload. The official 0.142.3 stable generated
+ * Application-owned initialize payload. The official pinned stable generated
  * schema contains this capability; live experimental acceptance is a separate gate.
  */
 export function buildExperimentalInitialize(
@@ -165,11 +165,28 @@ export interface ThreadStartRequest {
   config: {
     forced_login_method: "chatgpt";
     model_provider: "openai";
+    apps: {
+      _default: {
+        enabled: false;
+        destructive_enabled: false;
+        open_world_enabled: false;
+      };
+    };
     project_root_markers: [];
     features: {
       shell_tool: false;
-      multi_agent: true;
+      multi_agent: false;
       multi_agent_v2: false;
+      code_mode: {
+        excluded_tool_namespaces: [
+          "mcp__codex_apps",
+          "multi_agent_v1",
+          "skills",
+          "functions",
+          "image_gen",
+        ];
+      };
+      code_mode_host: { disable_in_process_fallback: true };
     };
     web_search: "disabled";
   };
@@ -196,11 +213,28 @@ export function buildThreadStartRequest(
     config: {
       forced_login_method: "chatgpt",
       model_provider: "openai",
+      apps: {
+        _default: {
+          enabled: false,
+          destructive_enabled: false,
+          open_world_enabled: false,
+        },
+      },
       project_root_markers: [],
       features: {
         shell_tool: false,
-        multi_agent: true,
+        multi_agent: false,
         multi_agent_v2: false,
+        code_mode: {
+          excluded_tool_namespaces: [
+            "mcp__codex_apps",
+            "multi_agent_v1",
+            "skills",
+            "functions",
+            "image_gen",
+          ],
+        },
+        code_mode_host: { disable_in_process_fallback: true },
       },
       web_search: "disabled",
     },
@@ -245,7 +279,7 @@ export interface ThreadTurnsListRequest {
   itemsView: "full";
 }
 
-/** 0.142.3 thread/resume has no environments property. */
+/** Resume omits start-only environments and capability roots. */
 export function buildThreadResumeRequest(
   trustedThreadId: string,
   suppliedPolicy: ThreadRuntimePolicy,
@@ -263,11 +297,28 @@ export function buildThreadResumeRequest(
     config: {
       forced_login_method: "chatgpt",
       model_provider: "openai",
+      apps: {
+        _default: {
+          enabled: false,
+          destructive_enabled: false,
+          open_world_enabled: false,
+        },
+      },
       project_root_markers: [],
       features: {
         shell_tool: false,
-        multi_agent: true,
+        multi_agent: false,
         multi_agent_v2: false,
+        code_mode: {
+          excluded_tool_namespaces: [
+            "mcp__codex_apps",
+            "multi_agent_v1",
+            "skills",
+            "functions",
+            "image_gen",
+          ],
+        },
+        code_mode_host: { disable_in_process_fallback: true },
       },
       web_search: "disabled",
     },

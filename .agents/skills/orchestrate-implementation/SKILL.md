@@ -28,5 +28,6 @@ Starting or continuing any implementation session.
 - Do not skip an earlier failure.
 - Do not stop at an assessment.
 - Do not let a subagent mark the phase complete.
+- Never spawn a GPT-6 Astra implementation subagent or select Astra for a native Codex child test. Honor the user's preferred runtime-discovered Luna/high Codex subscription default and report its unavailability rather than silently switching models.
 - Do not claim visual success from process output.
 - Preserve failed evidence that helps diagnosis.

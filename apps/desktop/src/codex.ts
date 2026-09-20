@@ -74,7 +74,13 @@ const initialThread = (): CodexThreadView => ({
   message: null,
 });
 const PROJECT_THREAD_INSTRUCTIONS =
-  "You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user's requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. Describe an edit as applied only after its tool result confirms the commit. If native collaboration is available, report a child as started or finished only after the actual collaboration tool confirms it; a plan or message is not a spawn. If unavailable, say so and continue with the allowed editor tools. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.";
+  "You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user's requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. Describe an edit as applied only after its tool result confirms the commit. Native child agents are disabled in this build; do not spawn one or claim one was spawned. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.";
+const preferredSubscriptionModel: CodexSelection = {
+  modelId: "gpt-5.6-luna",
+  reasoning: "high",
+};
+const preferredModelUnavailable =
+  "Luna with high reasoning is unavailable for this account. Choose an available Codex model in Settings.";
 const label = (value: string, max: number) =>
   value
     .replace(/[\u0000-\u001f\u007f]/gu, " ")
@@ -95,6 +101,7 @@ export class DesktopCodex {
   private closing: Promise<void> | undefined;
   private authKey = "";
   private authRevision = 0;
+  private usePreferredDefault = false;
   private thread = initialThread();
   private readonly threadItems = new Map<string, string>();
   private nextThreadViewId = 0;
@@ -330,6 +337,7 @@ export class DesktopCodex {
     this.requestModels.clear();
     this.authKey = "";
     this.authRevision++;
+    this.usePreferredDefault = false;
     this.refreshAgain = false;
     try {
       await previous?.close();
@@ -391,7 +399,10 @@ export class DesktopCodex {
       this.state.connection = "connected";
       try {
         const selection = await this.settings.read();
-        if (this.current(generation, client)) this.state.selection = selection;
+        if (this.current(generation, client)) {
+          this.state.selection = selection;
+          this.usePreferredDefault = selection === null;
+        }
       } catch {
         if (this.current(generation, client))
           this.state.message =
@@ -537,6 +548,24 @@ export class DesktopCodex {
         )
       )
         this.state.selection = null;
+      if (
+        this.usePreferredDefault &&
+        this.state.account === "signed_in" &&
+        models?.status === "fulfilled"
+      ) {
+        const preferred = this.state.models.find(
+          (entry) =>
+            entry.id === preferredSubscriptionModel.modelId &&
+            entry.reasoning.includes(preferredSubscriptionModel.reasoning),
+        );
+        this.state.selection = preferred
+          ? { ...preferredSubscriptionModel }
+          : null;
+        if (!preferred && this.state.models.length && !this.state.message)
+          this.state.message = preferredModelUnavailable;
+        else if (preferred && this.state.message === preferredModelUnavailable)
+          this.state.message = null;
+      }
     } catch {
       if (generation === this.generation && !this.stopped)
         this.state = {
@@ -627,7 +656,10 @@ export class DesktopCodex {
       throw new Error("Choose an available model and reasoning level.");
     return this.action(async (client, generation) => {
       const selection = await this.settings.write(selected);
-      if (this.current(generation, client)) this.state.selection = selection;
+      if (this.current(generation, client)) {
+        this.state.selection = selection;
+        this.usePreferredDefault = false;
+      }
     });
   }
   getThread(projectId: string): CodexThreadView {

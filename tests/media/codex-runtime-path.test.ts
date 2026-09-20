@@ -26,25 +26,35 @@ async function fixture() {
   await mkdir(directory);
   const name = process.platform === "win32" ? "codex.exe" : "codex";
   const executable = join(directory, name);
+  const hostName =
+    process.platform === "win32"
+      ? "codex-code-mode-host.exe"
+      : "codex-code-mode-host";
+  const host = join(directory, hostName);
   await writeFile(executable, "synthetic binary bytes, never executed");
   await chmod(executable, 0o755);
+  await writeFile(host, "synthetic host bytes, never executed");
+  await chmod(host, 0o755);
   await writeFile(
     join(directory, "LICENSE-APACHE-2.0.txt"),
     "synthetic license",
   );
   const manifest = {
-    schemaVersion: 1,
-    version: "0.142.3",
+    schemaVersion: 2,
+    version: "0.155.1",
     platform: process.platform,
     arch: process.arch,
     executable: name,
     size: Buffer.byteLength("synthetic binary bytes, never executed"),
     sha256: hash("synthetic binary bytes, never executed"),
+    hostExecutable: hostName,
+    hostSize: Buffer.byteLength("synthetic host bytes, never executed"),
+    hostSha256: hash("synthetic host bytes, never executed"),
     licenseSha256: hash("synthetic license"),
   };
   const manifestPath = join(directory, "manifest.json");
   await writeFile(manifestPath, JSON.stringify(manifest));
-  return { root, directory, executable, manifest, manifestPath };
+  return { root, directory, executable, host, manifest, manifestPath };
 }
 
 test("packaged resolver uses fixed resources and verifies content without launching", async () => {
@@ -72,6 +82,9 @@ test("packaged manifest rejects missing, malformed, stale, foreign and redirecte
       { arch: "other" },
       { size: 1 },
       { sha256: "invalid" },
+      { hostExecutable: "../outside" },
+      { hostSize: 1 },
+      { hostSha256: "invalid" },
       { unexpected: true },
     ]) {
       await writeFile(
@@ -101,6 +114,18 @@ test("packaged resolver rejects damaged licensing and missing executable", async
       "synthetic license",
     );
     await rm(files.executable);
+    await assert.rejects(resolveCodexRuntime(files.root), CodexRuntimeError);
+  } finally {
+    await rm(files.root, { recursive: true, force: true });
+  }
+});
+
+test("packaged resolver rejects a damaged or missing code-mode host", async () => {
+  const files = await fixture();
+  try {
+    await writeFile(files.host, "modified host bytes");
+    await assert.rejects(resolveCodexRuntime(files.root), CodexRuntimeError);
+    await rm(files.host);
     await assert.rejects(resolveCodexRuntime(files.root), CodexRuntimeError);
   } finally {
     await rm(files.root, { recursive: true, force: true });

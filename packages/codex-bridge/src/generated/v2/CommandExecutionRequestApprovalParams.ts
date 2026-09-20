@@ -5,11 +5,16 @@ import type { LegacyAppPathString } from "../LegacyAppPathString.ts";
 import type { AdditionalPermissionProfile } from "./AdditionalPermissionProfile.ts";
 import type { CommandAction } from "./CommandAction.ts";
 import type { CommandExecutionApprovalDecision } from "./CommandExecutionApprovalDecision.ts";
+import type { CommandExecutionApprovalKind } from "./CommandExecutionApprovalKind.ts";
 import type { ExecPolicyAmendment } from "./ExecPolicyAmendment.ts";
 import type { NetworkApprovalContext } from "./NetworkApprovalContext.ts";
 import type { NetworkPolicyAmendment } from "./NetworkPolicyAmendment.ts";
 
 export type CommandExecutionRequestApprovalParams = {
+  /**
+   * Kind of action under review. Defaults to `command` for older servers.
+   */
+  kind: CommandExecutionApprovalKind;
   threadId: string;
   turnId: string;
   itemId: string;
@@ -25,6 +30,7 @@ export type CommandExecutionRequestApprovalParams = {
    * For zsh-exec-bridge subcommand approvals, multiple callbacks can belong to
    * one parent `itemId`, so `approvalId` is a distinct opaque callback id
    * (a UUID) used to disambiguate routing.
+   * Stdin approvals also use a distinct callback id; inspect `kind` to distinguish them.
    */
   approvalId?: string | null;
   /**

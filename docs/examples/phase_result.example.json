@@ -25,7 +25,7 @@
     {
       "name": "Visible inspection",
       "status": "pass",
-      "command_or_method": "Astra computer-use pass",
+      "command_or_method": "Isolated native-window computer-use pass",
       "evidence": [
         "evidence/P1/native-review.md"
       ]

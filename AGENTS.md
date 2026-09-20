@@ -67,3 +67,5 @@ Use current reference images before previous images. Their layout inspiration do
 Create or verify the public repository during P0 and publish reviewed working slices throughout development. Do not claim remote publication without a verified remote commit. Keep private media, credentials, and private test evidence out of Git.
 
 Use `lossless-media`, `reference-fidelity`, and `open-source-development` skills for these surfaces. The main agent owns integration and reviews all subagent changes. Delegate bounded tasks with explicit files, constraints, expected output, and checks. Do not invent a runtime-specific subagent API.
+
+Do not spawn GPT-6 Astra implementation subagents or choose Astra for native Codex child tests. The Codex subscription path defaults to a runtime-discovered Luna model with high reasoning; if unavailable, show an actionable selection state instead of silently choosing another model.
