@@ -17,7 +17,7 @@
         "height": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
         "durationUs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
         "frameRate": { "type": "number", "exclusiveMinimum": 0 },
-        "previewAvailable": { "type": "boolean" }
+        "previewAvailable": { "type": "boolean", "description": "True only for a verified native BGRA or display-only tagged 8-bit H.264 limited-range BT.709 still-frame path within runtime size and display-transform limits; it does not authorize use of preview pixels for master rendering." }
       }
     },
     "source": {
@@ -37,7 +37,7 @@
         "streams": { "type": "array", "minItems": 1, "items": { "type": "object" } },
         "format": { "type": "object" }
       },
-      "description": "Private original ffprobe stream and container metadata; never sent to renderer. Runtime additionally requires the first video stream and verifies summary dimensions, duration, rate and preview eligibility against these measurements. Filename identity must equal the summary UUID. These cross-field invariants are checked by the service. Source frame transport disables implicit display rotation."
+      "description": "Private original ffprobe stream and container metadata; never sent to renderer. Runtime additionally requires the first video stream and verifies summary dimensions, duration, rate and preview eligibility against these measurements. Filename identity must equal the summary UUID. These cross-field invariants are checked by the service. Display-only H.264 preview requires explicit BT.709, limited range, 8-bit yuv420p, square pixels and no display matrix; source frame transport disables implicit display rotation."
     }
   }
 }

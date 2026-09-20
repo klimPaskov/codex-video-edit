@@ -38,6 +38,7 @@
 - One progress surface shows copy or reference, probe, proxy, waveform, transcript, and analysis status.
 - Cancel is safe and leaves recoverable evidence.
 - A corrupt file gives a specific repair route.
+- A tagged H.264/BT.709 import shows a native-size frame only after decode; unknown color or higher-precision paths remain explicitly unavailable. Source bytes stay unchanged. This still-frame check does not satisfy smooth A/V preview or multi-source append acceptance.
 
 ## S07 Auto Edit
 

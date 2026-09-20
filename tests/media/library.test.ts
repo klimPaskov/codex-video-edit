@@ -8,7 +8,10 @@ import {
   assertMediaFrame,
   assertMediaSummary,
 } from "../../packages/domain/src/library.ts";
-import { MediaLibrary } from "../../packages/media-engine/src/library.ts";
+import {
+  MediaLibrary,
+  mediaMeasurements,
+} from "../../packages/media-engine/src/library.ts";
 import { runProcess } from "../../packages/media-engine/src/process.ts";
 
 async function fixture(pixel = "bgra") {
@@ -98,6 +101,142 @@ test("library preserves source, reopens, and transports exact native BGRA sample
     await assert.rejects(library.frame(summary.id, time));
   await writeFile(join(root, "assets", `${summary.id}.media`), "tampered");
   await assert.rejects(library.frame(summary.id, 0), /changed/u);
+});
+
+test("tagged H.264/AAC imports byte-identically and decodes deterministic display-only frames", async () => {
+  const root = resolve("test-results/library");
+  await mkdir(root, { recursive: true });
+  const dir = await mkdtemp(join(root, "h264-"));
+  const source = join(dir, "source.mp4");
+  await runProcess({
+    executable: "ffmpeg",
+    args: [
+      "-v",
+      "error",
+      "-nostdin",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=size=64x48:rate=2:duration=1.5",
+      "-f",
+      "lavfi",
+      "-i",
+      "sine=frequency=440:sample_rate=48000:duration=1.5",
+      "-map",
+      "0:v:0",
+      "-map",
+      "1:a:0",
+      "-vf",
+      "setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
+      "-c:v",
+      "libx264",
+      "-qp",
+      "0",
+      "-pix_fmt",
+      "yuv420p",
+      "-color_range",
+      "tv",
+      "-colorspace",
+      "bt709",
+      "-color_primaries",
+      "bt709",
+      "-color_trc",
+      "bt709",
+      "-c:a",
+      "aac",
+      "-ac",
+      "2",
+      source,
+    ],
+  });
+  const sourceBytes = await readFile(source);
+  const libraryRoot = join(dir, "library");
+  const library = new MediaLibrary(libraryRoot);
+  const summary = await library.importFile(source);
+  assert.equal(summary.previewAvailable, true);
+  assert.equal(summary.width, 64);
+  assert.equal(summary.height, 48);
+  assert.equal(summary.frameRate, 2);
+  assert.equal(summary.durationUs, 1_500_000);
+  const verified = await library.verifiedSource(summary.id);
+  assert.equal(
+    verified.sha256,
+    createHash("sha256").update(sourceBytes).digest("hex"),
+  );
+  assert.deepEqual(await readFile(verified.managedPath), sourceBytes);
+  assert.deepEqual(await readFile(source), sourceBytes);
+  assert.deepEqual(await new MediaLibrary(libraryRoot).list(), [summary]);
+  const frames = [];
+  for (const timeUs of [0, 500_000, 1_000_000]) {
+    const frame = await library.frame(summary.id, timeUs);
+    assert.equal(frame.width, 64);
+    assert.equal(frame.height, 48);
+    const rgba = Buffer.from(frame.rgbaBase64, "base64");
+    assert.equal(rgba.length, 64 * 48 * 4);
+    for (let i = 3; i < rgba.length; i += 4) assert.equal(rgba[i], 255);
+    assert.deepEqual(
+      await new MediaLibrary(libraryRoot).frame(summary.id, timeUs),
+      frame,
+    );
+    frames.push(createHash("sha256").update(rgba).digest("hex"));
+  }
+  assert.equal(new Set(frames).size, 3);
+  assert.deepEqual(await readFile(verified.managedPath), sourceBytes);
+});
+
+test("H.264 preview rejects unknown color, higher precision, display transforms and non-square pixels", async () => {
+  const root = resolve("test-results/library");
+  await mkdir(root, { recursive: true });
+  const dir = await mkdtemp(join(root, "profiles-"));
+  const source = join(dir, "source.mp4");
+  await runProcess({
+    executable: "ffmpeg",
+    args: [
+      "-v",
+      "error",
+      "-nostdin",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=size=32x32:rate=1:duration=1",
+      "-vf",
+      "setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
+      "-c:v",
+      "libx264",
+      "-pix_fmt",
+      "yuv420p",
+      "-color_range",
+      "tv",
+      "-colorspace",
+      "bt709",
+      "-color_primaries",
+      "bt709",
+      "-color_trc",
+      "bt709",
+      source,
+    ],
+  });
+  const library = new MediaLibrary(join(dir, "library"));
+  const summary = await library.importFile(source);
+  assert.equal(summary.previewAvailable, true);
+  const video = (await library.verifiedSource(summary.id)).probe
+    .streams as Record<string, unknown>[];
+  const original = video.find((item) => item.codec_type === "video")!;
+  for (const change of [
+    { color_space: "unknown" },
+    { color_primaries: "bt2020" },
+    { color_transfer: "smpte2084" },
+    { pix_fmt: "yuv420p10le" },
+    { sample_aspect_ratio: "4:3" },
+    { tags: { rotate: "90" } },
+    { side_data_list: [{ side_data_type: "Display Matrix", rotation: 0 }] },
+  ]) {
+    const measured = mediaMeasurements({
+      streams: [{ ...original, ...change }],
+      format: { duration: "1" },
+    });
+    assert.equal(measured.previewAvailable, false, JSON.stringify(change));
+  }
 });
 test("higher precision imports without enabling an unverified preview", async () => {
   const { dir, source } = await fixture("gbrp16le");

@@ -56,6 +56,8 @@ Use P1's actual project foundation and the shared transaction engine for the aut
 - [ ] P3-05 Build smooth preview playback with source-to-output mapping.
 - [ ] P3-06 Add recent projects, open, rename, duplicate, archive, and delete-project safeguards.
 
+The append-only library and native still-frame path now cover verified BGRA and a narrow tagged 8-bit H.264/BT.709 display profile. The import, probe, timeline and playback tasks stay open for the full format matrix, rational/VFR timing, two-source append, continuous synchronized A/V preview, and canonical render separation.
+
 Acceptance: an imported fixture reopens and previews identically.
 
 ## P4: recording studio
