@@ -152,6 +152,8 @@ function parsedCalls(
   completion: ApiChatCompletion,
   projectId: string,
   remaining: number,
+  provider: ApiProviderId,
+  selectedModel: string,
 ): Array<{
   id: string;
   name: CodexVideoEditToolName;
@@ -164,8 +166,17 @@ function parsedCalls(
     completion.toolCalls.length > remaining
   )
     throw new Error("Invalid tool count");
+  if (
+    provider === "gemini" &&
+    /^gemini-3(?:[.-]|$)/u.test(selectedModel) &&
+    !(completion.toolCalls[0] as { thoughtSignature?: unknown } | undefined)
+      ?.thoughtSignature
+  )
+    throw new Error("Missing Gemini function signature");
   const ids = new Set<string>();
   return completion.toolCalls.map((call) => {
+    const signature = (call as { thoughtSignature?: unknown } | null)
+      ?.thoughtSignature;
     if (
       !call ||
       typeof call !== "object" ||
@@ -174,6 +185,12 @@ function parsedCalls(
       typeof call.name !== "string" ||
       typeof call.arguments !== "string" ||
       Buffer.byteLength(call.arguments, "utf8") > maxToolBytes ||
+      (signature !== undefined &&
+        (provider !== "gemini" ||
+          typeof signature !== "string" ||
+          !signature.length ||
+          Buffer.byteLength(signature, "utf8") > 16 * 1024 ||
+          /[^\x21-\x7e]/u.test(signature))) ||
       ids.has(call.id)
     )
       throw new Error("Invalid tool call");
@@ -229,7 +246,9 @@ export class ApiProviderThreads {
   private key(projectId: string, provider: ApiProviderId): string {
     if (
       !messageId.test(projectId) ||
-      (provider !== "deepseek" && provider !== "openai")
+      (provider !== "deepseek" &&
+        provider !== "gemini" &&
+        provider !== "openai")
     )
       throw new Error("Invalid project conversation");
     return `${projectId}.${provider}`;
@@ -484,7 +503,13 @@ export class ApiProviderThreads {
         }
         let calls: ReturnType<typeof parsedCalls>;
         try {
-          calls = parsedCalls(completion, projectId, maxToolCalls - callsUsed);
+          calls = parsedCalls(
+            completion,
+            projectId,
+            maxToolCalls - callsUsed,
+            provider,
+            selection.model,
+          );
         } catch {
           failure = "response";
           break;

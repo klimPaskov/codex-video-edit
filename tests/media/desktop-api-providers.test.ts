@@ -4,7 +4,10 @@ import {
   DesktopApiProviders,
   editingModels,
 } from "../../apps/desktop/src/api-providers.ts";
-import type { ApiProviderId } from "../../packages/domain/src/api-providers.ts";
+import {
+  assertApiProvidersView,
+  type ApiProviderId,
+} from "../../packages/domain/src/api-providers.ts";
 
 const testKey = "TEST-ONLY-PROVIDER-KEY";
 test("model chooser intersects live IDs with reviewed Chat Completions families", () => {
@@ -27,6 +30,50 @@ test("model chooser intersects live IDs with reviewed Chat Completions families"
       "deepseek-embedding",
     ]),
     ["deepseek-flash", "deepseek-v4-pro"],
+  );
+  assert.deepEqual(
+    editingModels("gemini", [
+      "gemini-3.8-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash-image",
+      "gemini-3.8-live",
+      "gemini-3.5-transcribe",
+      "gemini-3.1-flash-tts-preview",
+      "gemini-3-pro-preview",
+      "gemini-embedding-001",
+    ]),
+    [
+      "gemini-3.8-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-pro",
+    ],
+  );
+});
+
+test("provider view requires exactly one state for each fixed provider", () => {
+  const entry = (id: ApiProviderId) => ({
+    id,
+    connected: false,
+    remembered: false,
+    canRemember: true,
+    models: [],
+    selectedModel: null,
+    busy: false,
+    message: null,
+  });
+  assertApiProvidersView({
+    providers: [entry("deepseek"), entry("openai"), entry("gemini")],
+  });
+  assert.throws(() =>
+    assertApiProvidersView({
+      providers: [entry("deepseek"), entry("openai"), entry("openai")],
+    }),
+  );
+  assert.throws(() =>
+    assertApiProvidersView({ providers: [entry("deepseek"), entry("openai")] }),
   );
 });
 
@@ -89,7 +136,11 @@ function harness(canRemember: boolean) {
       listModels: async (provider, key) => {
         calls.push({ provider, key });
         if (key === "INVALID-KEY") throw new Error(`PRIVATE ${key}`);
-        return provider === "deepseek" ? ["deepseek-flash"] : ["gpt-4.1"];
+        return provider === "deepseek"
+          ? ["deepseek-flash"]
+          : provider === "openai"
+            ? ["gpt-4.1"]
+            : ["gemini-3.8-flash", "gemini-3.8-live"];
       },
     },
   );
@@ -132,6 +183,50 @@ test("explicit API-key connection discovers separate catalogs without exposing k
   view = await account.remove({ provider: "deepseek" });
   assert.equal(view.providers[0]?.connected, false);
   assert.equal(await account.selected("deepseek"), null);
+});
+
+test("Gemini key and live model selection stay separate from other providers", async () => {
+  const { account, calls, keys, savedModels } = harness(true);
+  await account.connect({ provider: "openai", key: testKey, remember: true });
+  await account.selectModel({ provider: "openai", model: "gpt-4.1" });
+  let view = await account.connect({
+    provider: "gemini",
+    key: "TEST-ONLY-GEMINI-KEY",
+    remember: true,
+  });
+  assert.deepEqual(view.providers[2]?.models, ["gemini-3.8-flash"]);
+  assert.equal(view.providers[2]?.selectedModel, null);
+  await assert.rejects(
+    account.selectModel({ provider: "gemini", model: "gemini-3.8-live" }),
+  );
+  view = await account.selectModel({
+    provider: "gemini",
+    model: "gemini-3.8-flash",
+  });
+  assert.equal(view.providers[2]?.selectedModel, "gemini-3.8-flash");
+  assert.equal(view.providers[1]?.selectedModel, "gpt-4.1");
+  assert.equal(savedModels.get("gemini"), "gemini-3.8-flash");
+  assert.deepEqual(await account.selected("gemini"), {
+    key: "TEST-ONLY-GEMINI-KEY",
+    model: "gemini-3.8-flash",
+  });
+  assert.deepEqual(
+    calls.map((call) => call.provider),
+    ["openai", "gemini"],
+  );
+  view = await account.connect({
+    provider: "gemini",
+    key: "REPLACEMENT-GEMINI-KEY",
+    remember: true,
+  });
+  assert.equal(view.providers[2]?.selectedModel, null);
+  assert.equal(savedModels.has("gemini"), false);
+  assert.equal(view.providers[1]?.selectedModel, "gpt-4.1");
+  view = await account.remove({ provider: "gemini" });
+  assert.equal(view.providers[2]?.connected, false);
+  assert.equal(keys.has("gemini"), false);
+  assert.equal(view.providers[1]?.selectedModel, "gpt-4.1");
+  assert.ok(!JSON.stringify(view).includes("TEST-ONLY-GEMINI-KEY"));
 });
 
 test("remembered choice restores only after live catalog revalidation", async () => {

@@ -83,16 +83,33 @@ await encodeVerifiedMaster(
 );
 const sourceHash = sha256(await readFile(source));
 const testKey = "TEST-ONLY-LOCAL-API-KEY";
-const provider = process.argv.includes("--deepseek") ? "deepseek" : "openai";
-const model = provider === "deepseek" ? "deepseek-chat" : "gpt-4.1-mini";
+assert.ok(
+  !(process.argv.includes("--deepseek") && process.argv.includes("--gemini")),
+  "Select only one synthetic API provider",
+);
+const provider = process.argv.includes("--gemini")
+  ? "gemini"
+  : process.argv.includes("--deepseek")
+    ? "deepseek"
+    : "openai";
+const model =
+  provider === "gemini"
+    ? "gemini-3.1-flash-lite"
+    : provider === "deepseek"
+      ? "deepseek-chat"
+      : "gpt-4.1-mini";
 const modelUrl =
-  provider === "deepseek"
-    ? "https://api.deepseek.com/models"
-    : "https://api.openai.com/v1/models";
+  provider === "gemini"
+    ? "https://generativelanguage.googleapis.com/v1beta/openai/models"
+    : provider === "deepseek"
+      ? "https://api.deepseek.com/models"
+      : "https://api.openai.com/v1/models";
 const chatUrl =
-  provider === "deepseek"
-    ? "https://api.deepseek.com/chat/completions"
-    : "https://api.openai.com/v1/chat/completions";
+  provider === "gemini"
+    ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    : provider === "deepseek"
+      ? "https://api.deepseek.com/chat/completions"
+      : "https://api.openai.com/v1/chat/completions";
 let lastFrameMismatch: {
   frame: number;
   index: number;
@@ -181,14 +198,16 @@ try {
           nativeProviderFixture?: {
             requests: string[];
             original: Record<string, unknown> | null;
+            thoughtReplayChecks: number;
             releaseFinal?: () => void;
           };
         };
         const state: {
           requests: string[];
           original: Record<string, unknown> | null;
+          thoughtReplayChecks: number;
           releaseFinal?: () => void;
-        } = { requests: [], original: null };
+        } = { requests: [], original: null, thoughtReplayChecks: 0 };
         scope.nativeProviderFixture = state;
         const respond = (value: unknown, status = 200) =>
           new Response(JSON.stringify(value), {
@@ -204,6 +223,11 @@ try {
               `Bearer ${args.key}`
           )
             throw new Error("Unexpected test credential");
+          if (
+            new Headers(init?.headers).get("x-goog-api-client") !==
+            (args.provider === "gemini" ? "codex-video-edit/0.0.0" : null)
+          )
+            throw new Error("Unexpected Gemini client header");
           if (url === args.modelUrl && method === "GET") {
             state.requests.push("models");
             return respond({ data: [{ id: args.model }] });
@@ -213,16 +237,60 @@ try {
           state.requests.push("completion");
           const request = JSON.parse(String(init?.body)) as {
             model: string;
-            messages: Array<{ role: string; content: string }>;
+            max_tokens?: number;
+            max_completion_tokens?: number;
+            messages: Array<{
+              role: string;
+              content: string;
+              tool_calls?: Array<{
+                id: string;
+                extra_content?: unknown;
+              }>;
+              tool_call_id?: string;
+              name?: string;
+            }>;
           };
           if (request.model !== args.model || !args.projectId)
             throw new Error("Unexpected model or project");
+          if (
+            args.provider === "gemini"
+              ? request.max_completion_tokens !== 2048 ||
+                request.max_tokens !== undefined
+              : request.max_tokens !== 2048 ||
+                request.max_completion_tokens !== undefined
+          )
+            throw new Error("Unexpected provider completion limit");
           const user =
             request.messages.filter((item) => item.role === "user").at(-1)
               ?.content ?? "";
           const toolReplies = request.messages.filter(
             (item) => item.role === "tool",
           );
+          if (args.provider === "gemini") {
+            const assistants = request.messages.filter(
+              (item) => item.role === "assistant" && item.tool_calls,
+            );
+            if (assistants.length !== toolReplies.length)
+              throw new Error("Incomplete Gemini tool-call replay");
+            assistants.forEach((assistant, index) => {
+              const id = `call-${index + 1}`;
+              // Synthetic sentinel only; no real provider signature enters this fixture.
+              const expected = {
+                google: { thought_signature: `fixture-thought-${index + 1}` },
+              };
+              const call = assistant.tool_calls?.[0];
+              if (
+                assistant.tool_calls?.length !== 1 ||
+                call?.id !== id ||
+                JSON.stringify(call.extra_content) !==
+                  JSON.stringify(expected) ||
+                toolReplies[index]?.tool_call_id !== id ||
+                !toolReplies[index]?.name
+              )
+                throw new Error("Gemini thought signature was not replayed");
+              state.thoughtReplayChecks++;
+            });
+          }
           if (user.includes("provider failure"))
             return respond({ error: "private-test-provider-detail" }, 503);
           if (user.includes("quota failure"))
@@ -245,6 +313,15 @@ try {
                           name,
                           arguments: JSON.stringify(input),
                         },
+                        ...(args.provider === "gemini"
+                          ? {
+                              extra_content: {
+                                google: {
+                                  thought_signature: `fixture-thought-${toolReplies.length + 1}`,
+                                },
+                              },
+                            }
+                          : {}),
                       },
                     ],
                   },
@@ -313,7 +390,7 @@ try {
           });
         };
       },
-      { key: testKey, projectId, model, modelUrl, chatUrl },
+      { key: testKey, projectId, provider, model, modelUrl, chatUrl },
     );
   };
   const connect = async (page: Page) => {
@@ -684,15 +761,26 @@ try {
   );
   assert.ok(!conversation.includes(testKey));
   assert.ok(!conversation.includes("private-test-provider-detail"));
-  const requests = await electron.evaluate(() => {
+  assert.ok(!conversation.includes("fixture-thought-"));
+  const transport = await electron.evaluate(() => {
     const scope = globalThis as typeof globalThis & {
-      nativeProviderFixture?: { requests: string[] };
+      nativeProviderFixture?: {
+        requests: string[];
+        thoughtReplayChecks: number;
+      };
     };
-    return scope.nativeProviderFixture?.requests ?? [];
+    return (
+      scope.nativeProviderFixture ?? {
+        requests: [],
+        thoughtReplayChecks: 0,
+      }
+    );
   });
+  const requests = transport.requests;
   assert.equal(requests.filter((entry) => entry === "models").length, 1);
   assert.equal(requests.filter((entry) => entry === "completion").length, 11);
   assert.equal(requests.length, 12);
+  assert.equal(transport.thoughtReplayChecks, provider === "gemini" ? 7 : 0);
   step = "reopen-project";
   await electron.close();
   electron = await launch();
@@ -725,6 +813,8 @@ try {
       sharedUndo: true,
       sourceAndBaselineUnchanged: true,
       providerFailureRedacted: true,
+      geminiSyntheticThoughtReplay:
+        provider === "gemini" ? transport.thoughtReplayChecks : null,
       quotaFailureActionable: true,
       authenticationFailureActionable: true,
       projectReopened: true,

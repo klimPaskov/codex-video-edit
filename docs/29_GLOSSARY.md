@@ -2,7 +2,7 @@
 
 - **Active draft:** Mutable non-destructive edit currently open in the editor.
 - **Codex:** The mandatory ChatGPT subscription provider reached through the official app-server; distinct from API-key billing.
-- **API-key provider:** An optional fixed-endpoint OpenAI API or DeepSeek connection whose key and network call stay under Electron main control.
+- **API-key provider:** An optional fixed-endpoint OpenAI API, DeepSeek or Gemini API connection whose key and network call stay under Electron main control.
 - **Paid AI turn:** A user-initiated generation request billed under the selected API provider, distinct from Codex subscription usage.
 - **Computer use:** Agent control of the visible native test environment for visual and interaction testing.
 - **Draft operation:** One validated and undoable change to project state.

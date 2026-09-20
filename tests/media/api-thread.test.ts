@@ -45,11 +45,12 @@ async function fixture(
   invoke: ConstructorParameters<typeof ApiProviderThreads>[3] = async () => ({
     ok: true,
   }),
+  selectedModel = "deepseek-chat",
 ) {
   const root = await mkdtemp(join(tmpdir(), "api-threads-"));
   const threads = new ApiProviderThreads(
     root,
-    { selected: async () => ({ key, model: "deepseek-chat" }) },
+    { selected: async () => ({ key, model: selectedModel }) },
     { complete },
     invoke,
   );
@@ -181,6 +182,124 @@ test("validated tools execute sequentially within four completions and eight cal
     assert.equal(JSON.stringify(requests[3]).includes('"tools"'), false);
   } finally {
     await f.cleanup();
+  }
+});
+
+test("Gemini replays bounded thought signatures with parallel tool results only in main memory", async () => {
+  const signature = "signed-function-part-001";
+  let round = 0;
+  const invoked: string[] = [];
+  const f = await fixture(
+    async (selectedProvider, _key, request) => {
+      assert.equal(selectedProvider, "gemini");
+      round++;
+      if (round === 1)
+        return {
+          model: "gemini-3.8-flash",
+          content: null,
+          finishReason: "tool_calls",
+          toolCalls: [
+            {
+              id: "call-001",
+              name: "project_get_summary",
+              arguments: JSON.stringify({
+                schema_version: "1.0",
+                project_id: project,
+              }),
+              thoughtSignature: signature,
+            },
+            {
+              id: "call-002",
+              name: "timeline_get_summary",
+              arguments: JSON.stringify({
+                schema_version: "1.0",
+                project_id: project,
+              }),
+            },
+          ],
+        };
+      assert.equal(round, 2);
+      assert.deepEqual(
+        request.messages.map((message) => message.role),
+        ["system", "user", "assistant", "tool", "tool"],
+      );
+      const assistant = request.messages[2];
+      assert.equal(assistant?.role, "assistant");
+      if (assistant?.role === "assistant") {
+        assert.equal(assistant.toolCalls?.[0]?.thoughtSignature, signature);
+        assert.equal(assistant.toolCalls?.[1]?.thoughtSignature, undefined);
+      }
+      assert.equal(request.messages[3]?.role, "tool");
+      assert.equal(request.messages[4]?.role, "tool");
+      return {
+        ...stop("The project was inspected."),
+        model: "gemini-3.8-flash",
+      };
+    },
+    async (_project, name) => {
+      invoked.push(name);
+      return { status: "read" };
+    },
+    "gemini-3.8-flash",
+  );
+  try {
+    await f.threads.open(project, "gemini");
+    const view = await f.threads.send(project, "gemini", "Inspect the draft");
+    assert.equal(view.status, "ready");
+    assert.deepEqual(invoked, ["project.get_summary", "timeline.get_summary"]);
+    assert.equal(JSON.stringify(view).includes(signature), false);
+    const stored = await readFile(
+      join(f.root, "api-provider-threads", `${project}.gemini.json`),
+      "utf8",
+    );
+    assert.equal(stored.includes(signature), false);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test("Gemini 3 missing first function signature and foreign signature fail before tools run", async () => {
+  for (const selectedProvider of ["gemini", "deepseek"] as const) {
+    let invoked = 0;
+    const f = await fixture(
+      async () => ({
+        model:
+          selectedProvider === "gemini" ? "gemini-3.8-flash" : "deepseek-chat",
+        content: null,
+        finishReason: "tool_calls",
+        toolCalls: [
+          {
+            id: "call-001",
+            name: "project_get_summary",
+            arguments: JSON.stringify({
+              schema_version: "1.0",
+              project_id: project,
+            }),
+            ...(selectedProvider === "deepseek"
+              ? { thoughtSignature: "untrusted-foreign-signature" }
+              : {}),
+          },
+        ],
+      }),
+      async () => {
+        invoked++;
+        return {};
+      },
+      selectedProvider === "gemini" ? "gemini-3.8-flash" : "deepseek-chat",
+    );
+    try {
+      await f.threads.open(project, selectedProvider);
+      const view = await f.threads.send(
+        project,
+        selectedProvider,
+        "Inspect the draft",
+      );
+      assert.equal(view.status, "failed");
+      assert.equal(invoked, 0);
+      assert.match(view.message!, /response/u);
+    } finally {
+      await f.cleanup();
+    }
   }
 });
 

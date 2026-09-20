@@ -40,7 +40,7 @@ export interface ProviderKeyStoreOptions {
 }
 
 function assertProvider(provider: ProviderId): void {
-  if (provider !== "deepseek" && provider !== "openai")
+  if (provider !== "deepseek" && provider !== "openai" && provider !== "gemini")
     throw new ProviderKeyError("invalid_key");
 }
 

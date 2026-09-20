@@ -8,6 +8,7 @@ import {
   assertApiProviderModelRequest,
   assertApiProviderRequest,
   assertApiProvidersView,
+  apiProviderIds,
 } from "../../../packages/domain/src/api-providers.ts";
 import { assertCodexView } from "../../../packages/domain/src/codex-view.ts";
 import {
@@ -366,7 +367,7 @@ async function start(): Promise<void> {
         throw new UserFacingError(
           "Stop the running Codex turn before leaving this project.",
         );
-      for (const provider of ["deepseek", "openai"] as const) {
+      for (const provider of apiProviderIds) {
         const turn = await apiThreads.get(request.id, provider);
         if (turn.status === "running" || turn.status === "interrupting")
           throw new UserFacingError(
@@ -375,7 +376,7 @@ async function start(): Promise<void> {
       }
       await codex!.closeThread(request.id);
       await Promise.all(
-        (["deepseek", "openai"] as const).map((provider) =>
+        apiProviderIds.map((provider) =>
           apiThreads.close(request.id, provider),
         ),
       );

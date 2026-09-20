@@ -61,7 +61,8 @@ function id(value: unknown): asserts value is string {
 }
 
 function provider(value: unknown): asserts value is ApiProviderId {
-  if (value !== "deepseek" && value !== "openai") invalid();
+  if (value !== "deepseek" && value !== "openai" && value !== "gemini")
+    invalid();
 }
 
 function prose(

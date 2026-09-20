@@ -15,6 +15,16 @@
           "message": null
         },
         {
+          "id": "gemini",
+          "connected": false,
+          "remembered": false,
+          "canRemember": false,
+          "models": [],
+          "selectedModel": null,
+          "busy": false,
+          "message": null
+        },
+        {
           "id": "openai",
           "connected": true,
           "remembered": true,

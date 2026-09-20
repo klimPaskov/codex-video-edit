@@ -19,12 +19,25 @@ type KeyStore = Pick<
 >;
 type CatalogClient = Pick<ApiProviderClient, "listModels">;
 class UnsupportedCatalogError extends Error {}
+const reviewedGeminiEditingModels = new Set([
+  "gemini-2.5-pro",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
+  "gemini-3.8-flash",
+]);
 
 /** /models proves account access, not compatibility with our chat tool path. */
 export function editingModels(
   provider: ApiProviderId,
   catalog: string[],
 ): string[] {
+  if (provider === "gemini")
+    return catalog.filter((model) => reviewedGeminiEditingModels.has(model));
   const supported =
     provider === "openai"
       ? /^gpt-4(?:\.1(?:-(?:mini|nano))?|o(?:-mini)?)(?:-\d{4}-\d{2}-\d{2})?$/u

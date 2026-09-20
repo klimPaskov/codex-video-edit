@@ -28,7 +28,7 @@ Use browser tools only for research. Never launch or install on the user's host.
 
 The root is `codex-video-edit`. Apply docs/44_LOSSLESS_MEDIA_POLICY.md, docs/45_OPEN_SOURCE_DEVELOPMENT.md, and docs/references/IMPLEMENTATION_NOTES.md. Default to verified lossless capture and master output, remove redundant UI text and debug indicators, and publish reviewed working slices from P0 onward.
 
-Apply ADR 0014 for optional fixed-endpoint OpenAI API and DeepSeek keys beside the mandatory Codex App Server. Keep paid API turns explicit, keys main-owned and protected, provider capabilities truthful, and every AI edit under the shared guarded transaction history. Do not mark P2 complete from documentation or fake-provider tests.
+Apply ADRs 0014 and 0015 for optional fixed-endpoint OpenAI API, DeepSeek and Gemini API keys beside the mandatory Codex App Server. Keep paid API turns explicit, keys main-owned and protected, provider capabilities truthful, Gemini function-call signatures bounded and transient in main, and every AI edit under the shared guarded transaction history. Do not mark P2 complete from documentation or fake-provider tests.
 
 ## Required editorial capability
 

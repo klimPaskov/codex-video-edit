@@ -1,5 +1,5 @@
 /** API-key providers are independent of the Codex App Server subscription account. */
-export type ProviderId = "deepseek" | "openai";
+export type ProviderId = "deepseek" | "openai" | "gemini";
 
 export type ApiChatMessage =
   | { role: "system" | "user"; content: string }
@@ -21,6 +21,8 @@ export interface ApiToolCall {
   name: string;
   /** Untrusted JSON text. The caller must parse and validate before executing. */
   arguments: string;
+  /** Gemini-only opaque function-call state. Main-process conversation memory only. */
+  thoughtSignature?: string;
 }
 
 export interface ApiChatRequest {

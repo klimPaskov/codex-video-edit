@@ -42,6 +42,16 @@ test("API-key IPC confines provider identity and keeps keys out of returned stat
         busy: false,
         message: null,
       },
+      {
+        id: "gemini",
+        connected: false,
+        remembered: false,
+        canRemember: false,
+        models: [],
+        selectedModel: null,
+        busy: false,
+        message: null,
+      },
     ],
   };
   assertApiProvidersView(view);
@@ -51,6 +61,7 @@ test("API-key IPC confines provider identity and keeps keys out of returned stat
       providers: [
         view.providers[0],
         { ...view.providers[1], key: request.key },
+        view.providers[2],
       ],
     }),
   );
