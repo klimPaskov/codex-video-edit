@@ -30,6 +30,8 @@ For OpenAI API and DeepSeek, test that malformed keys and malicious model output
 
 For native remembered-key evidence, require packaged Electron, a real secure OS backend (the isolated Linux GNOME Secret Service path uses `gnome_libsecret`), private input and protected-file permissions, live model revalidation after restart, no key in renderer state or plaintext protected bytes, and explicit removal. Keep the credential and screenshots outside Git. This one backend does not establish Windows/macOS keyring behavior or paid provider editing.
 
+For a synthetic native provider turn, inject only into the isolated main process and reject every URL outside the fixed reviewed provider routes. Assert source/baseline preservation, stale rejection, shared undo and key/raw-response redaction in persisted conversation. Do not treat synthetic model output as an authenticated provider edit or permit renderer-supplied transport overrides.
+
 ## Stop condition
 
 Block the phase on unrestricted renderer privileges, source mutation, silent capture, token leakage, path escape, or unconfirmed deletion.
