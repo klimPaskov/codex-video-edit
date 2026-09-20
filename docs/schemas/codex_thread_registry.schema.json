@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.codex-video-edit.invalid/codex_thread_registry.schema.json",
+  "title": "Main-owned Codex project thread bindings",
+  "description": "Version 1 entries without a route are read as MCP and rewritten only on a later binding write. Duplicate project and thread IDs are rejected by the registry decoder.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "entries"],
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["projectId", "threadId", "toolRoute"],
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+          },
+          "threadId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+          },
+          "toolRoute": { "enum": ["mcp", "dynamic"] }
+        }
+      }
+    }
+  }
+}

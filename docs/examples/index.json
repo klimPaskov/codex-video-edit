@@ -2,6 +2,10 @@
   "schema_version": "1.0",
   "pairs": [
     {
+      "schema": "docs/schemas/codex_thread_registry.schema.json",
+      "example": "docs/examples/codex_thread_registry.example.json"
+    },
+    {
       "schema": "docs/schemas/two_source_initial_project.schema.json",
       "example": "docs/examples/two_source_initial_project.example.json"
     },

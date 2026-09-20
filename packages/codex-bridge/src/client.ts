@@ -469,10 +469,18 @@ export class CodexClient {
       this.conversation ||
       !this.threadRegistry ||
       !this.resolvedCwd ||
-      this.authState().account?.status !== "chatgpt" ||
-      !this.options.mcp
+      this.authState().account?.status !== "chatgpt"
     )
       throw new CodexTransportError("not_ready");
+    const hasMcp = Boolean(this.options.mcp);
+    const hasDynamic = Boolean(this.options.dynamicToolInvoker);
+    if (hasMcp === hasDynamic) throw new CodexTransportError("configuration");
+    const route = hasDynamic ? "dynamic" : "mcp";
+    const existing = await this.threadRegistry.bindingForProject(
+      input.projectId,
+    );
+    if (existing && existing.toolRoute !== route)
+      throw new CodexTransportError("configuration");
     const conversation = new CodexProjectThreadClient({
       rpc: transport,
       generation: this.generation,

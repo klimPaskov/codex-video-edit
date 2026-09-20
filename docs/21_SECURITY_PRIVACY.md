@@ -49,6 +49,8 @@ The dedicated app-server process starts with fixed ChatGPT/OpenAI settings and d
 
 Thread resume consumes at most one validated page of 100 newest full turns and 1,000 unique items. Main reverses that page for chronological display and exposes only up to 200 redacted user/Codex messages and 32 generic activities under fresh application IDs. Skill paths, cursors, raw server IDs, tool inputs/results, reasoning, and unsupported content stay out of renderer state. Command, file, web, image, foreign dynamic-tool, foreign-MCP, unknown, approval-waiting, or an inline page that contradicts its same-response thread status quarantines the connection before it opens. Only when an internal host-tool invoker is configured may the projector accept the exact `codex_video_edit` namespace and six reviewed tool names as generic activity; product routing does not configure that invoker yet. A separately fetched fallback page is later authority and safely absorbs buffered completion races.
 
+The private thread registry tags each version 2 binding with its tool route. Version 1 entries are interpreted only as MCP, and an incompatible process route fails before resume. A dynamic thread projects no MCP calls; an MCP thread rejects host calls even if an internal invoker exists. Corrupt or unknown routes fail without replacing the registry. Product main still uses MCP.
+
 ## Secrets
 
 Let the official Codex client own ChatGPT credentials. Do not copy tokens into project files, logs, crash reports, or renderer state. The MCP broker credential is inherited through the restricted process environment and never appears in command arguments, thread instructions, project data, or IPC.

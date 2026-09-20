@@ -132,6 +132,132 @@ test("typed client creates then resumes the one registry-owned project thread", 
   }
 });
 
+test("legacy MCP bindings cannot be silently routed through host tools", async () => {
+  const first = await fixture();
+  try {
+    await first.client.open();
+    assert.equal(
+      (await first.registry.bindingForProject("project-1"))?.toolRoute,
+      "mcp",
+    );
+    let invoked = 0;
+    const resumed = new CodexProjectThreadClient({
+      rpc: {
+        request: async (method) => {
+          if (method === "thread/resume")
+            return {
+              ...threadResponse("thread-1"),
+              initialTurnsPage: { data: [], nextCursor: null },
+            };
+          if (method === "turn/start") return turnResponse("legacy-turn");
+          throw new Error("Unexpected RPC");
+        },
+      },
+      generation: 2,
+      projectId: "project-1",
+      policy,
+      registry: first.registry,
+      allowedMcpServer: "codex-video-edit",
+      allowedMcpTools: new Set(["project.get_summary"]),
+      dynamicToolInvoker: async () => {
+        invoked++;
+        return { status: "unexpected" };
+      },
+    });
+    await resumed.open();
+    await resumed.startTurn({ text: "Read the legacy project" });
+    assert.throws(
+      () =>
+        resumed.serverRequest({
+          id: "legacy-host-call",
+          method: "item/tool/call",
+          params: {
+            threadId: "thread-1",
+            turnId: "legacy-turn",
+            callId: "legacy-call",
+            namespace: "codex_video_edit",
+            tool: "project_get_summary",
+            arguments: { schema_version: "1.0", project_id: "project-1" },
+          },
+          signal: new AbortController().signal,
+        }),
+      CodexThreadProtocolError,
+    );
+    assert.equal(invoked, 0);
+    assert.equal(
+      (await first.registry.bindingForProject("project-1"))?.toolRoute,
+      "mcp",
+    );
+  } finally {
+    await rm(first.root, { recursive: true, force: true });
+  }
+});
+
+test("a dynamic binding resumes only with its host-tool boundary", async () => {
+  const first = await fixture(undefined, async () => ({ status: "read" }));
+  try {
+    await first.client.open();
+    const calls: string[] = [];
+    let invoked = 0;
+    const rpc = {
+      request: async (method: string) => {
+        calls.push(method);
+        if (method === "thread/resume")
+          return {
+            ...threadResponse("thread-1"),
+            initialTurnsPage: { data: [], nextCursor: null },
+          };
+        if (method === "turn/start") return turnResponse("dynamic-resumed");
+        throw new Error("Unexpected RPC");
+      },
+    };
+    const resumed = new CodexProjectThreadClient({
+      rpc,
+      generation: 2,
+      projectId: "project-1",
+      policy,
+      registry: first.registry,
+      allowedMcpServer: "codex-video-edit",
+      allowedMcpTools: new Set(["project.get_summary"]),
+      dynamicToolInvoker: async () => {
+        invoked++;
+        return { status: "read" };
+      },
+    });
+    await resumed.open();
+    assert.deepEqual(calls, ["thread/resume"]);
+    await resumed.startTurn({ text: "Read the draft" });
+    const result = (await resumed.serverRequest({
+      id: "resumed-host-call",
+      method: "item/tool/call",
+      params: {
+        threadId: "thread-1",
+        turnId: "dynamic-resumed",
+        callId: "resumed-call",
+        namespace: "codex_video_edit",
+        tool: "project_get_summary",
+        arguments: { schema_version: "1.0", project_id: "project-1" },
+      },
+      signal: new AbortController().signal,
+    })) as { success: boolean };
+    assert.equal(result.success, true);
+    assert.equal(invoked, 1);
+    const incompatible = new CodexProjectThreadClient({
+      rpc,
+      generation: 3,
+      projectId: "project-1",
+      policy,
+      registry: first.registry,
+      allowedMcpServer: "codex-video-edit",
+      allowedMcpTools: new Set(["project.get_summary"]),
+    });
+    await assert.rejects(incompatible.open(), CodexThreadProtocolError);
+    assert.deepEqual(calls, ["thread/resume", "turn/start"]);
+  } finally {
+    await rm(first.root, { recursive: true, force: true });
+  }
+});
+
 test("resume uses one bounded history fallback and emits only a safe projection", async () => {
   const first = await fixture();
   try {
@@ -823,6 +949,12 @@ test("correlated owned host call uses the guarded invoker without closing the th
   });
   try {
     await value.client.open();
+    assert.equal(
+      (await value.registry.bindingForProject("project-1"))?.toolRoute,
+      "dynamic",
+    );
+    const creation = value.calls[0]?.params as { dynamicTools?: unknown[] };
+    assert.equal(creation.dynamicTools?.length, 1);
     value.setHandler(async () => turnResponse("turn-owned"));
     await value.client.startTurn({ text: "Trim the active draft" });
     const result = await value.client.serverRequest({
