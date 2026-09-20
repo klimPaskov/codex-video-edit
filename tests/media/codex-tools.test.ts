@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
@@ -60,7 +60,7 @@ async function fixture(
     active.project.project_id,
     drafts,
   );
-  return { source, active, other, drafts, service };
+  return { root, source, active, other, drafts, service };
 }
 
 function readInput(projectId: string) {
@@ -83,6 +83,24 @@ function trimInput(
     clip_id: draft.timeline.clips[0]!.clip_id,
     edge: "start",
     timeline_position_us: 200_000,
+  };
+}
+
+function rangeInput(
+  draft: Awaited<ReturnType<DraftTransactionStore["snapshot"]>>["draft"],
+) {
+  return {
+    schema_version: "1.0",
+    request_id: "codex-range-request-001",
+    project_id: draft.project_id,
+    draft_id: draft.draft_id,
+    base_revision_id: draft.base_revision_id,
+    expected_sequence: draft.draft_sequence,
+    expected_timeline_sha256: draft.timeline_sha256,
+    pass_group_id: "codex-spoken-cut-001",
+    reason: "Remove the selected false start while preserving the source.",
+    start_us: 200_000,
+    end_us: 600_000,
   };
 }
 
@@ -168,6 +186,124 @@ test("Codex trim and newest undo return only committed draft authority", async (
   assert.equal(undone.draft.duration_us, 1_000_000);
   assert.deepEqual(await readFile(source), sourceBefore);
   assert.deepEqual(await readFile(active.source.managed_path), managedBefore);
+});
+
+test("Codex range cut uses the shared ripple transaction and newest undo", async () => {
+  const { root, source, active, drafts, service } = await fixture();
+  const sourceBefore = await readFile(source);
+  const managedBefore = await readFile(active.source.managed_path);
+  const initial = await drafts.snapshot(active.project.project_id);
+  const applied = (await service.invoke(
+    "cut.delete_range",
+    rangeInput(initial.draft),
+  )) as {
+    status: string;
+    transaction_id: string;
+    draft: { draft_sequence: number; duration_us: number; clips: unknown[] };
+  };
+  assert.equal(applied.status, "committed");
+  assert.equal(applied.draft.draft_sequence, 1);
+  assert.equal(applied.draft.duration_us, 600_000);
+  assert.equal(applied.draft.clips.length, 2);
+  assert.doesNotMatch(
+    serialized(applied),
+    /inverse|before|origin|managed_path/u,
+  );
+  const journal = join(
+    root,
+    "projects",
+    active.project.project_id,
+    "draft",
+    "journal",
+  );
+  const entries = await readdir(journal);
+  assert.equal(entries.length, 1);
+  const record = JSON.parse(
+    await readFile(join(journal, entries[0]!), "utf8"),
+  ) as {
+    origin: string;
+    pass_group: { kind: string };
+    operations: Array<{ operation_type: string }>;
+  };
+  assert.equal(record.origin, "codex");
+  assert.equal(record.pass_group.kind, "spoken_cut");
+  assert.equal(record.operations[0]?.operation_type, "ripple_delete");
+  const current = await drafts.snapshot(active.project.project_id);
+  const undone = (await service.invoke("timeline.undo", {
+    schema_version: "1.0",
+    request_id: "codex-range-undo-001",
+    project_id: current.draft.project_id,
+    draft_id: current.draft.draft_id,
+    base_revision_id: current.draft.base_revision_id,
+    expected_sequence: current.draft.draft_sequence,
+    expected_timeline_sha256: current.draft.timeline_sha256,
+    target_transaction_id: applied.transaction_id,
+    reason: "Restore the newest range cut.",
+  })) as { draft: { draft_sequence: number; duration_us: number } };
+  assert.equal(undone.draft.draft_sequence, 2);
+  assert.equal(undone.draft.duration_us, 1_000_000);
+  assert.deepEqual(await readFile(source), sourceBefore);
+  assert.deepEqual(await readFile(active.source.managed_path), managedBefore);
+});
+
+test("API-provider range cut routes to the API origin and rejects unsafe ranges", async () => {
+  const { root, active, drafts, service } = await fixture();
+  const provider = new CodexVideoEditToolService(
+    active.project.project_id,
+    drafts,
+    "api_provider",
+  );
+  const initial = await drafts.snapshot(active.project.project_id);
+  const input = rangeInput(initial.draft);
+  for (const invalid of [
+    { start_us: -1 },
+    { start_us: 600_000, end_us: 600_000 },
+    { start_us: 700_000, end_us: 600_000 },
+    { start_us: 0.5 },
+    { source_path: "private-media.mp4" },
+    { origin: "manual" },
+    { operations: [{ type: "source_delete" }] },
+  ]) {
+    await assert.rejects(
+      provider.invoke("cut.delete_range", { ...input, ...invalid }),
+      expectCode("invalid_request"),
+    );
+  }
+  await assert.rejects(
+    provider.invoke("cut.delete_range", {
+      ...input,
+      start_us: 0,
+      end_us: 1_000_000,
+    }),
+    expectCode("edit_conflict"),
+  );
+  const applied = (await provider.invoke("cut.delete_range", input)) as {
+    draft: { draft_sequence: number; duration_us: number };
+  };
+  assert.equal(applied.draft.draft_sequence, 1);
+  assert.equal(applied.draft.duration_us, 600_000);
+  const journal = join(
+    root,
+    "projects",
+    active.project.project_id,
+    "draft",
+    "journal",
+  );
+  const entries = await readdir(journal);
+  assert.equal(entries.length, 1);
+  const record = JSON.parse(
+    await readFile(join(journal, entries[0]!), "utf8"),
+  ) as {
+    origin: string;
+  };
+  assert.equal(record.origin, "api_provider");
+  await assert.rejects(
+    service.invoke("cut.delete_range", {
+      ...input,
+      request_id: "codex-stale-range-002",
+    }),
+    expectCode("stale_draft"),
+  );
 });
 
 test("an undo committed before an uncertain response is idempotent on retry", async () => {

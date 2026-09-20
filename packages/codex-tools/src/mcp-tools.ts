@@ -87,6 +87,33 @@ export const codexVideoEditMcpTools = [
   {
     name: codexVideoEditToolNames[3],
     description:
+      "Ripple-delete a nonempty output-time interval from the active draft and commit one undoable transaction. End time is exclusive.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        ...Object.keys(freshness),
+        "pass_group_id",
+        "start_us",
+        "end_us",
+      ],
+      properties: {
+        ...freshness,
+        pass_group_id: id,
+        start_us: { type: "integer", minimum: 0 },
+        end_us: { type: "integer", minimum: 1 },
+      },
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    name: codexVideoEditToolNames[4],
+    description:
       "Undo only the newest applied draft transaction after exact freshness validation.",
     inputSchema: {
       type: "object",

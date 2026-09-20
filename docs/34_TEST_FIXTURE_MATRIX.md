@@ -42,7 +42,7 @@ Use virtual screen, microphone, camera, and loopback devices. Record known sync 
 
 ## Codex fixtures
 
-Use a fake protocol server for parser and recovery tests. Keep a separate real authenticated smoke test that proves current login, model discovery, skill discovery, streamed events, and one guarded draft edit. A fake transport cannot satisfy real integration acceptance.
+Use a fake protocol server for parser and recovery tests. Keep a separate real authenticated smoke test that proves current login, model discovery, skill discovery, streamed events, and one guarded draft edit. A fake transport cannot satisfy real integration acceptance. `tests/native/codex-range-cut.test.ts` passed a guarded `cut.delete_range` across a source join, committed preview mapping, manual newest Undo and reopen first with synthetic two-source media and then with the privately combined supplied recordings, using real signed-in Codex in packaged Electron. Focused tests reject stale, reversed and whole-draft ranges. The native tests do not prove speech selection, continuous A/V review or export.
 
 ## API-provider fixtures
 

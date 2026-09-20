@@ -32,9 +32,9 @@
       ]
     },
     {
-      "name": "timeline.apply_operations",
+      "name": "cut.trim_edge",
       "mode": "mutation",
-      "description": "Apply one atomic batch of non-destructive operations.",
+      "description": "Move a clip boundary to an exact validated output-time position.",
       "undoable": true,
       "user_confirmation": "none",
       "allowed_scope": "active_draft",
@@ -47,9 +47,9 @@
       ]
     },
     {
-      "name": "analysis.run_magic_wand",
-      "mode": "analysis",
-      "description": "Run selected Magic Wand automation classes.",
+      "name": "cut.delete_range",
+      "mode": "mutation",
+      "description": "Ripple-delete a bounded half-open output-time interval without changing source files.",
       "undoable": true,
       "user_confirmation": "none",
       "allowed_scope": "active_draft",
@@ -62,12 +62,12 @@
       ]
     },
     {
-      "name": "export.prepare",
-      "mode": "export_prepare",
-      "description": "Validate and stage export settings without confirming export.",
-      "undoable": false,
+      "name": "timeline.undo",
+      "mode": "mutation",
+      "description": "Undo the newest still-applied draft transaction through the shared journal.",
+      "undoable": true,
       "user_confirmation": "none",
-      "allowed_scope": "export_staging",
+      "allowed_scope": "active_draft",
       "input_schema": "generated from implementation types",
       "output_schema": "generated from implementation types",
       "forbidden_effects": [

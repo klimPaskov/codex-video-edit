@@ -154,7 +154,7 @@
     {
       "name": "cut.delete_range",
       "mode": "mutation",
-      "description": "Create a non-destructive ripple delete.",
+      "description": "Ripple-delete a bounded half-open output-time interval without changing source files.",
       "undoable": true,
       "user_confirmation": "none",
       "allowed_scope": "active_draft",
@@ -184,7 +184,7 @@
     {
       "name": "cut.trim_edge",
       "mode": "mutation",
-      "description": "Move a clip boundary with validation and snapping.",
+      "description": "Move a clip boundary to an exact validated output-time position.",
       "undoable": true,
       "user_confirmation": "none",
       "allowed_scope": "active_draft",
