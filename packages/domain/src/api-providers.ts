@@ -1,6 +1,6 @@
 /** Bounded, path-free state for user-supplied API-key providers. */
-export type ApiProviderId = "deepseek" | "openai";
-export const apiProviderIds = ["deepseek", "openai"] as const;
+export type ApiProviderId = "deepseek" | "openai" | "gemini";
+export const apiProviderIds = ["deepseek", "openai", "gemini"] as const;
 
 export interface ApiProviderView {
   id: ApiProviderId;
@@ -56,7 +56,7 @@ function exact(value: unknown, keys: string[]): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 function provider(value: unknown): asserts value is ApiProviderId {
-  if (value !== "deepseek" && value !== "openai")
+  if (value !== "deepseek" && value !== "openai" && value !== "gemini")
     throw new Error("Invalid API provider exchange.");
 }
 export function assertApiProviderConnectRequest(
@@ -90,7 +90,10 @@ export function assertApiProvidersView(
   value: unknown,
 ): asserts value is ApiProvidersView {
   const view = exact(value, ["providers"]);
-  if (!Array.isArray(view.providers) || view.providers.length !== 2)
+  if (
+    !Array.isArray(view.providers) ||
+    view.providers.length !== apiProviderIds.length
+  )
     throw new Error("Invalid API provider exchange.");
   const seen = new Set<string>();
   for (const entry of view.providers) {
@@ -127,4 +130,6 @@ export function assertApiProvidersView(
     )
       throw new Error("Invalid API provider exchange.");
   }
+  if (apiProviderIds.some((id) => !seen.has(id)))
+    throw new Error("Invalid API provider exchange.");
 }

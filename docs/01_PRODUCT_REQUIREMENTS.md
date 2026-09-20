@@ -27,7 +27,7 @@
 - Add captions, safe audio cleanup, purposeful zooms, and requested or clearly safe speed-ups.
 - Suggest local B-roll and layouts when suitable.
 - Apply operations to a non-destructive draft and show them live.
-- Offer real Codex plus optional OpenAI API and DeepSeek AI editing, with provider-specific capabilities and model validation. Paid API turns start on explicit user action.
+- Offer real Codex plus optional OpenAI API, DeepSeek and Gemini API editing, with provider-specific capabilities and model validation. Paid API turns start on explicit user action.
 
 ### Edit manually
 

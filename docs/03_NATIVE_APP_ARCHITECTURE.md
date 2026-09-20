@@ -27,7 +27,7 @@ Owns:
 - project locks and privileged filesystem access
 - capture permissions and source selection
 - child processes for Codex, FFmpeg, ffprobe, and transcription
-- fixed-endpoint OpenAI API and DeepSeek network adapters, key storage and request redaction
+- fixed-endpoint OpenAI API, DeepSeek and Gemini API network adapters, key storage and request redaction
 - typed IPC validation
 - installer and update integration
 
@@ -58,7 +58,7 @@ The main process owns a long-running official `codex app-server` child over stdi
 
 ### API-provider adapters
 
-Separate main-owned OpenAI API and DeepSeek adapters use reviewed fixed HTTPS endpoints and provider-specific catalog/turn contracts. Key material is protected by OS-backed per-user storage or kept in session memory; it never enters project data or the renderer. A remembered model ID is encrypted in the same per-user key record, bound to that credential, and checked again against live model discovery after restart. Session-only choices remain in memory. Generated edit intent is validated through the same transaction service as Codex, Magic Wand and manual actions. A generic API adapter does not acquire Codex App Server threads, skills, native subagents or MCP authority by analogy.
+Separate main-owned OpenAI API, DeepSeek and Gemini API adapters use reviewed fixed HTTPS endpoints and provider-specific catalog/turn contracts. Key material is protected by OS-backed per-user storage or kept in session memory; it never enters project data or the renderer. A remembered model ID is encrypted in the same per-user key record, bound to that credential, and checked again against live model discovery after restart. Session-only choices remain in memory. Gemini function-call thought signatures are bounded, validated and replayed only in the active main-process turn; they never enter persisted conversations or IPC. Generated edit intent is validated through the same transaction service as Codex, Magic Wand and manual actions. A generic API adapter does not acquire Codex App Server threads, skills, native subagents or MCP authority by analogy.
 
 The main-owned adapter classifies later generation-time HTTP 401/403 separately from rate/quota failure, and the conversation service publishes only fixed recovery text through the strict typed view. The drawer bounds its conversation scroll independently of the preview and keeps the selected provider's Send controls and alert readable at common window sizes. These failures never grant direct project-file access or bypass committed transaction checks.
 

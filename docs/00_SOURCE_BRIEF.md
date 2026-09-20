@@ -10,7 +10,7 @@ Build a new standalone desktop video creation application. It must combine recor
 - Do not copy Borumi branding, assets, wording, or exact layouts.
 - Keep the interface step-based and quiet.
 - Build real editing functions, not placeholder buttons.
-- Keep real Codex through the user's ChatGPT subscription and add optional fixed-endpoint OpenAI API and DeepSeek key providers under ADR 0014. API billing is separate; the new providers are not yet accepted.
+- Keep real Codex through the user's ChatGPT subscription and add optional fixed-endpoint OpenAI API, DeepSeek and Gemini API key providers under ADRs 0014 and 0015. API billing is separate; the new providers are not yet accepted.
 - Let Codex make live, undoable draft edits through guarded project tools.
 - Build and test the native app in the agent's isolated environment.
 - Use the browser for research, not as the product shell.

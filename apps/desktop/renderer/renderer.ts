@@ -922,7 +922,8 @@ let codexPollGeneration = 0;
 const assistantProvider = element<HTMLSelectElement>("assistant-provider");
 function selectedApiProvider(): ApiProviderId | null {
   return assistantProvider.value === "deepseek" ||
-    assistantProvider.value === "openai"
+    assistantProvider.value === "openai" ||
+    assistantProvider.value === "gemini"
     ? assistantProvider.value
     : null;
 }
@@ -931,7 +932,9 @@ function assistantName(): string {
     ? "DeepSeek"
     : assistantProvider.value === "openai"
       ? "OpenAI API"
-      : "Codex";
+      : assistantProvider.value === "gemini"
+        ? "Gemini API"
+        : "Codex";
 }
 const threadStatus: Record<CodexThreadView["status"], string> = {
   closed: "",

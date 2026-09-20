@@ -61,7 +61,7 @@ try {
   assert.ok(initial.ok);
   assert.deepEqual(
     initial.value.providers.map((item) => item.id),
-    ["deepseek", "openai"],
+    ["deepseek", "openai", "gemini"],
   );
   assert.ok(
     initial.value.providers.every(
@@ -81,11 +81,29 @@ try {
   assert.ok(!JSON.stringify(after.value).includes(testOnlyKey));
   assert.equal(after.value.providers[0]?.connected, false);
   step = "provider-switch";
-  await page.locator("#api-provider-id").selectOption("openai");
+  await page.locator("#api-provider-id").selectOption("gemini");
   await expect(page.locator("#api-provider-status")).toHaveText(
     "Add a key to discover models",
   );
   await expect(page.locator("#api-provider-key")).toHaveValue("");
+  await expect(page.locator("#api-provider-model-settings")).toBeHidden();
+  await expect(page.locator("#api-provider-model")).toHaveValue("");
+  await expect(page.locator("#api-provider-model")).toBeDisabled();
+  const gemini = await page.evaluate(() => window.desktop.getApiProviders());
+  assert.ok(gemini.ok);
+  assert.deepEqual(
+    gemini.value.providers.find((item) => item.id === "gemini"),
+    {
+      id: "gemini",
+      connected: false,
+      remembered: false,
+      canRemember: gemini.value.providers[0]!.canRemember,
+      models: [],
+      selectedModel: null,
+      busy: false,
+      message: null,
+    },
+  );
   await page.screenshot({
     path: join(evidence, "native-settings-private.png"),
   });

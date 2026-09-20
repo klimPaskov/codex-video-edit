@@ -46,7 +46,7 @@ async function directory(t: TestContext) {
   return root;
 }
 
-test("both providers retain separate session-only keys and remove them", async (t) => {
+test("all fixed providers retain separate session-only keys and remove them", async (t) => {
   const root = await directory(t);
   const keys = new ProviderKeyStore(root, storage(), { platform: "linux" });
   assert.deepEqual(await keys.set("openai", key, { remember: false }), {
@@ -55,8 +55,10 @@ test("both providers retain separate session-only keys and remove them", async (
     canRemember: true,
   });
   await keys.set("deepseek", "test-deepseek-key-456", { remember: false });
+  await keys.set("gemini", "test-gemini-key-789", { remember: false });
   assert.equal(await keys.get("openai"), key);
   assert.equal(await keys.get("deepseek"), "test-deepseek-key-456");
+  assert.equal(await keys.get("gemini"), "test-gemini-key-789");
   assert.equal(
     await new ProviderKeyStore(root, storage(), { platform: "linux" }).get(
       "openai",
@@ -66,6 +68,26 @@ test("both providers retain separate session-only keys and remove them", async (
   await keys.remove("openai");
   assert.equal(await keys.get("openai"), null);
   assert.equal(await keys.get("deepseek"), "test-deepseek-key-456");
+  assert.equal(await keys.get("gemini"), "test-gemini-key-789");
+});
+
+test("Gemini remembered key and model use a separate protected record", async (t) => {
+  const root = await directory(t);
+  const keys = new ProviderKeyStore(root, storage(), { platform: "linux" });
+  await keys.set("gemini", key, { remember: true });
+  await keys.setModel("gemini", "gemini-3.8-flash");
+  const bytes = await readFile(join(root, "gemini.key"), "utf8");
+  assert.ok(!bytes.startsWith(key));
+  if (process.platform !== "win32")
+    assert.equal((await stat(join(root, "gemini.key"))).mode & 0o777, 0o600);
+  const reopened = new ProviderKeyStore(root, storage(), {
+    platform: "linux",
+  });
+  assert.equal(await reopened.get("gemini"), key);
+  assert.equal(await reopened.getModel("gemini"), "gemini-3.8-flash");
+  await reopened.remove("gemini");
+  assert.equal(await reopened.get("gemini"), null);
+  assert.equal(await reopened.getModel("gemini"), null);
 });
 
 test("remembered key is ciphertext in a private file and reloads", async (t) => {

@@ -63,7 +63,7 @@ A bottom-right drawer contains natural-language editing, a model selector, curre
 
 The P2 conversation slice implements a compact drawer beside the preview. Opening it closes the source inspector so only one panel is visible. A real selected project and signed-in runtime selection are required before a conversation can open. The renderer shows only projected user/Codex text, generic work/subagent/edit activity, Stop while a turn runs, and actionable failure or uncertainty. It never seeds sample conversation text or invents an edit result. Leaving a project first performs an idle thread unsubscribe and refuses while a turn is active.
 
-ADR 0014 adds optional OpenAI API and DeepSeek provider choice within the same compact AI surface once implemented. Selecting a provider must show only its verified model and capabilities, a clear separate API-billing label, and the context disclosed before first use. A paid turn starts on a deliberate user action. Do not claim Codex thread history or subagent activity for an API provider; never show key bytes. This is a future UI requirement, not part of the current Codex drawer evidence.
+ADRs 0014 and 0015 add optional OpenAI API, DeepSeek and Gemini API provider choice within the same compact AI surface. Selecting a provider must show only its verified model and capabilities, a clear separate API-billing label, and the context disclosed before first use. A paid turn starts on a deliberate user action. Do not claim Codex thread history or subagent activity for an API provider; never show key bytes. Packaged synthetic evidence is separate from authenticated provider acceptance.
 
 ## Interface settings and focus
 

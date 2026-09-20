@@ -1359,14 +1359,14 @@
       "properties": {
         "providers": {
           "type": "array",
-          "minItems": 2,
-          "maxItems": 2,
+          "minItems": 3,
+          "maxItems": 3,
           "items": {
             "type": "object",
             "additionalProperties": false,
             "required": ["id", "connected", "remembered", "canRemember", "models", "selectedModel", "busy", "message"],
             "properties": {
-              "id": { "enum": ["deepseek", "openai"] },
+              "id": { "enum": ["deepseek", "gemini", "openai"] },
               "connected": { "type": "boolean" },
               "remembered": { "type": "boolean" },
               "canRemember": { "type": "boolean" },
@@ -1387,7 +1387,7 @@
       "properties": {
         "schema_version": { "const": "1.0" },
         "project_id": { "$ref": "#/$defs/codexThreadId" },
-        "provider": { "enum": ["deepseek", "openai"] }
+        "provider": { "enum": ["deepseek", "gemini", "openai"] }
       }
     },
     "apiThreadSendRequest": {
@@ -1397,7 +1397,7 @@
       "properties": {
         "schema_version": { "const": "1.0" },
         "project_id": { "$ref": "#/$defs/codexThreadId" },
-        "provider": { "enum": ["deepseek", "openai"] },
+        "provider": { "enum": ["deepseek", "gemini", "openai"] },
         "text": { "type": "string", "minLength": 1, "maxLength": 16384 }
       }
     },
@@ -1408,7 +1408,7 @@
       "properties": {
         "status": { "enum": ["closed", "ready", "running", "interrupting", "failed"] },
         "projectId": { "anyOf": [{ "$ref": "#/$defs/codexThreadId" }, { "type": "null" }] },
-        "provider": { "enum": ["deepseek", "openai", null] },
+        "provider": { "enum": ["deepseek", "gemini", "openai", null] },
         "messages": { "type": "array", "maxItems": 48, "items": {
           "type": "object", "additionalProperties": false, "required": ["id", "role", "text"],
           "properties": {
@@ -1419,7 +1419,7 @@
         } },
         "message": { "enum": [null, "Choose a connected provider and model in Settings before sending.", "The provider request failed. Check the connection and try a new turn.", "The provider rate or quota limit was reached. Check your API account before sending again.", "The provider rejected this API connection. Check the key and account access in Settings before sending again.", "The provider rejected this response. Check the selected model and try a new turn.", "This turn stopped. Review the current draft before sending again.", "The edit may have been saved. Reopen the project before sending again.", "The conversation could not be saved. Check local storage and reopen the project."] }
       },
-      "allOf": [{ "if": { "properties": { "status": { "const": "closed" } } }, "then": { "properties": { "projectId": { "type": "null" }, "provider": { "type": "null" }, "messages": { "maxItems": 0 }, "message": { "type": "null" } } }, "else": { "properties": { "projectId": { "$ref": "#/$defs/codexThreadId" }, "provider": { "enum": ["deepseek", "openai"] } } } }]
+      "allOf": [{ "if": { "properties": { "status": { "const": "closed" } } }, "then": { "properties": { "projectId": { "type": "null" }, "provider": { "type": "null" }, "messages": { "maxItems": 0 }, "message": { "type": "null" } } }, "else": { "properties": { "projectId": { "$ref": "#/$defs/codexThreadId" }, "provider": { "enum": ["deepseek", "gemini", "openai"] } } } }]
     },
     "codexDeviceLogin": {
       "type": "object",

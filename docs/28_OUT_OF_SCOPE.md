@@ -5,7 +5,7 @@
 - mobile recording or editing
 - livestreaming
 - generic plugin marketplace
-- generic AI provider marketplace or arbitrary user-defined endpoints (the explicit OpenAI API and DeepSeek connections in ADR 0014 are in scope)
+- generic AI provider marketplace or arbitrary user-defined endpoints (the explicit OpenAI API, DeepSeek and Gemini API connections in ADRs 0014 and 0015 are in scope)
 - replacing ChatGPT-managed Codex with API-key-only setup
 - automatic paid asset purchasing
 - remote stock search without explicit future design

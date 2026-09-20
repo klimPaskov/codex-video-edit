@@ -17,6 +17,10 @@ const endpoints = {
     models: "https://api.openai.com/v1/models",
     chat: "https://api.openai.com/v1/chat/completions",
   },
+  gemini: {
+    models: "https://generativelanguage.googleapis.com/v1beta/openai/models",
+    chat: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+  },
 } as const;
 const idPattern = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 const toolNamePattern = /^[A-Za-z_][A-Za-z0-9_-]{0,127}$/;
@@ -24,6 +28,8 @@ const maxRequestBytes = 256 * 1024;
 const maxResponseBytes = 2 * 1024 * 1024;
 const maxMessages = 64;
 const maxTools = 8;
+const maxThoughtSignatureBytes = 16 * 1024;
+const geminiClientHeader = "codex-video-edit/0.0.0";
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -32,7 +38,7 @@ function object(value: unknown): Record<string, unknown> {
 }
 
 function providerUrls(provider: ProviderId) {
-  if (!Object.hasOwn(endpoints, provider))
+  if (typeof provider !== "string" || !Object.hasOwn(endpoints, provider))
     throw new ApiProviderError("invalid_request");
   return endpoints[provider];
 }
@@ -55,13 +61,26 @@ function validText(value: unknown, max: number): value is string {
   return typeof value === "string" && value.length <= max;
 }
 
-function validateMessages(messages: ApiChatMessage[]): unknown[] {
+function validThoughtSignature(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    Buffer.byteLength(value, "utf8") <= maxThoughtSignatureBytes &&
+    /^[\x21-\x7e]+$/.test(value)
+  );
+}
+
+function validateMessages(
+  messages: ApiChatMessage[],
+  provider: ProviderId,
+): unknown[] {
   if (
     !Array.isArray(messages) ||
     messages.length < 1 ||
     messages.length > maxMessages
   )
     throw new ApiProviderError("invalid_request");
+  const toolNames = new Map<string, string>();
   return messages.map((message) => {
     if (!message || typeof message !== "object")
       throw new ApiProviderError("invalid_request");
@@ -73,13 +92,17 @@ function validateMessages(messages: ApiChatMessage[]): unknown[] {
     if (message.role === "tool") {
       if (
         !validText(message.content, 64 * 1024) ||
-        !validId(message.toolCallId)
+        !validId(message.toolCallId) ||
+        (provider === "gemini" && !toolNames.has(message.toolCallId))
       )
         throw new ApiProviderError("invalid_request");
       return {
         role: "tool",
         content: message.content,
         tool_call_id: message.toolCallId,
+        ...(provider === "gemini"
+          ? { name: toolNames.get(message.toolCallId) }
+          : {}),
       };
     }
     if (message.role === "assistant") {
@@ -100,13 +123,24 @@ function validateMessages(messages: ApiChatMessage[]): unknown[] {
                 if (
                   !validId(call.id) ||
                   !toolNamePattern.test(call.name) ||
-                  !validText(call.arguments, 64 * 1024)
+                  !validText(call.arguments, 64 * 1024) ||
+                  (call.thoughtSignature !== undefined &&
+                    (provider !== "gemini" ||
+                      !validThoughtSignature(call.thoughtSignature)))
                 )
                   throw new ApiProviderError("invalid_request");
+                if (provider === "gemini") toolNames.set(call.id, call.name);
                 return {
                   id: call.id,
                   type: "function",
                   function: { name: call.name, arguments: call.arguments },
+                  ...(call.thoughtSignature === undefined
+                    ? {}
+                    : {
+                        extra_content: {
+                          google: { thought_signature: call.thoughtSignature },
+                        },
+                      }),
                 };
               }),
             }
@@ -149,7 +183,7 @@ function validateTools(
   });
 }
 
-function requestBody(request: ApiChatRequest): string {
+function requestBody(request: ApiChatRequest, provider: ProviderId): string {
   if (!request || typeof request !== "object" || !validId(request.model))
     throw new ApiProviderError("invalid_request");
   if (
@@ -159,7 +193,7 @@ function requestBody(request: ApiChatRequest): string {
       request.maxTokens > 8192)
   )
     throw new ApiProviderError("invalid_request");
-  const messages = validateMessages(request.messages);
+  const messages = validateMessages(request.messages, provider);
   const tools = validateTools(request.tools);
   let body: string;
   try {
@@ -168,7 +202,9 @@ function requestBody(request: ApiChatRequest): string {
       messages,
       stream: false,
       ...(tools?.length ? { tools } : {}),
-      max_tokens: request.maxTokens ?? 4096,
+      ...(provider === "gemini"
+        ? { max_completion_tokens: request.maxTokens ?? 4096 }
+        : { max_tokens: request.maxTokens ?? 4096 }),
     });
   } catch {
     throw new ApiProviderError("invalid_request");
@@ -218,7 +254,10 @@ function decodeModels(raw: unknown): string[] {
   return [...ids].sort();
 }
 
-function decodeCompletion(raw: unknown): ApiChatCompletion {
+function decodeCompletion(
+  raw: unknown,
+  provider: ProviderId,
+): ApiChatCompletion {
   const top = object(raw);
   if (!validId(top.model)) throw new ApiProviderError("invalid_response");
   if (!Array.isArray(top.choices) || top.choices.length < 1)
@@ -249,6 +288,21 @@ function decodeCompletion(raw: unknown): ApiChatCompletion {
   const toolCalls: ApiToolCall[] = (rawCalls ?? []).map((rawCall: unknown) => {
     const call = object(rawCall);
     const functionCall = object(call.function);
+    let thoughtSignature: string | undefined;
+    if (call.extra_content !== undefined) {
+      if (provider !== "gemini") throw new ApiProviderError("invalid_response");
+      const extra = object(call.extra_content);
+      if (Object.keys(extra).length !== 1 || !Object.hasOwn(extra, "google"))
+        throw new ApiProviderError("invalid_response");
+      const google = object(extra.google);
+      if (
+        Object.keys(google).length !== 1 ||
+        !Object.hasOwn(google, "thought_signature") ||
+        !validThoughtSignature(google.thought_signature)
+      )
+        throw new ApiProviderError("invalid_response");
+      thoughtSignature = google.thought_signature;
+    }
     if (
       call.type !== "function" ||
       !validId(call.id) ||
@@ -267,6 +321,7 @@ function decodeCompletion(raw: unknown): ApiChatCompletion {
       id: call.id,
       name: functionCall.name,
       arguments: functionCall.arguments,
+      ...(thoughtSignature === undefined ? {} : { thoughtSignature }),
     };
   });
   if (message.content === null && toolCalls.length === 0)
@@ -306,6 +361,7 @@ export class ApiProviderClient {
   }
 
   private async call(
+    provider: ProviderId,
     url: string,
     apiKey: string,
     method: "GET" | "POST",
@@ -327,6 +383,9 @@ export class ApiProviderClient {
         method,
         headers: {
           Authorization: `Bearer ${apiKey}`,
+          ...(provider === "gemini"
+            ? { "x-goog-api-client": geminiClientHeader }
+            : {}),
           ...(body === undefined ? {} : { "Content-Type": "application/json" }),
         },
         ...(body === undefined ? {} : { body }),
@@ -358,7 +417,9 @@ export class ApiProviderClient {
     signal?: AbortSignal,
   ): Promise<string[]> {
     const url = providerUrls(provider).models;
-    return decodeModels(await this.call(url, apiKey, "GET", undefined, signal));
+    return decodeModels(
+      await this.call(provider, url, apiKey, "GET", undefined, signal),
+    );
   }
 
   async complete(
@@ -369,7 +430,15 @@ export class ApiProviderClient {
   ): Promise<ApiChatCompletion> {
     const url = providerUrls(provider).chat;
     return decodeCompletion(
-      await this.call(url, apiKey, "POST", requestBody(request), signal),
+      await this.call(
+        provider,
+        url,
+        apiKey,
+        "POST",
+        requestBody(request, provider),
+        signal,
+      ),
+      provider,
     );
   }
 }

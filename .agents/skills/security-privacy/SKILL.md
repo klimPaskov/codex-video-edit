@@ -26,11 +26,11 @@ description: Review Electron, files, capture, Codex, assets, and deletion bounda
 
 Build a threat list for each changed boundary. Add abuse and failure tests. Verify secrets and raw logs do not enter renderer state, project files, screenshots, or crash output.
 
-For OpenAI API and DeepSeek, test that malformed keys and malicious model output cannot choose a URL, escape edit scope, invoke Codex/MCP privileges, or bypass draft sequence/hash checks. Treat a network model response as untrusted, not as an authorized tool call.
+For OpenAI API, DeepSeek and Gemini API, test that malformed keys and malicious model output cannot choose a URL, escape edit scope, invoke Codex/MCP privileges, or bypass draft sequence/hash checks. Gemini function-call thought signatures are bounded opaque turn-local metadata in main; reject foreign/malformed metadata and never persist or expose a signature. Treat a network model response as untrusted, not as an authorized tool call.
 
 For native remembered-key evidence, require packaged Electron, a real secure OS backend (the isolated Linux GNOME Secret Service path uses `gnome_libsecret`), private input and protected-file permissions, live model revalidation after restart, no key in renderer state or plaintext protected bytes, and explicit removal. Keep the credential and screenshots outside Git. This one backend does not establish Windows/macOS keyring behavior or paid provider editing.
 
-For synthetic native turns for both API providers, inject only into the isolated main process and reject every URL outside the selected fixed reviewed provider routes. Assert source/baseline preservation, stale rejection, shared undo and key/raw-response redaction in persisted conversation. Do not treat synthetic model output as an authenticated provider edit or permit renderer-supplied transport overrides.
+For synthetic native turns for all three API providers, inject only into the isolated main process and reject every URL outside the selected fixed reviewed provider routes. Assert source/baseline preservation, stale rejection, shared undo and key/raw-response redaction in persisted conversation. For Gemini 3, assert exact thought-signature replay with matching tool results and no signature in persisted state. Do not treat synthetic model output as an authenticated provider edit or permit renderer-supplied transport overrides.
 
 Map provider 429 to fixed rate-or-quota recovery text without persisting raw response bodies, headers, account data or credentials. A live-key test may keep status codes only in ignored private evidence; delete any transferred mode-600 key file before launching Electron. Never publish the live project, screenshot or test transcript.
 

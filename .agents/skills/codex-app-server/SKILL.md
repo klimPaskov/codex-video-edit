@@ -11,7 +11,7 @@ Changing AI login, model selection, skills, threads, streaming, interruption, ap
 
 ## Requirements
 
-- Official Codex app-server for the Codex subscription path; ADR 0014 adds separate fixed-endpoint OpenAI API and DeepSeek adapters, never a substitute Codex transport.
+- Official Codex app-server for the Codex subscription path; ADRs 0014 and 0015 add separate fixed-endpoint OpenAI API, DeepSeek and Gemini API adapters, never a substitute Codex transport.
 - Stdio JSONL transport.
 - Initialize handshake before other requests.
 - Generate protocol types from the pinned binary.
@@ -92,7 +92,7 @@ For an API-provider turn, require an explicit user start action because that cal
 
 For a remembered API key, save its selected model in the same OS-protected key record and revalidate that ID against fresh provider discovery on restart. A key replacement must clear the previous selection even when the new account offers the same model. Keep session-only model selection in memory only, and migrate older key-only ciphertext without exposing the key. Do not count fake secure-storage tests as native OS-keyring acceptance. The packaged Linux GNOME Secret Service test in `tests/native/api-provider-remembered-model.test.ts` verifies this one backend and live OpenAI catalog only; retain separate evidence gates for other OS backends, DeepSeek and paid edits.
 
-The synthetic packaged API-provider draft fixture must run both OpenAI and DeepSeek. It may replace `fetch` only inside isolated Electron main after startup; each run must assert its fixed destinations, a synthetic key, the real imported project, committed journal/preview/undo and no external completion. Label visible responses as synthetic and keep authenticated paid-provider edit acceptance separate. The pinned Codex 0.142.3 planner adds MCP resource helpers and a plan tool whenever the owned MCP server is present; empty environments and invocation quarantine do not establish an exact model-visible six-tool allowlist. Require authoritative parent/child effective tool specifications before P2-07 acceptance.
+The synthetic packaged API-provider draft fixture must run OpenAI, DeepSeek and Gemini separately. It may replace `fetch` only inside isolated Electron main after startup; each run must assert its fixed destinations, a synthetic key, the real imported project, committed journal/preview/undo and no external completion. Gemini 3 fixtures must assert exact thought-signature replay within the tool loop and absence from persisted/renderer state. Label visible responses as synthetic and keep authenticated paid-provider edit acceptance separate. The pinned Codex 0.142.3 planner adds MCP resource helpers and a plan tool whenever the owned MCP server is present; empty environments and invocation quarantine do not establish an exact model-visible six-tool allowlist. Require authoritative parent/child effective tool specifications before P2-07 acceptance.
 
 For a live API-key fixture, make the explicit Send through packaged Electron and record only bounded HTTP status classifications in private evidence. A 429 may mean rate or quota; map it to fixed redacted recovery text, require no journal commit unless a validated tool succeeds, and stop paid retries until account state changes. Synthetic 429 injection can verify native error presentation but cannot satisfy authenticated edit acceptance.
 
