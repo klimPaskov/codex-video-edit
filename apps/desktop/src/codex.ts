@@ -12,6 +12,10 @@ import type {
 } from "../../../packages/codex-bridge/src/thread-stream.ts";
 import { CodexTransportError } from "../../../packages/codex-bridge/src/transport.ts";
 import {
+  ProjectThreadRegistry,
+  type ProjectThreadToolRoute,
+} from "../../../packages/codex-bridge/src/thread-registry.ts";
+import {
   resolveCodexRuntime,
   CodexRuntimeError,
 } from "../../../packages/codex-bridge/src/runtime.ts";
@@ -27,6 +31,7 @@ import {
   type CodexThreadView,
 } from "../../../packages/domain/src/codex-thread-view.ts";
 import type { CodexMcpRuntime } from "../../../packages/codex-tools/src/broker.ts";
+import type { CodexVideoEditToolName } from "../../../packages/codex-tools/src/service.ts";
 
 type Client = Pick<
   CodexClient,
@@ -53,6 +58,11 @@ export interface DesktopCodexDependencies {
   directory: (path: string) => Promise<void>;
   settings: Pick<CodexSettingsStore, "read" | "write">;
   mcpRuntime?: CodexMcpRuntime;
+  dynamicToolInvoker?: (
+    name: CodexVideoEditToolName,
+    input: unknown,
+  ) => Promise<unknown>;
+  toolRouteForProject: (projectId: string) => Promise<ProjectThreadToolRoute>;
 }
 
 const initial = (): CodexView => ({
@@ -75,6 +85,13 @@ const initialThread = (): CodexThreadView => ({
 });
 const PROJECT_THREAD_INSTRUCTIONS =
   "You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user's requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. Describe an edit as applied only after its tool result confirms the commit. Native child agents are disabled in this build; do not spawn one or claim one was spawned. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.";
+const DYNAMIC_PROJECT_THREAD_INSTRUCTIONS = PROJECT_THREAD_INSTRUCTIONS.replace(
+  "project.get_summary and timeline.get_summary",
+  "codex_video_edit__project_get_summary and codex_video_edit__timeline_get_summary",
+)
+  .replace("codex-video-edit MCP tools", "codex_video_edit host tools")
+  .replace("cut.split", "codex_video_edit__cut_split")
+  .replace("cut.delete_range", "codex_video_edit__cut_delete_range");
 const preferredSubscriptionModel: CodexSelection = {
   modelId: "gpt-5.6-luna",
   reasoning: "high",
@@ -101,6 +118,7 @@ export class DesktopCodex {
   private closing: Promise<void> | undefined;
   private authKey = "";
   private authRevision = 0;
+  private clientRoute: ProjectThreadToolRoute = "mcp";
   private usePreferredDefault = false;
   private thread = initialThread();
   private readonly threadItems = new Map<string, string>();
@@ -125,6 +143,14 @@ export class DesktopCodex {
       resolveRuntime: resolveCodexRuntime,
       directory: (path) => this.directory(path),
       settings: new CodexSettingsStore(join(userData, "codex-settings")),
+      toolRouteForProject: async (projectId) => {
+        const registry = await ProjectThreadRegistry.open(
+          join(userData, "codex", "context", "threads"),
+        );
+        return (
+          (await registry.bindingForProject(projectId))?.toolRoute ?? "dynamic"
+        );
+      },
       ...dependencies,
     };
     this.settings = this.dependencies.settings;
@@ -322,8 +348,13 @@ export class DesktopCodex {
     )
       throw new Error("Invalid account storage");
   }
-  async reconnect(): Promise<CodexView> {
+  async reconnect(
+    route: ProjectThreadToolRoute = this.clientRoute,
+  ): Promise<CodexView> {
     if (this.stopped || this.state.busy) return this.snapshot();
+    if (route !== "mcp" && route !== "dynamic")
+      throw new Error("Invalid Codex tool route.");
+    this.clientRoute = route;
     this.attempted = true;
     const generation = ++this.generation;
     let finishStartup!: () => void;
@@ -386,9 +417,13 @@ export class DesktopCodex {
           if (this.current(generation, client))
             this.applyThreadHistory(history);
         },
-        ...(this.dependencies.mcpRuntime
-          ? { mcp: this.dependencies.mcpRuntime }
-          : {}),
+        ...(route === "mcp"
+          ? this.dependencies.mcpRuntime
+            ? { mcp: this.dependencies.mcpRuntime }
+            : {}
+          : this.dependencies.dynamicToolInvoker
+            ? { dynamicToolInvoker: this.dependencies.dynamicToolInvoker }
+            : {}),
       });
       this.client = client;
       await client.connect();
@@ -677,6 +712,16 @@ export class DesktopCodex {
       this.thread.status !== "closed"
     )
       throw new Error("Codex is not ready to open this project conversation.");
+    const route = await this.dependencies.toolRouteForProject(projectId);
+    if (route !== this.clientRoute) await this.reconnect(route);
+    if (
+      !this.client ||
+      this.state.connection !== "connected" ||
+      this.state.account !== "signed_in" ||
+      !this.state.selection ||
+      this.state.busy
+    )
+      throw new Error("Codex could not connect for this project conversation.");
     const requestModel = this.requestModels.get(this.state.selection.modelId);
     if (!requestModel)
       throw new Error(
@@ -694,7 +739,7 @@ export class DesktopCodex {
         projectId,
         model: requestModel,
         effort: this.state.selection.reasoning,
-        developerInstructions: `${PROJECT_THREAD_INSTRUCTIONS}\nRead-tool input for this main-owned active project: ${JSON.stringify({ schema_version: "1.0", project_id: projectId })}. Use this exact project_id; do not guess identifiers or ask the user to provide it. Obtain draft identifiers, sequence and hash from the read tools before editing.`,
+        developerInstructions: `${route === "mcp" ? PROJECT_THREAD_INSTRUCTIONS : DYNAMIC_PROJECT_THREAD_INSTRUCTIONS}\nRead-tool input for this main-owned active project: ${JSON.stringify({ schema_version: "1.0", project_id: projectId })}. Use this exact project_id; do not guess identifiers or ask the user to provide it. Obtain draft identifiers, sequence and hash from the read tools before editing.`,
       });
       if (this.thread.status === "opening") this.thread.status = "ready";
     } catch {

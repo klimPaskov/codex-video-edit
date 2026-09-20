@@ -456,6 +456,10 @@ try {
         "entries" in registry &&
         Array.isArray(registry.entries),
     );
+    if (process.argv.includes("--require-dynamic")) {
+      assert.ok("schemaVersion" in registry);
+      assert.equal(registry.schemaVersion, 2);
+    }
     const entries = registry.entries.filter(
       (entry: unknown) =>
         entry &&
@@ -472,6 +476,10 @@ try {
         typeof entry.threadId === "string" &&
         entry.threadId.length > 0,
     );
+    if (process.argv.includes("--require-dynamic")) {
+      assert.ok("toolRoute" in entry);
+      assert.equal(entry.toolRoute, "dynamic");
+    }
     return entry.threadId;
   }
   mark("real-trim-open-conversation");
@@ -698,6 +706,7 @@ try {
         skillCount: account.value.skills.length,
         authenticated: true,
         lunaHighTurn: requireLunaHigh,
+        dynamicToolRoute: process.argv.includes("--require-dynamic"),
         discoveredSelectionPersisted: true,
         trimSequence: 1,
         undoSequence: 2,

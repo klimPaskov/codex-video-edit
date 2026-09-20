@@ -208,22 +208,22 @@ async function start(): Promise<void> {
     if (!window || window.isDestroyed()) return;
     window.webContents.send(channels.projectDraftChanged, notice);
   };
+  const invokeCodexTool = async (name: unknown, input: unknown) => {
+    if (!activeProjectId) throw new CodexVideoEditToolError("inactive_project");
+    const projectId = activeProjectId;
+    return invokeWithProjectDraftRefresh({
+      toolName: name,
+      projectId,
+      activeProjectId: () => activeProjectId,
+      work: () =>
+        new CodexVideoEditToolService(projectId, drafts).invoke(name, input),
+      drafts,
+      notify: publishDraftNotice,
+    });
+  };
   mcpBroker = await CodexMcpBroker.open(
     path.join(userData, "mcp-runtime"),
-    async (name, input) => {
-      if (!activeProjectId)
-        throw new CodexVideoEditToolError("inactive_project");
-      const projectId = activeProjectId;
-      return invokeWithProjectDraftRefresh({
-        toolName: name,
-        projectId,
-        activeProjectId: () => activeProjectId,
-        work: () =>
-          new CodexVideoEditToolService(projectId, drafts).invoke(name, input),
-        drafts,
-        notify: publishDraftNotice,
-      });
-    },
+    invokeCodexTool,
   );
   const mcpRuntime = mcpBroker.runtime(
     process.execPath,
@@ -233,7 +233,7 @@ async function start(): Promise<void> {
     process.resourcesPath,
     userData,
     (url) => shell.openExternal(url),
-    { mcpRuntime },
+    { mcpRuntime, dynamicToolInvoker: invokeCodexTool },
   );
   const apiClient = new ApiProviderClient();
   const apiProviders = new DesktopApiProviders(
