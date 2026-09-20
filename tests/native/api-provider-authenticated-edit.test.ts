@@ -141,10 +141,14 @@ async function assertFrame(page: Page, frame: number): Promise<void> {
     return {
       width: canvas.width,
       height: canvas.height,
-      pixels: Array.from(
-        canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height)
-          .data,
-      ),
+      pixels:
+        canvas.width > 0 && canvas.height > 0
+          ? Array.from(
+              canvas
+                .getContext("2d")!
+                .getImageData(0, 0, canvas.width, canvas.height).data,
+            )
+          : [],
     };
   });
   assert.equal(actual.width, 96);
@@ -462,7 +466,20 @@ try {
     .click();
   await expect(page.locator("#frame")).toBeVisible();
   await expect(page.locator("#seek")).toHaveAttribute("max", "500000");
-  await assertFrame(page, 1);
+  await expect
+    .poll(
+      async () => {
+        try {
+          await assertFrame(page, 1);
+          return true;
+        } catch (error) {
+          if (error instanceof assert.AssertionError) return false;
+          throw error;
+        }
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true);
   assert.equal(sha256(await readFile(source)), sourceHash);
   assert.equal(
     sha256(await readFile(baseline.source.managed_path)),
