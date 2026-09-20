@@ -11,9 +11,12 @@ import type { NonSteerableTurnKind } from "./NonSteerableTurnKind.ts";
  */
 export type CodexErrorInfo =
   | "contextWindowExceeded"
+  | "sessionBudgetExceeded"
   | "usageLimitExceeded"
+  | "rateLimitExceeded"
   | "serverOverloaded"
   | "cyberPolicy"
+  | "misalignmentPolicyViolation"
   | { httpConnectionFailed: { httpStatusCode: number | null } }
   | { responseStreamConnectionFailed: { httpStatusCode: number | null } }
   | "internalServerError"

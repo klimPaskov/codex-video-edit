@@ -34,7 +34,7 @@ import { codexVideoEditToolNames } from "../../codex-tools/src/service.ts";
 import { codexVideoEditMcpTools } from "../../codex-tools/src/mcp-tools.ts";
 import type { CodexMcpRuntime } from "../../codex-tools/src/broker.ts";
 
-export const CODEX_VERSION = "0.142.3";
+export const CODEX_VERSION = "0.155.1";
 const execute = promisify(execFile);
 const environmentKeys = ["PATH", "SystemRoot", "WINDIR", "TMP", "TEMP"];
 const fixedAppServerArguments = [
@@ -46,15 +46,25 @@ const fixedAppServerArguments = [
   "-c",
   'model_provider="openai"',
   "-c",
+  "apps._default.enabled=false",
+  "-c",
+  "apps._default.destructive_enabled=false",
+  "-c",
+  "apps._default.open_world_enabled=false",
+  "-c",
   'web_search="disabled"',
   "-c",
   "features.shell_tool=false",
   "-c",
   "features.unified_exec=false",
   "-c",
-  "features.multi_agent=true",
+  "features.multi_agent=false",
   "-c",
   "features.multi_agent_v2=false",
+  "-c",
+  'features.code_mode.excluded_tool_namespaces=["mcp__codex_apps","multi_agent_v1","skills","functions","image_gen"]',
+  "-c",
+  "features.code_mode_host.disable_in_process_fallback=true",
   "-c",
   "features.js_repl=false",
   "-c",

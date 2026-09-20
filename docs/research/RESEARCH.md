@@ -4,12 +4,6 @@ Research date: 2026-09-04
 
 Current foundation review: [P0 research, checked 2026-09-05](P0_FOUNDATION.md). Use that report for current dependency observations, protocol corrections, and explicit limits; the earlier summary below is background research.
 
-## Astra
-
-OpenAI describes GPT-6 Astra as strong in computer use, browsing, software engineering, and frontend QA. The implementation prompt therefore requires research, native app launch, visible inspection, and iterative correction. Model capability does not remove the need for deterministic tests and evidence.
-
-Source: https://openai.com/index/gpt-6-astra/
-
 ## Borumi
 
 Borumi presents a three-part creator flow: ideate, record, and edit. Its public feature set includes scene-by-scene recording, screen, camera, microphone, separate sources, retries, layouts, automatic timeline, transcript editing, noise removal, multiple canvas formats, automatic zooms, system audio, cursor controls, silence removal, teleprompter, and editor shortcuts.

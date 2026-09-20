@@ -6,6 +6,7 @@ import type { ReasoningEffort } from "../ReasoningEffort.ts";
 import type { ModelAvailabilityNux } from "./ModelAvailabilityNux.ts";
 import type { ModelServiceTier } from "./ModelServiceTier.ts";
 import type { ModelUpgradeInfo } from "./ModelUpgradeInfo.ts";
+import type { MultiAgentVersion } from "./MultiAgentVersion.ts";
 import type { ReasoningEffortOption } from "./ReasoningEffortOption.ts";
 
 export type Model = {
@@ -16,11 +17,16 @@ export type Model = {
   availabilityNux: ModelAvailabilityNux | null;
   displayName: string;
   description: string;
+  modelSpecialty: string | null;
   hidden: boolean;
   supportedReasoningEfforts: Array<ReasoningEffortOption>;
   defaultReasoningEffort: ReasoningEffort;
   inputModalities: Array<InputModality>;
   supportsPersonality: boolean;
+  /**
+   * Multi-agent runtime declared by this model, when available.
+   */
+  multiAgentVersion: MultiAgentVersion | null;
   /**
    * Deprecated: use `serviceTiers` instead.
    */

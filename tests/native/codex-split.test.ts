@@ -1,20 +1,25 @@
-/** Real Codex clip-split test using synthetic footage and a guest-owned account. */
+/** Real Codex split with synthetic or two ordered private guest sources. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import {
   access,
+  chmod,
+  copyFile,
   mkdir,
   mkdtemp,
   readFile,
   readdir,
   realpath,
+  stat,
   writeFile,
 } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { _electron, expect } from "playwright/test";
 import type { Page } from "playwright/test";
+import { maxFramePixels } from "../../packages/domain/src/library.ts";
 import { assertTwoSourceInitialProjectSnapshot } from "../../packages/domain/src/project.ts";
 import type { DraftTransactionRecord } from "../../packages/domain/src/draft-transaction.ts";
 import { MediaLibrary } from "../../packages/media-engine/src/library.ts";
@@ -31,17 +36,27 @@ const executablePath = process.argv[2];
 const configArgument = process.argv[3];
 assert.ok(executablePath && isAbsolute(executablePath));
 assert.ok(configArgument && isAbsolute(configArgument));
-const configRoot = await realpath(configArgument);
+let configRoot = await realpath(configArgument);
 assert.equal(
   configRoot,
   resolve(configArgument),
   "Config root must not redirect",
 );
 assert.notEqual(configRoot, "/");
+const providedPaths = process.argv
+  .slice(4)
+  .filter(
+    (argument) =>
+      argument !== "--inspect" &&
+      argument !== "--require-luna" &&
+      argument !== "--probe-surface",
+  );
 assert.ok(
-  process.argv.slice(4).every((argument) => argument === "--inspect"),
-  "Only the optional guest inspection flag is supported",
+  providedPaths.length === 0 || providedPaths.length === 2,
+  "Supply exactly two optional guest media paths",
 );
+for (const sourcePath of providedPaths)
+  assert.ok(isAbsolute(sourcePath), "Guest media paths must be absolute");
 async function fileHash(path: string): Promise<string> {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(path)) hash.update(chunk);
@@ -50,6 +65,19 @@ async function fileHash(path: string): Promise<string> {
 const resultRoot = resolve("test-results");
 await mkdir(resultRoot, { recursive: true });
 const evidence = await mkdtemp(join(resultRoot, "native-codex-split-"));
+if (process.argv.includes("--require-luna")) {
+  const source = join(configRoot, "codex-video-edit/codex/account/auth.json");
+  const info = await stat(source);
+  assert.ok(info.isFile());
+  assert.equal(info.mode & 0o077, 0);
+  const fresh = await mkdtemp("/tmp/codex-video-edit-luna-edit-");
+  await chmod(fresh, 0o700);
+  const target = join(fresh, "codex-video-edit/codex/account");
+  await mkdir(target, { recursive: true, mode: 0o700 });
+  await copyFile(source, join(target, "auth.json"));
+  await chmod(join(target, "auth.json"), 0o600);
+  configRoot = fresh;
+}
 let step = "fixture";
 const mark = (value: string): void => {
   step = value;
@@ -80,40 +108,51 @@ await writeFile(
 );
 
 const sources: string[] = [];
-for (const [index, pattern] of ["testsrc", "testsrc2"].entries()) {
-  const source = join(evidence, `part-${index + 1}.mp4`);
-  await runProcess({
-    executable: "ffmpeg",
-    args: [
-      "-v",
-      "error",
-      "-nostdin",
-      "-f",
-      "lavfi",
-      "-i",
-      `${pattern}=size=96x64:rate=2:duration=1`,
-      "-vf",
-      "setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
-      "-c:v",
-      "libx264",
-      "-qp",
-      "0",
-      "-pix_fmt",
-      "yuv420p",
-      "-color_range",
-      "tv",
-      "-colorspace",
-      "bt709",
-      "-color_primaries",
-      "bt709",
-      "-color_trc",
-      "bt709",
-      source,
-    ],
-  });
-  sources.push(source);
+if (providedPaths.length === 2) {
+  for (const sourcePath of providedPaths)
+    sources.push(
+      await realpath(sourcePath).catch(() => {
+        throw new Error("Private guest source could not be resolved");
+      }),
+    );
+} else {
+  for (const [index, pattern] of ["testsrc", "testsrc2"].entries()) {
+    const source = join(evidence, `part-${index + 1}.mp4`);
+    await runProcess({
+      executable: "ffmpeg",
+      args: [
+        "-v",
+        "error",
+        "-nostdin",
+        "-f",
+        "lavfi",
+        "-i",
+        `${pattern}=size=96x64:rate=2:duration=1`,
+        "-vf",
+        "setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
+        "-c:v",
+        "libx264",
+        "-qp",
+        "0",
+        "-pix_fmt",
+        "yuv420p",
+        "-color_range",
+        "tv",
+        "-colorspace",
+        "bt709",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        source,
+      ],
+    });
+    sources.push(source);
+  }
 }
-const originalHashes = await Promise.all(sources.map(fileHash));
+const originalHashes = await Promise.all(sources.map(fileHash)).catch(() => {
+  throw new Error("Guest source integrity could not be read");
+});
 
 const env = { ...process.env, XDG_CONFIG_HOME: configRoot };
 const launch = () =>
@@ -126,9 +165,11 @@ const launch = () =>
 let electron = await launch();
 let page: Page | undefined;
 async function canvasHash(active: Page): Promise<string | null> {
-  return active.locator("canvas").evaluate(async (node) => {
+  return active.locator("canvas").evaluate(async (node, pixelLimit) => {
     const canvas = node as HTMLCanvasElement;
     if (!canvas.width || !canvas.height) return null;
+    if (canvas.width * canvas.height > pixelLimit)
+      throw new Error("Canvas exceeds supported preview bounds");
     const pixels = canvas
       .getContext("2d")!
       .getImageData(0, 0, canvas.width, canvas.height).data;
@@ -138,7 +179,7 @@ async function canvasHash(active: Page): Promise<string | null> {
     return Array.from(digest, (byte) =>
       byte.toString(16).padStart(2, "0"),
     ).join("");
-  });
+  }, maxFramePixels);
 }
 function clock(timeUs: number): string {
   const seconds = timeUs / 1_000_000;
@@ -192,6 +233,11 @@ try {
     .toBe(true);
   const account = await page.evaluate(() => window.desktop.getCodex());
   assert.ok(account.ok);
+  if (process.argv.includes("--require-luna"))
+    assert.deepEqual(account.value.selection, {
+      modelId: "gpt-5.6-luna",
+      reasoning: "high",
+    });
   if (!account.value.selection) {
     const model = account.value.models[0]!;
     await page.locator("#codex-model").selectOption(model.id);
@@ -262,26 +308,34 @@ try {
   assertTwoSourceInitialProjectSnapshot(baseline);
   const totalUs = baseline.timeline.duration_us;
   const joinUs = baseline.timeline.clips[0]!.timeline_end_us;
-  const splitUs = 500_000;
-  assert.equal(totalUs, 2_000_000);
-  assert.equal(joinUs, 1_000_000);
+  const splitUs = Math.min(500_000, Math.floor(joinUs / 2));
+  if (providedPaths.length === 0) {
+    assert.equal(totalUs, 2_000_000);
+    assert.equal(joinUs, 1_000_000);
+  }
   const target = baseline.timeline.clips[0]!;
   assert.ok(
     target.timeline_start_us < splitUs && splitUs < target.timeline_end_us,
   );
   await expect(page.locator("#duration")).toHaveText(` / ${clock(totalUs)}`);
   const library = new MediaLibrary(join(userData, "media-library"));
-  const firstFrame = Buffer.from(
-    (await library.frame(baseline.sources[0].source_id, 0)).rgbaBase64,
-    "base64",
+  const firstFrameHash = sha256(
+    Buffer.from(
+      (await library.frame(baseline.sources[0].source_id, 0)).rgbaBase64,
+      "base64",
+    ),
   );
-  const splitRightFrame = Buffer.from(
-    (await library.frame(baseline.sources[0].source_id, splitUs)).rgbaBase64,
-    "base64",
+  const splitRightFrameHash = sha256(
+    Buffer.from(
+      (await library.frame(baseline.sources[0].source_id, splitUs)).rgbaBase64,
+      "base64",
+    ),
   );
-  const secondSourceFrame = Buffer.from(
-    (await library.frame(baseline.sources[1].source_id, 0)).rgbaBase64,
-    "base64",
+  const secondSourceFrameHash = sha256(
+    Buffer.from(
+      (await library.frame(baseline.sources[1].source_id, 0)).rgbaBase64,
+      "base64",
+    ),
   );
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await expect(page.locator("#edit-actions")).toBeVisible();
@@ -304,6 +358,37 @@ try {
   await expect
     .poll(async () => (await thread()).status, { timeout: 90_000 })
     .toBe("ready");
+  if (process.argv.includes("--probe-surface")) {
+    mark("safe-tool-surface-probe");
+    const diagnostic =
+      "In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.mcp__codex_video_edit__project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('mcp__codex_video_edit__')).length, unownedNames: ALL_TOOLS.filter(x => !x.name.startsWith('mcp__codex_video_edit__')).map(x => x.name).slice(0, 20)}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.";
+    await page.locator("#codex-thread-input").fill(diagnostic);
+    await page.locator("#send-codex-thread").click();
+    await expect
+      .poll(async () => (await thread()).status, { timeout: 120_000 })
+      .toBe("ready");
+    const diagnosticState = await thread();
+    const answer = diagnosticState.messages
+      .filter((message) => message.role === "codex" && message.complete)
+      .at(-1)?.text;
+    assert.ok(answer);
+    await writeFile(
+      join(evidence, "tool-surface-probe.json"),
+      JSON.stringify({ answer: answer.slice(0, 500) }),
+    );
+    assert.match(answer, /"owned"\s*:\s*"function"/u);
+    assert.match(answer, /"unownedCount"\s*:\s*0\b/u);
+    for (const key of [
+      "apps",
+      "goals",
+      "skills",
+      "spawn",
+      "images",
+      "web",
+      "shell",
+    ])
+      assert.match(answer, new RegExp(`"${key}"\\s*:\\s*"undefined"`, "u"));
+  }
   async function records(): Promise<DraftTransactionRecord[]> {
     const folder = join(projectFolder, "draft/journal");
     const names = (await readdir(folder).catch(() => []))
@@ -334,22 +419,29 @@ try {
         if (state.status === "failed" || state.status === "uncertain")
           throw new Error("Real Codex turn failed; details omitted");
         const journal = await records();
-        if (
-          state.status === "running" &&
-          journal.some(
-            (record) =>
-              record.origin === "codex" &&
-              record.status === "committed" &&
-              record.after.timeline.clips.length === 3,
-          )
-        ) {
+        const committedSplit = journal.find(
+          (record) =>
+            record.origin === "codex" &&
+            record.status === "committed" &&
+            record.after.timeline.clips.length === 3,
+        );
+        if (state.status === "running" && committedSplit) {
           const projected = await page!.evaluate(() =>
             window.desktop.listProjects(),
           );
           if (
             projected.ok &&
-            projected.value.find((item) => item.id === combined.id)?.clips
-              ?.length === 3
+            isDeepStrictEqual(
+              projected.value.find((item) => item.id === combined.id)?.clips,
+              committedSplit.after.timeline.clips.map((clip) => ({
+                id: clip.clip_id,
+                sourceId: clip.source_id,
+                timelineStartUs: clip.timeline_start_us,
+                timelineEndUs: clip.timeline_end_us,
+                sourceStartUs: clip.source_start_us,
+                sourceEndUs: clip.source_end_us,
+              })),
+            )
           )
             committedDuringTurn = true;
         }
@@ -395,19 +487,19 @@ try {
   await expect(page.locator("#duration")).toHaveText(` / ${clock(totalUs)}`);
   await seek(page, 0);
   await expect
-    .poll(async () => (await canvasHash(page!)) === sha256(firstFrame), {
+    .poll(async () => (await canvasHash(page!)) === firstFrameHash, {
       timeout: 30_000,
     })
     .toBe(true);
   await seek(page, splitUs);
   await expect
-    .poll(async () => (await canvasHash(page!)) === sha256(splitRightFrame), {
+    .poll(async () => (await canvasHash(page!)) === splitRightFrameHash, {
       timeout: 30_000,
     })
     .toBe(true);
   await seek(page, joinUs);
   await expect
-    .poll(async () => (await canvasHash(page!)) === sha256(secondSourceFrame), {
+    .poll(async () => (await canvasHash(page!)) === secondSourceFrameHash, {
       timeout: 30_000,
     })
     .toBe(true);
@@ -455,7 +547,7 @@ try {
     .toBe(2);
   await seek(page, 0);
   await expect
-    .poll(async () => (await canvasHash(page!)) === sha256(firstFrame), {
+    .poll(async () => (await canvasHash(page!)) === firstFrameHash, {
       timeout: 30_000,
     })
     .toBe(true);
@@ -480,7 +572,7 @@ try {
   await seek(page, joinUs);
   mark("reopen-seek");
   await expect
-    .poll(async () => (await canvasHash(page!)) === sha256(secondSourceFrame), {
+    .poll(async () => (await canvasHash(page!)) === secondSourceFrameHash, {
       timeout: 30_000,
     })
     .toBe(true);
@@ -522,6 +614,7 @@ try {
         packaged: true,
         nativeWindow: true,
         sourceCount: 2,
+        privateInputs: providedPaths.length === 2,
         committedDuringTurn,
         exactSplitAndJoinFrames: true,
         sharedUndo: true,

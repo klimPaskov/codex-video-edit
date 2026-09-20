@@ -10,6 +10,7 @@ import type { AskForApproval } from "./AskForApproval.ts";
 import type { DynamicToolSpec } from "./DynamicToolSpec.ts";
 import type { SandboxMode } from "./SandboxMode.ts";
 import type { SelectedCapabilityRoot } from "./SelectedCapabilityRoot.ts";
+import type { ThreadHistoryMode } from "./ThreadHistoryMode.ts";
 import type { ThreadSource } from "./ThreadSource.ts";
 import type { ThreadStartSource } from "./ThreadStartSource.ts";
 import type { TurnEnvironmentParams } from "./TurnEnvironmentParams.ts";
@@ -17,6 +18,11 @@ import type { TurnEnvironmentParams } from "./TurnEnvironmentParams.ts";
 export type ThreadStartParams = {
   model?: string | null;
   modelProvider?: string | null;
+  /**
+   * Allow a provider with an authoritative static model catalog to replace an unavailable
+   * requested model with its default.
+   */
+  allowProviderModelFallback?: boolean;
   serviceTier?: string | null | null;
   cwd?: string | null;
   /**
@@ -44,11 +50,20 @@ export type ThreadStartParams = {
    */
   multiAgentMode?: MultiAgentMode | null;
   ephemeral?: boolean | null;
+  /**
+   * Persisted thread history contract to use for this new thread.
+   */
+  historyMode?: ThreadHistoryMode | null;
   sessionStartSource?: ThreadStartSource | null;
   /**
    * Optional client-supplied analytics source classification for this thread.
    */
   threadSource?: ThreadSource | null;
+  /**
+   * Optional project identity for this new thread. Durable threads persist
+   * the assignment; ephemeral threads expose it only in live responses.
+   */
+  projectId?: string | null;
   /**
    * Optional sticky environments for this thread.
    *

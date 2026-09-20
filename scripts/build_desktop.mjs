@@ -28,7 +28,7 @@ const evidence = join(root, "test-results");
 await mkdir(evidence, { recursive: true });
 const output = await mkdtemp(join(evidence, "desktop-build-"));
 const staging = join(output, "app");
-const codexVersion = "0.142.3";
+const codexVersion = "0.155.1";
 const codexPackage = join(root, "node_modules/@openai/codex-linux-x64");
 const codexPackageMetadata = JSON.parse(
   await readFile(join(codexPackage, "package.json"), "utf8"),
@@ -39,12 +39,23 @@ const codexSource = join(
   codexPackage,
   "vendor/x86_64-unknown-linux-musl/bin/codex",
 );
+const codeModeHostSource = join(
+  codexPackage,
+  "vendor/x86_64-unknown-linux-musl/bin/codex-code-mode-host",
+);
 assert.ok((await lstat(codexSource)).isFile());
 assert.ok(!(await lstat(codexSource)).isSymbolicLink());
+assert.ok((await lstat(codeModeHostSource)).isFile());
+assert.ok(!(await lstat(codeModeHostSource)).isSymbolicLink());
 const codexResources = join(output, "codex");
 await mkdir(codexResources);
 await copyFile(codexSource, join(codexResources, "codex"));
 await chmod(join(codexResources, "codex"), 0o755);
+await copyFile(
+  codeModeHostSource,
+  join(codexResources, "codex-code-mode-host"),
+);
+await chmod(join(codexResources, "codex-code-mode-host"), 0o755);
 await copyFile(
   join(root, "licenses/CODEX-APACHE-2.0.txt"),
   join(codexResources, "LICENSE-APACHE-2.0.txt"),
@@ -55,13 +66,16 @@ async function sha256(path) {
   return hash.digest("hex");
 }
 const codexManifest = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   version: codexVersion,
   platform: "linux",
   arch: "x64",
   executable: "codex",
   size: (await lstat(join(codexResources, "codex"))).size,
   sha256: await sha256(join(codexResources, "codex")),
+  hostExecutable: "codex-code-mode-host",
+  hostSize: (await lstat(join(codexResources, "codex-code-mode-host"))).size,
+  hostSha256: await sha256(join(codexResources, "codex-code-mode-host")),
   licenseSha256: await sha256(join(codexResources, "LICENSE-APACHE-2.0.txt")),
 };
 await writeFile(

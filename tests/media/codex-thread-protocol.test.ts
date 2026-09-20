@@ -23,6 +23,28 @@ const policy = {
   baseInstructions: "Edit only through the guarded video tools.",
   developerInstructions: "Keep source media immutable.",
 };
+const restrictedFeatures = {
+  shell_tool: false,
+  multi_agent: false,
+  multi_agent_v2: false,
+  code_mode: {
+    excluded_tool_namespaces: [
+      "mcp__codex_apps",
+      "multi_agent_v1",
+      "skills",
+      "functions",
+      "image_gen",
+    ],
+  },
+  code_mode_host: { disable_in_process_fallback: true },
+};
+const restrictedApps = {
+  _default: {
+    enabled: false,
+    destructive_enabled: false,
+    open_world_enabled: false,
+  },
+};
 
 test("experimental initialization and no-environment requests are exact", () => {
   assert.deepEqual(buildExperimentalInitialize("0.0.0"), {
@@ -50,12 +72,9 @@ test("experimental initialization and no-environment requests are exact", () => 
     config: {
       forced_login_method: "chatgpt",
       model_provider: "openai",
+      apps: restrictedApps,
       project_root_markers: [],
-      features: {
-        shell_tool: false,
-        multi_agent: true,
-        multi_agent_v2: false,
-      },
+      features: restrictedFeatures,
       web_search: "disabled",
     },
     ephemeral: false,
@@ -79,12 +98,9 @@ test("experimental initialization and no-environment requests are exact", () => 
     config: {
       forced_login_method: "chatgpt",
       model_provider: "openai",
+      apps: restrictedApps,
       project_root_markers: [],
-      features: {
-        shell_tool: false,
-        multi_agent: true,
-        multi_agent_v2: false,
-      },
+      features: restrictedFeatures,
       web_search: "disabled",
     },
     excludeTurns: true,

@@ -39,3 +39,5 @@ Map provider 401/403 on a started turn to separate fixed API-connection recovery
 ## Stop condition
 
 Block the phase on unrestricted renderer privileges, source mutation, silent capture, token leakage, path escape, or unconfirmed deletion.
+
+For Codex 0.155.1 Luna code mode, the thread and resume requests must both disable app defaults and exclude unrelated tool namespaces. The matching packaged `codex-code-mode-host` is required and hash-checked. Disable native child agents while effective inherited tool confinement remains unproven; never spawn Astra agents. Test the visible tool surface in a real bounded turn, but do not generalize one successful probe into a permanent allowlist guarantee. Treat a lost Codex connection as a failed run, preserving only redacted private evidence.

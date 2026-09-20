@@ -10,10 +10,18 @@ import type { SpendControlLimitSnapshot } from "./SpendControlLimitSnapshot.ts";
 export type RateLimitSnapshot = {
   limitId: string | null;
   limitName: string | null;
+  /**
+   * Normal model whose display name and reasoning options describe this quota alias.
+   */
+  normalModelSlug: string | null;
   primary: RateLimitWindow | null;
   secondary: RateLimitWindow | null;
   credits: CreditsSnapshot | null;
   individualLimit: SpendControlLimitSnapshot | null;
+  /**
+   * Backend-reported spend-control state. `None` is unavailable, not a sparse-update recovery.
+   */
+  spendControlReached: boolean | null;
   planType: PlanType | null;
   rateLimitReachedType: RateLimitReachedType | null;
 };

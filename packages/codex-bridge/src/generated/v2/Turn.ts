@@ -7,6 +7,9 @@ import type { TurnItemsView } from "./TurnItemsView.ts";
 import type { TurnStatus } from "./TurnStatus.ts";
 
 export type Turn = {
+  /**
+   * Identifier for this turn. Codex-generated turn IDs are UUIDv7.
+   */
   id: string;
   /**
    * Thread items currently included in this turn payload.

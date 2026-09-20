@@ -4,7 +4,6 @@ Research date: 2026-09-04
 
 | Source | Type | Planning use | Recheck trigger |
 | --- | --- | --- | --- |
-| OpenAI, GPT-6 Astra introduction | Official product source | Confirms current computer-use, browsing, software-engineering, and application QA focus | Before sending the goal prompt to a different model or after a major model update |
 | OpenAI, Codex App Server article | Official architecture source | Supports a long-running local client using bidirectional JSON-RPC over stdio and streamed UI-ready events | Before implementing P2 |
 | OpenAI Codex app-server README | Official protocol source | Confirms current transports, lifecycle, approvals, skills, apps, and auth endpoints | At every pinned Codex binary update |
 | Borumi website and help center | Official product source | Supports scene-by-scene recording, separate sources, retries, layouts, automatic timeline, transcript editing, and automatic zooms as useful product patterns | When new reference screenshots are added |
@@ -15,7 +14,6 @@ Research date: 2026-09-04
 
 ## URLs
 
-- https://openai.com/index/gpt-6-astra/
 - https://openai.com/index/unlocking-the-codex-harness/
 - https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md
 - https://borumi.com/

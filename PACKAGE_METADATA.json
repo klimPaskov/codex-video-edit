@@ -5,8 +5,8 @@
   "status": "P0 and P1 accepted; P2 real Codex integration in progress",
   "working_product_name": "codex-video-edit",
   "target": "Windows-first standalone Electron desktop application",
-  "implementation_agent": "GPT-6 Astra in an isolated computer-use environment",
-  "ai_provider_scope": "Real Codex only for the first release",
+  "implementation_agent": "Codex in an isolated computer-use environment; Astra subagents prohibited",
+  "ai_provider_scope": "Codex subscription plus fixed OpenAI API, DeepSeek, and Gemini API keys",
   "goal_prompt_characters": 3960,
   "task_count": 73,
   "phase_count": 11,
@@ -15,7 +15,7 @@
   "skill_count": 19,
   "subagent_count": 12,
   "schema_example_pair_count": 32,
-  "adr_count": 13,
+  "adr_count": 16,
   "reference_screenshots_included": true,
   "example_video_included": false,
   "notes": [
@@ -23,7 +23,7 @@
     "All twenty native-app reference files are original full-page images from the conversation.",
     "Lossless-first, simplified UI, live Codex, and public development requirements are applied.",
     "The secure packaged native shell and project navigation are accepted within their recorded Linux guest scope.",
-    "Real authenticated Codex editing, capture hardware, complete editing, export, and ordered private-source acceptance remain incomplete."
+    "Bounded authenticated Codex editing and ordered private-source tests passed; full tool policy, capture hardware, complete editing, export, and phase acceptance remain incomplete."
   ],
   "package_file_count": 606,
   "numbered_spec_count": 48,
