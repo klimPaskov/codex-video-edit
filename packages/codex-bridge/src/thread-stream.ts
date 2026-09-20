@@ -76,6 +76,8 @@ export interface ThreadStreamProjectorOptions {
   threadId: string;
   allowedMcpServer: string;
   allowedMcpTools: ReadonlySet<string>;
+  allowedDynamicNamespace?: string;
+  allowedDynamicTools?: ReadonlySet<string>;
 }
 
 interface ItemState {
@@ -319,6 +321,27 @@ function itemProjection(
         ? { id, type, kind: "activity", label: "Reading the project" }
         : { id, type, kind: "edit", label: "Applying an edit" };
     }
+    case "dynamicToolCall": {
+      const namespace = threadProtocolInternals.identifier(
+        item.namespace,
+        "protocol",
+      );
+      const tool = threadProtocolInternals.identifier(item.tool, "protocol");
+      if (
+        item.status !== "inProgress" &&
+        item.status !== "completed" &&
+        item.status !== "failed"
+      )
+        throw new CodexThreadProtocolError("protocol");
+      if (
+        namespace !== options.allowedDynamicNamespace ||
+        !options.allowedDynamicTools?.has(tool)
+      )
+        throw new CodexThreadProtocolError("forbidden");
+      return tool === "project_get_summary" || tool === "timeline_get_summary"
+        ? { id, type, kind: "activity", label: "Reading the project" }
+        : { id, type, kind: "edit", label: "Applying an edit" };
+    }
     default:
       throw new CodexThreadProtocolError("forbidden");
   }
@@ -330,7 +353,11 @@ function historicalItemComplete(
 ): boolean {
   if (turnStatus !== "inProgress") return true;
   if (item.type === "userMessage") return true;
-  if (item.type === "mcpToolCall" || item.type === "collabAgentToolCall") {
+  if (
+    item.type === "mcpToolCall" ||
+    item.type === "dynamicToolCall" ||
+    item.type === "collabAgentToolCall"
+  ) {
     return item.status === "completed" || item.status === "failed";
   }
   return false;
@@ -367,9 +394,20 @@ export class ThreadStreamProjector {
         "configuration",
       ),
       allowedMcpTools: new Set(options.allowedMcpTools),
+      ...(options.allowedDynamicTools
+        ? { allowedDynamicTools: new Set(options.allowedDynamicTools) }
+        : {}),
     };
     for (const tool of this.options.allowedMcpTools) {
       threadProtocolInternals.identifier(tool, "configuration");
+    }
+    if (this.options.allowedDynamicTools) {
+      threadProtocolInternals.identifier(
+        this.options.allowedDynamicNamespace,
+        "configuration",
+      );
+      for (const tool of this.options.allowedDynamicTools)
+        threadProtocolInternals.identifier(tool, "configuration");
     }
   }
 

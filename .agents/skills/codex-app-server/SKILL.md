@@ -66,6 +66,8 @@ A separate direct 0.155.1 App Server probe in `tests/native/codex-dynamic-tools-
 
 The separate direct `codex-dynamic-tools-resume.test.ts` passed one exact-thread restart/resume with a second owned host call. The generated resume request has no `dynamicTools` field; the observed definition survived for that fresh thread. Continue to require old MCP-backed thread compatibility, full history, guarded transaction and packaged native checks before production routing.
 
+The optional internal host-call adapter now uses pinned generated request/response types, maps only the reviewed six tool schemas into one namespace, bounds arguments/results, and allows only configured owned calls and redacted stream/history items. Product main still does not supply the invoker or register dynamic tools. Before enabling it, resolve turn-start correlation races, tag or otherwise separate legacy MCP-backed threads, and prove the existing shared transaction/Undo/reopen path in packaged Electron.
+
 ## Runtime boundary
 
 Codex receives project context and edit tools. It does not receive unrestricted access to the installation, source repository, raw source mutation, project deletion, or export confirmation.

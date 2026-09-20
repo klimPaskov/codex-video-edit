@@ -38,6 +38,8 @@ export interface ProjectThreadRuntimeOptions {
   registry: ProjectThreadRegistry;
   allowedMcpServer: string;
   allowedMcpTools: ReadonlySet<string>;
+  allowedDynamicNamespace?: string;
+  allowedDynamicTools?: ReadonlySet<string>;
   /** Main-owned id source; overridden only by deterministic tests. */
   clientMessageId?: () => string;
 }
@@ -68,6 +70,9 @@ export class ProjectThreadRuntime {
       ...options,
       policy: { ...options.policy },
       allowedMcpTools: new Set(options.allowedMcpTools),
+      ...(options.allowedDynamicTools
+        ? { allowedDynamicTools: new Set(options.allowedDynamicTools) }
+        : {}),
     };
     this.clientMessageId = options.clientMessageId ?? randomUUID;
     // Validate the complete no-environment thread policy at construction.
@@ -116,6 +121,12 @@ export class ProjectThreadRuntime {
       threadId: session.threadId,
       allowedMcpServer: this.options.allowedMcpServer,
       allowedMcpTools: this.options.allowedMcpTools,
+      ...(this.options.allowedDynamicTools
+        ? {
+            allowedDynamicNamespace: this.options.allowedDynamicNamespace,
+            allowedDynamicTools: this.options.allowedDynamicTools,
+          }
+        : {}),
     });
     this.threadId = session.threadId;
     this.currentTurnId = undefined;
@@ -236,7 +247,11 @@ export class ProjectThreadRuntime {
     this.turnStarting = false;
   }
 
-  assertActiveCorrelation(params: unknown, requireItem: boolean): void {
+  assertActiveCorrelation(
+    params: unknown,
+    requireItem: boolean,
+    allowStarting = true,
+  ): void {
     this.requireProjector();
     if (!threadProtocolInternals.record(params)) {
       throw new CodexThreadProtocolError("protocol");
@@ -251,7 +266,9 @@ export class ProjectThreadRuntime {
     );
     if (
       threadId !== this.threadId ||
-      (!this.currentTurnId ? !this.turnStarting : turnId !== this.currentTurnId)
+      (!this.currentTurnId
+        ? !allowStarting || !this.turnStarting
+        : turnId !== this.currentTurnId)
     ) {
       throw new CodexThreadProtocolError("forbidden");
     }
