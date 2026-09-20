@@ -174,6 +174,11 @@ test("client rejects non-Codex executable versions and supports safe close durin
     );
   } finally {
     await client.close();
-    await rm(root, { recursive: true, force: true });
+    await rm(root, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
   }
 });
