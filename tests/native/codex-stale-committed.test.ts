@@ -1,4 +1,4 @@
-/** Offline guarded-tool continuation of a real authenticated native fixture edit. */
+/** Offline and live stale-tool rejection after a real authenticated native edit. */
 import assert from "node:assert/strict";
 import {
   access,
@@ -85,15 +85,40 @@ try {
   assert.equal(matches.length, 1, "Require one matching real native fixture");
   const matched = matches[0]!;
   assert.equal(sha256(await readFile(matched.managedPath)), originalHash);
+  const registry = JSON.parse(
+    await readFile(
+      join(userData, "codex/context/threads/project-threads.json"),
+      "utf8",
+    ),
+  ) as {
+    schemaVersion: number;
+    entries: Array<{ projectId: string; threadId: string; toolRoute?: string }>;
+  };
+  const bindings = registry.entries.filter(
+    (entry) => entry.projectId === matched.projectId,
+  );
+  assert.equal(bindings.length, 1);
+  const binding = bindings[0]!;
+  const route = binding.toolRoute ?? "mcp";
+  assert.ok(route === "mcp" || route === "dynamic");
+  if (route === "dynamic") assert.equal(registry.schemaVersion, 2);
+  const threadId = binding.threadId;
   const journalRoot = join(projectsRoot, matched.projectId, "draft/journal");
   const journalNames = (await readdir(journalRoot))
     .filter((name) =>
       /^\d{12}\.[A-Za-z0-9][A-Za-z0-9._-]{1,127}\.json$/u.test(name),
     )
     .sort();
-  assert.equal(journalNames.length, 1, "Require one real committed Codex edit");
+  assert.equal(
+    journalNames.length,
+    route === "dynamic" ? 2 : 1,
+    "Require the authenticated fixture's real committed edit and optional Undo",
+  );
   const journalPath = join(journalRoot, journalNames[0]!);
   const journalBefore = await readFile(journalPath);
+  const journalContents = await Promise.all(
+    journalNames.map((name) => readFile(join(journalRoot, name))),
+  );
   const edit = JSON.parse(
     journalBefore.toString("utf8"),
   ) as DraftTransactionRecord;
@@ -108,6 +133,17 @@ try {
   if (edit.operations[0]!.operation_type !== "trim")
     throw new Error("Expected a trim operation");
   assert.equal(edit.operations[0]!.edge, "start");
+  const lastRecord = JSON.parse(
+    journalContents.at(-1)!.toString("utf8"),
+  ) as DraftTransactionRecord;
+  const expectedDraft = lastRecord.after;
+  if (route === "dynamic") {
+    assert.equal(lastRecord.kind, "undo");
+    assert.equal(lastRecord.status, "committed");
+    assert.deepEqual(lastRecord.before, edit.after);
+    assert.equal(expectedDraft.draft_sequence, 2);
+    assert.equal(expectedDraft.timeline.duration_us, 1500000);
+  }
 
   step = "reject-stale-guarded-request";
   const projects = new ProjectStore(
@@ -117,7 +153,7 @@ try {
   const drafts = new DraftTransactionStore(projectsRoot, projects);
   assert.deepEqual(
     (await drafts.snapshot(matched.projectId)).draft,
-    edit.after,
+    expectedDraft,
   );
   const service = new CodexVideoEditToolService(matched.projectId, drafts);
   await assert.rejects(
@@ -140,27 +176,23 @@ try {
   );
   assert.deepEqual(
     (await drafts.snapshot(matched.projectId)).draft,
-    edit.after,
+    expectedDraft,
   );
   assert.deepEqual(await readdir(journalRoot), journalNames);
-  assert.deepEqual(await readFile(journalPath), journalBefore);
+  assert.deepEqual(
+    await Promise.all(
+      journalNames.map((name) => readFile(join(journalRoot, name))),
+    ),
+    journalContents,
+  );
   assert.deepEqual(await readFile(matched.baselinePath), matched.baselineBytes);
   assert.equal(sha256(await readFile(matched.managedPath)), originalHash);
   assert.equal(sha256(await readFile(original)), originalHash);
 
-  step = "live-stale-mcp-relay";
-  const registry = JSON.parse(
-    await readFile(
-      join(userData, "codex/context/threads/project-threads.json"),
-      "utf8",
-    ),
-  ) as { entries: Array<{ projectId: string; threadId: string }> };
-  const bindings = registry.entries.filter(
-    (entry) => entry.projectId === matched.projectId,
-  );
-  assert.equal(bindings.length, 1);
-  const threadId = bindings[0]!.threadId;
-  const prompt = `Test the guarded stale-draft response. Call cut.trim_edge exactly once with this earlier, now stale draft head. Do not first refresh it or substitute a new sequence or hash. Treat the expected rejection as success for this diagnostic and do not call any other mutation tool. Use these exact arguments: ${JSON.stringify(
+  step = "live-stale-guarded-relay";
+  const toolName =
+    route === "dynamic" ? "codex_video_edit__cut_trim_edge" : "cut.trim_edge";
+  const prompt = `Test the guarded stale-draft response. Call ${toolName} exactly once with this earlier, now stale draft head. Do not first refresh it or substitute a new sequence or hash. Treat the expected rejection as success for this diagnostic and do not call any other mutation tool. Use these exact arguments: ${JSON.stringify(
     {
       schema_version: "1.0",
       request_id: "live-stale-after-codex-001",
@@ -311,15 +343,23 @@ try {
     ),
   );
   assert.ok(target && target.status === "completed");
-  const staleCalls = target.items.filter(
-    (item) =>
-      item.type === "mcpToolCall" &&
-      item.server === "codex-video-edit" &&
-      item.tool === "cut.trim_edge",
+  const staleCalls = target.items.filter((item) =>
+    route === "dynamic"
+      ? item.type === "dynamicToolCall" &&
+        item.namespace === "codex_video_edit" &&
+        item.tool === "cut_trim_edge"
+      : item.type === "mcpToolCall" &&
+        item.server === "codex-video-edit" &&
+        item.tool === "cut.trim_edge",
   );
   assert.equal(staleCalls.length, 1, "Require one live guarded stale call");
   const staleCall = staleCalls[0]!;
-  assert.equal(staleCall.status, "failed");
+  if (route === "dynamic") {
+    assert.ok(
+      staleCall.status === "completed" || staleCall.status === "failed",
+    );
+    assert.equal(staleCall.success, false);
+  } else assert.equal(staleCall.status, "failed");
   const staleArguments = staleCall.arguments as {
     request_id?: unknown;
     project_id?: unknown;
@@ -339,22 +379,27 @@ try {
     edit.before.timeline_sha256,
   );
   assert.equal(staleArguments.clip_id, edit.before.timeline.clips[0]!.clip_id);
-  const resultText = JSON.stringify({
-    result: staleCall.result,
-    error: staleCall.error,
-  });
+  const resultText =
+    route === "dynamic"
+      ? JSON.stringify(staleCall.contentItems)
+      : JSON.stringify({ result: staleCall.result, error: staleCall.error });
   assert.ok(
     /stale|draft changed before this edit/i.test(resultText),
-    "The live MCP result did not relay the stale-draft rejection",
+    "The live guarded result did not relay the stale-draft rejection",
   );
   await transport.close();
   transport = undefined;
   assert.deepEqual(
     (await drafts.snapshot(matched.projectId)).draft,
-    edit.after,
+    expectedDraft,
   );
   assert.deepEqual(await readdir(journalRoot), journalNames);
-  assert.deepEqual(await readFile(journalPath), journalBefore);
+  assert.deepEqual(
+    await Promise.all(
+      journalNames.map((name) => readFile(join(journalRoot, name))),
+    ),
+    journalContents,
+  );
   assert.deepEqual(await readFile(matched.baselinePath), matched.baselineBytes);
   assert.equal(sha256(await readFile(matched.managedPath)), originalHash);
   assert.equal(sha256(await readFile(original)), originalHash);
@@ -371,6 +416,8 @@ try {
         baselineUnchanged: true,
         nativeLaunchInThisContinuation: true,
         liveStdioStaleRelayVerified: true,
+        toolRoute: route,
+        journalRecordCount: journalNames.length,
         sourceHash: originalHash,
         journalHash: sha256(journalBefore),
       },
