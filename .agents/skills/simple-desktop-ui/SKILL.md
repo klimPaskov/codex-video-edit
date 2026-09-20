@@ -21,7 +21,7 @@ Changing screen flow, visual hierarchy, design system, editor panels, or empty a
 - Hide empty tracks and unavailable controls.
 - Use plain user language.
 
-For a partial Edit tool, put only actionable trim/undo controls by the current preview position. Show which part a two-source trim targets, disable invalid boundaries, and retain the single-inspector/drawer rule. Do not add inactive tracks or a fake full tool rail to match a reference image.
+For a partial Edit tool, put only actionable trim, Split and Undo controls by the current preview position. Show which part or fragment a two-source action targets, disable trim and Split at fragment boundaries or during a save, and retain the single-inspector/drawer rule. Do not add inactive tracks or a fake full tool rail to match a reference image.
 
 ## Procedure
 

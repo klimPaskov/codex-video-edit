@@ -85,6 +85,22 @@ function trim(
   };
 }
 
+function split(
+  draft: DraftState,
+  clipId = draft.timeline.clips[0]!.clip_id,
+  positionUs = 400_000,
+  requestId = "request-split-001",
+): ApplyDraftTransactionRequest {
+  return {
+    ...trim(draft),
+    request_id: requestId,
+    reason: "Split the clip at the selected playhead position.",
+    operations: [
+      { type: "split", clip_id: clipId, timeline_position_us: positionUs },
+    ],
+  };
+}
+
 function undo(draft: DraftState, target: string): UndoDraftTransactionRequest {
   return {
     schema_version: "1.0",
@@ -366,6 +382,167 @@ test("start and end trims use exact timeline boundaries and reject empty clips",
   assert.equal(
     (await store.snapshot(baseline.project.project_id)).draft.draft_sequence,
     2,
+  );
+});
+
+test("split preserves source samples, supports fragment trim, and replays and undoes exactly", async () => {
+  const { projects, projectStore, baseline } = await fixture();
+  const sourceBefore = await readFile(baseline.source.managed_path);
+  const baselineBefore = await readFile(
+    join(projects, baseline.project.project_id, "baseline.json"),
+  );
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const splitResult = await store.applyManual(split(initial));
+  const [left, right] = splitResult.draft.timeline.clips;
+  assert.ok(left && right);
+  assert.equal(left.clip_id, initial.timeline.clips[0]!.clip_id);
+  assert.match(right.clip_id, /^clip-[a-f0-9]{32}$/u);
+  assert.deepEqual(
+    [
+      left.source_start_us,
+      left.source_end_us,
+      right.source_start_us,
+      right.source_end_us,
+    ],
+    [0, 400_000, 400_000, 1_000_000],
+  );
+  assert.deepEqual(
+    [
+      left.timeline_start_us,
+      left.timeline_end_us,
+      right.timeline_start_us,
+      right.timeline_end_us,
+    ],
+    [0, 400_000, 400_000, 1_000_000],
+  );
+  assert.equal(
+    splitResult.draft.timeline.duration_us,
+    initial.timeline.duration_us,
+  );
+  assert.equal(splitResult.transaction.operations[0]!.operation_type, "split");
+  assert.equal(
+    splitResult.transaction.operations[0]!.inverse.type,
+    "merge_split",
+  );
+  assert.deepEqual(
+    (
+      await new DraftTransactionStore(projects, projectStore).snapshot(
+        baseline.project.project_id,
+      )
+    ).draft,
+    splitResult.draft,
+  );
+  const trimmed = await store.applyManual({
+    ...trim(splitResult.draft),
+    request_id: "request-trim-fragment-001",
+    operations: [
+      {
+        type: "trim",
+        clip_id: right.clip_id,
+        edge: "start",
+        timeline_position_us: 500_000,
+      },
+    ],
+  });
+  assert.equal(trimmed.draft.timeline.duration_us, 900_000);
+  assert.equal(trimmed.draft.timeline.clips[1]!.source_start_us, 500_000);
+  assert.equal(trimmed.draft.timeline.clips[1]!.timeline_start_us, 400_000);
+  const undoTrim = await store.undoManual(
+    undo(trimmed.draft, trimmed.transaction.transaction_id),
+  );
+  assert.deepEqual(undoTrim.draft.timeline, splitResult.draft.timeline);
+  const undoSplit = await store.undoManual({
+    ...undo(undoTrim.draft, splitResult.transaction.transaction_id),
+    request_id: "request-undo-split-001",
+  });
+  assert.deepEqual(undoSplit.draft.timeline, initial.timeline);
+  assert.deepEqual(
+    (
+      await new DraftTransactionStore(projects, projectStore).snapshot(
+        baseline.project.project_id,
+      )
+    ).draft,
+    undoSplit.draft,
+  );
+  assert.deepEqual(await readFile(baseline.source.managed_path), sourceBefore);
+  assert.deepEqual(
+    await readFile(
+      join(projects, baseline.project.project_id, "baseline.json"),
+    ),
+    baselineBefore,
+  );
+});
+
+test("split rejects boundaries and stale heads without adding journal entries", async () => {
+  const { projects, projectStore, baseline } = await fixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  assert.throws(
+    () => store.applyManual(split(initial, undefined, 0)),
+    code("invalid"),
+  );
+  await assert.rejects(
+    store.applyManual(split(initial, undefined, 1_000_000)),
+    code("conflict"),
+  );
+  assert.equal(
+    (await store.snapshot(baseline.project.project_id)).draft.draft_sequence,
+    0,
+  );
+  const applied = await store.applyManual(split(initial));
+  await assert.rejects(
+    store.applyManual(
+      split(initial, undefined, 600_000, "request-stale-split-001"),
+    ),
+    code("stale"),
+  );
+  assert.equal(
+    (await store.snapshot(baseline.project.project_id)).draft.draft_sequence,
+    1,
+  );
+  assert.equal(applied.draft.timeline.clips.length, 2);
+});
+
+test("split after an earlier trim maps the output cut back to the exact source offset", async () => {
+  const { projects, projectStore, baseline } = await fixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const trimmed = await store.applyManual(trim(initial));
+  const result = await store.applyManual(
+    split(trimmed.draft, undefined, 300_000, "request-split-trimmed-001"),
+  );
+  assert.deepEqual(
+    result.draft.timeline.clips.map((clip) => [
+      clip.source_start_us,
+      clip.source_end_us,
+      clip.timeline_start_us,
+      clip.timeline_end_us,
+    ]),
+    [
+      [200_000, 500_000, 0, 300_000],
+      [500_000, 1_000_000, 300_000, 800_000],
+    ],
+  );
+  assert.deepEqual(
+    (
+      await new DraftTransactionStore(projects, projectStore).snapshot(
+        baseline.project.project_id,
+      )
+    ).draft,
+    result.draft,
   );
 });
 

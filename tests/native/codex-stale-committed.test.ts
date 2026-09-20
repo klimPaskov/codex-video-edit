@@ -105,6 +105,8 @@ try {
   assert.equal(edit.after.draft_sequence, 1);
   assert.equal(edit.after.timeline.duration_us, 1000000);
   assert.equal(edit.operations.length, 1);
+  if (edit.operations[0]!.operation_type !== "trim")
+    throw new Error("Expected a trim operation");
   assert.equal(edit.operations[0]!.edge, "start");
 
   step = "reject-stale-guarded-request";

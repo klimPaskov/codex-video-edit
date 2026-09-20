@@ -19,6 +19,7 @@ import type {
   ProjectNavigation,
   TwoSourceProjectRequest,
   ManualTrimRequest,
+  ManualSplitRequest,
   ManualUndoRequest,
 } from "../../../packages/domain/src/project-view.ts";
 import type {
@@ -89,6 +90,9 @@ export interface DesktopBridge {
     request: ProjectFrameRequest,
   ): Promise<Reply<ProjectFrameResult>>;
   applyManualTrim(request: ManualTrimRequest): Promise<Reply<ProjectDraftView>>;
+  applyManualSplit(
+    request: ManualSplitRequest,
+  ): Promise<Reply<ProjectDraftView>>;
   undoManualEdit(request: ManualUndoRequest): Promise<Reply<ProjectDraftView>>;
   onProjectDraftChanged(
     listener: (reply: Reply<ProjectDraftView>) => void,
@@ -129,6 +133,7 @@ export const channels = Object.freeze({
   projectNavigate: "projects:navigate",
   projectFrame: "projects:frame",
   projectManualTrim: "projects:manual-trim",
+  projectManualSplit: "projects:manual-split",
   projectManualUndo: "projects:manual-undo",
   projectDraftChanged: "projects:draft-changed",
   preferencesGet: "preferences:get",

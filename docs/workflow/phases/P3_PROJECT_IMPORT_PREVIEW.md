@@ -8,7 +8,7 @@ Import through the native file picker. Reject source mutation and recover from i
 
 The partial source still-frame seek index sorts verified presentation PTS from packet decode order and handles variable-cadence gaps. Complete P3-04 by defining the final-frame boundary and source-to-output mapping for the canonical microsecond timeline; do not infer timing from nominal or average frame rate, and do not feed display pixels into the master.
 
-A further partial P3-04 slice measures the last packet duration, persists two ordered compatible sources as adjacent clips, maps a seek into the correct immutable source, and reflows the second clip under the shared trim/undo journal. The native Add footage action creates a new two-source project from an unedited first project and a newly imported second source. This is not complete P3-04 acceptance: synchronized A/V playback, mixed-format policy, broader source counts, canonical render and full fixture matrix remain required.
+A further partial P3-04 slice measures the last packet duration, persists two ordered compatible sources as adjacent clips, maps a seek into the correct immutable source, and supports shared trim/split/undo journaling. Trim reflows following fragments; an interior split creates two half-open fragments from one source range without changing total duration. The committed map must remain source-ordered and bounded. The native Add footage action creates a new two-source project from an unedited first project and a newly imported second source. This is not complete P3-04 acceptance: synchronized A/V playback, mixed-format policy, broader source counts, canonical render and full fixture matrix remain required.
 
 Acceptance:
 

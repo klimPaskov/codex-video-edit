@@ -43,7 +43,7 @@ Deleting transcript text creates a linked cut operation. Restoring text restores
 
 Manual actions and Codex actions share one ordered history. Each item shows origin, short reason, affected time, and Undo. Batch operations can be expanded.
 
-P2's shared foundation implements strict start/end trimming for one or two ordered clips. It maps the requested timeline boundary back to source time, reflows following clips, appends a generated operation to the canonical timeline, and persists exact before/after and inverse state in the common hash-chained journal. The Edit stage now exposes playhead-based Trim start, Trim end and Undo for the current clip through trusted manual IPC. Codex and API-provider edits use the same reducer and undo history; Magic Wand must join it later. Remaining tools, broader clip movement and complete multi-track ripple semantics remain P3/P6 work.
+P2's shared foundation implements strict start/end trimming and interior splitting for one or two ordered immutable sources. It maps the requested timeline boundary back to source time, reflows following fragments after a trim, inserts a boundary without changing duration after a split, and persists exact before/after and inverse state in the common hash-chained journal. A split retains the left fragment's ID and derives the right fragment's ID from the trusted operation; it preserves duration and source order and is bounded to 4096 fragments. The Edit stage exposes playhead-based Trim start, Trim end, Split and Undo through trusted manual IPC. Codex and API-provider edits use the same reducer and undo history; Magic Wand must join it later. Selection, ripple delete, restore, move, redo, broader clip movement and complete multi-track ripple semantics remain P3/P6 work.
 
 ## Preview
 
