@@ -11,6 +11,7 @@ import type {
   ThreadStreamEvent,
 } from "../../packages/codex-bridge/src/thread-stream.ts";
 import { CodexTransportError } from "../../packages/codex-bridge/src/transport.ts";
+import type { CodexVideoEditToolName } from "../../packages/codex-tools/src/service.ts";
 
 const policy = {
   cwd: resolve("test-results", "codex-thread-context"),
@@ -18,7 +19,13 @@ const policy = {
   effort: "high",
 };
 
-async function fixture(onEvent?: (event: ThreadStreamEvent) => void) {
+async function fixture(
+  onEvent?: (event: ThreadStreamEvent) => void,
+  dynamicToolInvoker?: (
+    name: CodexVideoEditToolName,
+    input: unknown,
+  ) => Promise<unknown>,
+) {
   const parent = resolve("test-results", "codex-thread-client");
   await mkdir(parent, { recursive: true });
   const root = await mkdtemp(join(parent, "fixture-"));
@@ -45,6 +52,7 @@ async function fixture(onEvent?: (event: ThreadStreamEvent) => void) {
     registry,
     allowedMcpServer: "codex-video-edit",
     allowedMcpTools: new Set(["cut.trim_edge", "timeline.undo"]),
+    ...(dynamicToolInvoker ? { dynamicToolInvoker } : {}),
     onEvent: (event) => {
       events.push(event);
       onEvent?.(event);
@@ -803,6 +811,142 @@ test("unsupported or uncorrelated server requests fail closed", async () => {
     );
   } finally {
     await rm(fixtureState.root, { recursive: true, force: true });
+  }
+});
+
+test("correlated owned host call uses the guarded invoker without closing the thread", async () => {
+  const invoked: string[] = [];
+  const value = await fixture(undefined, async (name, input) => {
+    invoked.push(name);
+    assert.deepEqual(input, { schema_version: "1.0", project_id: "project-1" });
+    return { status: "committed", draft_sequence: 1 };
+  });
+  try {
+    await value.client.open();
+    value.setHandler(async () => turnResponse("turn-owned"));
+    await value.client.startTurn({ text: "Trim the active draft" });
+    const result = await value.client.serverRequest({
+      id: "host-1",
+      method: "item/tool/call",
+      params: {
+        threadId: "thread-1",
+        turnId: "turn-owned",
+        callId: "call-owned",
+        namespace: "codex_video_edit",
+        tool: "cut_trim_edge",
+        arguments: { schema_version: "1.0", project_id: "project-1" },
+      },
+      signal: new AbortController().signal,
+    });
+    assert.deepEqual(result, {
+      contentItems: [
+        {
+          type: "inputText",
+          text: '{"status":"committed","draft_sequence":1}',
+        },
+      ],
+      success: true,
+    });
+    assert.deepEqual(invoked, ["cut.trim_edge"]);
+    value.client.notification("turn/completed", {
+      threadId: "thread-1",
+      turn: { id: "turn-owned", status: "completed", items: [] },
+    });
+    assert.equal(value.events.at(-1)?.type, "turn_terminal");
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("foreign tool and stale turn requests quarantine before draft dispatch", async () => {
+  for (const change of [
+    { tool: "exec_command" },
+    { turnId: "old-turn" },
+    { namespace: "foreign" },
+  ]) {
+    let invoked = 0;
+    const value = await fixture(undefined, async () => {
+      invoked++;
+      return { status: "committed" };
+    });
+    try {
+      await value.client.open();
+      value.setHandler(async () => turnResponse("turn-current"));
+      await value.client.startTurn({ text: "Inspect the draft" });
+      assert.throws(
+        () =>
+          value.client.serverRequest({
+            id: "host-foreign",
+            method: "item/tool/call",
+            params: {
+              threadId: "thread-1",
+              turnId: "turn-current",
+              callId: "call-foreign",
+              namespace: "codex_video_edit",
+              tool: "project_get_summary",
+              arguments: { schema_version: "1.0", project_id: "project-1" },
+              ...change,
+            },
+            signal: new AbortController().signal,
+          }),
+        CodexThreadProtocolError,
+      );
+      assert.equal(invoked, 0);
+      await assert.rejects(
+        value.client.startTurn({ text: "Do not reuse this thread" }),
+        CodexThreadProtocolError,
+      );
+    } finally {
+      await rm(value.root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("host edit requests before the turn ID is known fail closed", async () => {
+  let invoked = 0;
+  const value = await fixture(undefined, async () => {
+    invoked++;
+    return { status: "committed" };
+  });
+  try {
+    await value.client.open();
+    let entered!: () => void;
+    const rpcEntered = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    value.setHandler(async () => {
+      entered();
+      await held;
+      return turnResponse("turn-later");
+    });
+    const starting = value.client.startTurn({ text: "Inspect the draft" });
+    await rpcEntered;
+    assert.throws(
+      () =>
+        value.client.serverRequest({
+          id: "host-early",
+          method: "item/tool/call",
+          params: {
+            threadId: "thread-1",
+            turnId: "turn-later",
+            callId: "call-early",
+            namespace: "codex_video_edit",
+            tool: "project_get_summary",
+            arguments: { schema_version: "1.0", project_id: "project-1" },
+          },
+          signal: new AbortController().signal,
+        }),
+      CodexThreadProtocolError,
+    );
+    assert.equal(invoked, 0);
+    release();
+    await starting;
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
   }
 });
 

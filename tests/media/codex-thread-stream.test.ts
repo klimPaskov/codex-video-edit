@@ -595,6 +595,98 @@ test("owned read tools report reading activity instead of claiming an edit", () 
   }
 });
 
+test("owned dynamic tool activity hides arguments and survives history restore", () => {
+  const options = {
+    experimentalApiNegotiated: true as const,
+    generation: 7,
+    threadId: "thread-1",
+    allowedMcpServer: "codex-video-edit",
+    allowedMcpTools: new Set<string>(),
+    allowedDynamicNamespace: "codex_video_edit",
+    allowedDynamicTools: new Set(["project_get_summary", "cut_trim_edge"]),
+  };
+  const stream = new ThreadStreamProjector(options);
+  stream.beginTurn(7, "turn-dynamic");
+  const item = {
+    id: "dynamic-call",
+    type: "dynamicToolCall",
+    namespace: "codex_video_edit",
+    tool: "cut_trim_edge",
+    arguments: { secret: "private-dynamic-argument" },
+    status: "inProgress",
+  };
+  const started = stream.observe(7, "item/started", {
+    threadId: "thread-1",
+    turnId: "turn-dynamic",
+    startedAtMs: 1,
+    item,
+  });
+  assert.equal(started?.type, "item_started");
+  if (started?.type === "item_started") {
+    assert.equal(started.kind, "edit");
+    assert.equal(started.label, "Applying an edit");
+  }
+  const completed = stream.observe(7, "item/completed", {
+    threadId: "thread-1",
+    turnId: "turn-dynamic",
+    completedAtMs: 2,
+    item: {
+      ...item,
+      status: "completed",
+      contentItems: [{ type: "inputText", text: "private-tool-result" }],
+      success: true,
+    },
+  });
+  assert.equal(completed?.type, "item_completed");
+  assert.doesNotMatch(JSON.stringify([started, completed]), /private-/u);
+  const restored = new ThreadStreamProjector(options).restoreHistory({
+    data: [
+      {
+        id: "turn-dynamic",
+        items: [{ ...item, status: "completed" }],
+        itemsView: "full",
+        status: "completed",
+        error: null,
+        startedAt: 1,
+        completedAt: 2,
+        durationMs: 1,
+      },
+    ],
+    nextCursor: null,
+  });
+  assert.equal(restored.activities[0]?.kind, "edit");
+  assert.equal(restored.activities[0]?.complete, true);
+  assert.doesNotMatch(JSON.stringify(restored), /private-/u);
+});
+
+test("foreign dynamic tool activity remains forbidden", () => {
+  const stream = new ThreadStreamProjector({
+    experimentalApiNegotiated: true,
+    generation: 7,
+    threadId: "thread-1",
+    allowedMcpServer: "codex-video-edit",
+    allowedMcpTools: new Set(),
+    allowedDynamicNamespace: "codex_video_edit",
+    allowedDynamicTools: new Set(["project_get_summary"]),
+  });
+  stream.beginTurn(7, "turn-foreign");
+  assert.throws(
+    () =>
+      stream.observe(7, "item/started", {
+        threadId: "thread-1",
+        turnId: "turn-foreign",
+        item: {
+          id: "foreign-call",
+          type: "dynamicToolCall",
+          namespace: "external",
+          tool: "project_get_summary",
+          status: "inProgress",
+        },
+      }),
+    CodexThreadProtocolError,
+  );
+});
+
 test("poisoned stream disconnect marks uncertainty once without restoring permissions", () => {
   const stream = projector();
   stream.beginTurn(7, "turn-poisoned");

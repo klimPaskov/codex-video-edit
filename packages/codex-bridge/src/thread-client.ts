@@ -8,6 +8,13 @@ import type {
   ThreadHistorySnapshot,
   ThreadStreamEvent,
 } from "./thread-stream.ts";
+import {
+  CODEX_EDITOR_NAMESPACE,
+  decodeOwnedDynamicToolCall,
+  invokeOwnedDynamicTool,
+  ownedDynamicToolWireNames,
+} from "./dynamic-tools.ts";
+import type { CodexVideoEditToolName } from "../../codex-tools/src/service.ts";
 
 const MAX_BUFFERED_NOTIFICATIONS = 64;
 const MAX_BUFFERED_NOTIFICATION_BYTES = 256 * 1024;
@@ -24,6 +31,10 @@ export interface CodexProjectThreadClientOptions {
   registry: ProjectThreadRegistry;
   allowedMcpServer: string;
   allowedMcpTools: ReadonlySet<string>;
+  dynamicToolInvoker?: (
+    name: CodexVideoEditToolName,
+    input: unknown,
+  ) => Promise<unknown>;
   onEvent?: (event: ThreadStreamEvent) => void;
   onHistory?: (history: ThreadHistorySnapshot) => void;
   onPolicyViolation?: () => void;
@@ -76,6 +87,12 @@ export class CodexProjectThreadClient {
       registry: options.registry,
       allowedMcpServer: options.allowedMcpServer,
       allowedMcpTools: options.allowedMcpTools,
+      ...(options.dynamicToolInvoker
+        ? {
+            allowedDynamicNamespace: CODEX_EDITOR_NAMESPACE,
+            allowedDynamicTools: ownedDynamicToolWireNames(),
+          }
+        : {}),
       ...(options.clientMessageId
         ? { clientMessageId: options.clientMessageId }
         : {}),
@@ -228,6 +245,21 @@ export class CodexProjectThreadClient {
       throw new CodexThreadProtocolError("forbidden");
     }
     const { method, params } = request;
+    if (method === "item/tool/call") {
+      if (!this.options.dynamicToolInvoker) {
+        this.quarantine();
+        throw new CodexThreadProtocolError("forbidden");
+      }
+      try {
+        const call = decodeOwnedDynamicToolCall(params);
+        // A host edit cannot commit before the current turn ID is authoritative.
+        this.runtime.assertActiveCorrelation(params, false, false);
+        return invokeOwnedDynamicTool(call, this.options.dynamicToolInvoker);
+      } catch (error) {
+        this.quarantine();
+        throw error;
+      }
+    }
     if (
       method === "item/commandExecution/requestApproval" ||
       method === "item/fileChange/requestApproval"

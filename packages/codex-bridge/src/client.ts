@@ -32,6 +32,7 @@ import type {
 } from "./thread-stream.ts";
 import { codexVideoEditToolNames } from "../../codex-tools/src/service.ts";
 import { codexVideoEditMcpTools } from "../../codex-tools/src/mcp-tools.ts";
+import type { CodexVideoEditToolName } from "../../codex-tools/src/service.ts";
 import type { CodexMcpRuntime } from "../../codex-tools/src/broker.ts";
 
 export const CODEX_VERSION = "0.155.1";
@@ -195,6 +196,11 @@ export interface CodexClientOptions {
   onThreadEvent?: (event: ThreadStreamEvent) => void;
   onThreadHistory?: (history: ThreadHistorySnapshot) => void;
   mcp?: CodexMcpRuntime;
+  /** Main-owned guarded editor dispatch. Inactive until a reviewed tool mode enables it. */
+  dynamicToolInvoker?: (
+    name: CodexVideoEditToolName,
+    input: unknown,
+  ) => Promise<unknown>;
 }
 
 export interface OpenProjectThreadInput {
@@ -316,11 +322,12 @@ export class CodexClient {
         onServerRequest: async (request) => {
           try {
             if (!this.conversation) throw new CodexTransportError("protocol");
-            return this.conversation.serverRequest(request);
-          } finally {
+            return await this.conversation.serverRequest(request);
+          } catch (error) {
             setImmediate(() => {
               if (this.transport === transport) void transport?.close();
             });
+            throw error;
           }
         },
         onDisconnect: () => {
@@ -484,6 +491,9 @@ export class CodexClient {
       registry: this.threadRegistry,
       allowedMcpServer: "codex-video-edit",
       allowedMcpTools: new Set(codexVideoEditToolNames),
+      ...(this.options.dynamicToolInvoker
+        ? { dynamicToolInvoker: this.options.dynamicToolInvoker }
+        : {}),
       onEvent: (event) => {
         if (this.conversation === conversation)
           this.options.onThreadEvent?.(event);
