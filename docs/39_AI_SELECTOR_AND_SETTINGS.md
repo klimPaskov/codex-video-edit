@@ -2,7 +2,7 @@
 
 ## First release
 
-The AI settings area offers Codex with ChatGPT sign-in plus explicit OpenAI API and DeepSeek key connections under ADR 0014. Do not show fake providers, disabled marketing cards or an arbitrary provider marketplace. Packaged isolated native tests cover disconnected API settings, key rejection, authenticated OpenAI API model discovery/selection with session-only restart, protected remembered-model restoration, and a separate synthetic-transport OpenAI drawer edit/undo flow. No paid provider turn or authenticated DeepSeek key has been tested.
+The AI settings area offers Codex with ChatGPT sign-in plus explicit OpenAI API and DeepSeek key connections under ADR 0014. Do not show fake providers, disabled marketing cards or an arbitrary provider marketplace. Packaged isolated native tests cover disconnected API settings, key rejection, authenticated OpenAI API model discovery/selection with session-only restart, protected remembered-model restoration, and separate synthetic-transport OpenAI and DeepSeek drawer edit/undo flows. No paid provider turn or authenticated DeepSeek key has been tested.
 
 ## Provider row
 
