@@ -55,6 +55,8 @@ A packaged native dynamic stale-draft turn also passed: the host tool returned a
 
 For the dynamic route, a host call received before the `turn/start` RPC response requires a validated `turn/started` notification naming the registry-owned thread and a single provisional turn. The response must agree with that turn; a call before notification, after buffered completion, or after contradiction cannot reach the guarded invoker. Notifications stay buffered until reconciliation. Unit tests exercise those races, and a direct isolated App Server run completed one owned read. A packaged dynamic negative-command probe observed no forbidden invocation in that exact turn; this does not prove full upstream tool confinement.
 
+A packaged dynamic-route Luna/high inventory/split fixture observed exactly six owned and zero unowned nested code-mode tools in the tested turn. The same native test passed on synthetic and privately staged supplied footage with unchanged original/managed sources and baseline after shared Undo/reopen. Keep the private files, model answer and screenshots outside Git. One nested inventory and forbidden-command probe cannot establish complete upstream effective-tool confinement or child inheritance.
+
 ## Secrets
 
 Let the official Codex client own ChatGPT credentials. Do not copy tokens into project files, logs, crash reports, or renderer state. The MCP broker credential is inherited through the restricted process environment and never appears in command arguments, thread instructions, project data, or IPC.

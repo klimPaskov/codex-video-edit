@@ -49,6 +49,7 @@ const providedPaths = process.argv
     (argument) =>
       argument !== "--inspect" &&
       argument !== "--require-luna" &&
+      argument !== "--require-dynamic" &&
       argument !== "--probe-surface",
   );
 assert.ok(
@@ -358,10 +359,32 @@ try {
   await expect
     .poll(async () => (await thread()).status, { timeout: 90_000 })
     .toBe("ready");
+  const registry = JSON.parse(
+    await readFile(
+      join(userData, "codex/context/threads/project-threads.json"),
+      "utf8",
+    ),
+  ) as {
+    schemaVersion: number;
+    entries: Array<{ projectId: string; toolRoute?: string }>;
+  };
+  const bindings = registry.entries.filter(
+    (entry) => entry.projectId === combined.id,
+  );
+  assert.equal(bindings.length, 1);
+  const toolRoute = bindings[0]!.toolRoute ?? "mcp";
+  assert.ok(toolRoute === "mcp" || toolRoute === "dynamic");
+  if (process.argv.includes("--require-dynamic")) {
+    assert.equal(registry.schemaVersion, 2);
+    assert.equal(toolRoute, "dynamic");
+  }
   if (process.argv.includes("--probe-surface")) {
     mark("safe-tool-surface-probe");
-    const diagnostic =
-      "In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.mcp__codex_video_edit__project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, plan: typeof tools.update_plan, input: typeof tools.request_user_input_async, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('mcp__codex_video_edit__')).length, unownedNames: ALL_TOOLS.filter(x => !x.name.startsWith('mcp__codex_video_edit__')).map(x => x.name).slice(0, 20)}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.";
+    const ownedPrefix =
+      toolRoute === "dynamic"
+        ? "codex_video_edit__"
+        : "mcp__codex_video_edit__";
+    const diagnostic = `In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.${ownedPrefix}project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, plan: typeof tools.update_plan, input: typeof tools.request_user_input_async, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, ownedCount: ALL_TOOLS.filter(x => x.name.startsWith('${ownedPrefix}')).length, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).length, unownedNames: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).map(x => x.name).slice(0, 20)}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.`;
     await page.locator("#codex-thread-input").fill(diagnostic);
     await page.locator("#send-codex-thread").click();
     await expect
@@ -377,6 +400,7 @@ try {
       JSON.stringify({ answer: answer.slice(0, 500) }),
     );
     assert.match(answer, /"owned"\s*:\s*"function"/u);
+    assert.match(answer, /"ownedCount"\s*:\s*6\b/u);
     assert.match(answer, /"unownedCount"\s*:\s*0\b/u);
     for (const key of [
       "apps",
@@ -410,7 +434,9 @@ try {
   }
 
   mark("authenticated-split");
-  const prompt = `Use the guarded editor tools to read the active two-source draft. Split its first clip, ID ${target.clip_id}, at exactly ${splitUs} microseconds on the output timeline using cut.split. Apply exactly one split transaction. The committed draft must have three clips and remain ${totalUs} microseconds long. Do not trim, delete, undo, or make another edit. Read the draft again to verify, then reply briefly.`;
+  const splitTool =
+    toolRoute === "dynamic" ? "codex_video_edit__cut_split" : "cut.split";
+  const prompt = `Use the guarded editor tools to read the active two-source draft. Split its first clip, ID ${target.clip_id}, at exactly ${splitUs} microseconds on the output timeline using ${splitTool}. Apply exactly one split transaction. The committed draft must have three clips and remain ${totalUs} microseconds long. Do not trim, delete, undo, or make another edit. Read the draft again to verify, then reply briefly.`;
   await page.locator("#codex-thread-input").fill(prompt);
   await page.locator("#send-codex-thread").click();
   let committedDuringTurn = false;
@@ -613,6 +639,7 @@ try {
       {
         status: "pass",
         scope: "real-authenticated-codex-split",
+        toolRoute,
         packaged: true,
         nativeWindow: true,
         sourceCount: 2,

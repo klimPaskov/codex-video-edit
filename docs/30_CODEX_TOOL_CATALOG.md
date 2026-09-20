@@ -145,6 +145,8 @@ The current 0.155.1 Luna code-mode session exposes the six implemented owned edi
 
 When a host-defined edit carries an obsolete draft sequence/hash, return the same fixed `stale_draft` error as MCP with `success: false`. A packaged Luna/high native continuation verified this on a real prior edit/Undo through one authoritative `dynamicToolCall`; the draft, journal and immutable inputs did not change.
 
+The packaged dynamic split fixture now requires a real Luna/high code-mode answer with exactly six `codex_video_edit__` nested tools and zero other nested names, then one guarded `cut_split` commit and shared Undo. It passed for synthetic two-source media and the two supplied recordings in order. Treat the count as one-turn model-visible evidence; the supported App Server API does not provide an authoritative complete future-turn catalog.
+
 ## Authorization policy
 
 Tools scoped to `active_draft` or `export_staging` use `user_confirmation: none` for already authorized work. This includes Magic Wand and export preparation. Validate scope, source immutability, sequence, protected speech and undo guarantees on every call. Do not request approval again merely because a reversible edit changes the draft materially. Final export requires the explicit user action in the native Export screen; no AI tool may authorize it. Source deletion, cleanup, spending and publication remain explicit user actions.
