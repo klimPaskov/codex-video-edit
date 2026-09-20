@@ -9,6 +9,7 @@ import type {
   ApiToolCall,
   ApiToolDefinition,
 } from "../../../packages/api-providers/src/types.ts";
+import { ApiProviderError } from "../../../packages/api-providers/src/types.ts";
 import {
   assertApiThreadView,
   type ApiThreadView,
@@ -59,6 +60,7 @@ const problems = {
     "Choose a connected provider and model in Settings before sending.",
   request:
     "The provider request failed. Check the connection and try a new turn.",
+  rate: "The provider rate or quota limit was reached. Check your API account before sending again.",
   response:
     "The provider rejected this response. Check the selected model and try a new turn.",
   stopped: "This turn stopped. Review the current draft before sending again.",
@@ -513,8 +515,12 @@ export class ApiProviderThreads {
       }
       if (!failure && session.view.messages.at(-1)?.role !== "assistant")
         failure = "response";
-    } catch {
-      failure = controller.signal.aborted ? "stopped" : "request";
+    } catch (error) {
+      failure = controller.signal.aborted
+        ? "stopped"
+        : error instanceof ApiProviderError && error.code === "rate_limited"
+          ? "rate"
+          : "request";
     }
     session.controller = null;
     session.view.status = failure ? "failed" : "ready";

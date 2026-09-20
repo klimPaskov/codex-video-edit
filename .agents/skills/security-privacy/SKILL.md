@@ -32,6 +32,8 @@ For native remembered-key evidence, require packaged Electron, a real secure OS 
 
 For synthetic native turns for both API providers, inject only into the isolated main process and reject every URL outside the selected fixed reviewed provider routes. Assert source/baseline preservation, stale rejection, shared undo and key/raw-response redaction in persisted conversation. Do not treat synthetic model output as an authenticated provider edit or permit renderer-supplied transport overrides.
 
+Map provider 429 to fixed rate-or-quota recovery text without persisting raw response bodies, headers, account data or credentials. A live-key test may keep status codes only in ignored private evidence; delete any transferred mode-600 key file before launching Electron. Never publish the live project, screenshot or test transcript.
+
 ## Stop condition
 
 Block the phase on unrestricted renderer privileges, source mutation, silent capture, token leakage, path escape, or unconfirmed deletion.

@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { ApiProviderThreads } from "../../apps/desktop/src/api-thread.ts";
 import type { ApiProviderClient } from "../../packages/api-providers/src/client.ts";
+import { ApiProviderError } from "../../packages/api-providers/src/types.ts";
 import type { ApiChatCompletion } from "../../packages/api-providers/src/types.ts";
 import {
   assertApiThreadProjectRequest,
@@ -326,6 +327,33 @@ test("provider errors preserve user prompt but never raw error details", async (
     assert.equal(persisted.includes(key), false);
     await f.threads.close(project, provider);
     assert.equal((await f.threads.open(project, provider)).status, "failed");
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test("rate or quota rejection has an actionable redacted conversation error", async () => {
+  const f = await fixture(async () => {
+    throw new ApiProviderError("rate_limited");
+  });
+  try {
+    await f.threads.open(project, provider);
+    const view = await f.threads.send(project, provider, "Trim this fixture");
+    assert.equal(view.status, "failed");
+    assert.equal(
+      view.message,
+      "The provider rate or quota limit was reached. Check your API account before sending again.",
+    );
+    assert.deepEqual(
+      view.messages.map((item) => item.role),
+      ["user"],
+    );
+    const persisted = await readFile(
+      join(f.root, "api-provider-threads", `${project}.${provider}.json`),
+      "utf8",
+    );
+    assert.ok(!persisted.includes(key));
+    assert.ok(!persisted.includes("rate_limited"));
   } finally {
     await f.cleanup();
   }

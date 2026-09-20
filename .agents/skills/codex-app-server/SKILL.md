@@ -94,6 +94,8 @@ For a remembered API key, save its selected model in the same OS-protected key r
 
 The synthetic packaged API-provider draft fixture must run both OpenAI and DeepSeek. It may replace `fetch` only inside isolated Electron main after startup; each run must assert its fixed destinations, a synthetic key, the real imported project, committed journal/preview/undo and no external completion. Label visible responses as synthetic and keep authenticated paid-provider edit acceptance separate. The pinned Codex 0.142.3 planner adds MCP resource helpers and a plan tool whenever the owned MCP server is present; empty environments and invocation quarantine do not establish an exact model-visible four-tool allowlist. Require authoritative parent/child effective tool specifications before P2-07 acceptance.
 
+For a live API-key fixture, make the explicit Send through packaged Electron and record only bounded HTTP status classifications in private evidence. A 429 may mean rate or quota; map it to fixed redacted recovery text, require no journal commit unless a validated tool succeeds, and stop paid retries until account state changes. Synthetic 429 injection can verify native error presentation but cannot satisfy authenticated edit acceptance.
+
 ## Packaged account/settings validation
 
 Resolve only main-owned fixed packaged resources and verify the pinned runtime manifest, binary and licence before connection. Keep the official runtime outside ASAR and out of Git; preserve licensing in private packaged builds. A content hash is not a release signature. Test missing, damaged and redirected resources without launching test fixture bytes.
