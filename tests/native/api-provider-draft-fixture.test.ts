@@ -83,6 +83,22 @@ await encodeVerifiedMaster(
 );
 const sourceHash = sha256(await readFile(source));
 const testKey = "TEST-ONLY-LOCAL-API-KEY";
+const provider = process.argv.includes("--deepseek") ? "deepseek" : "openai";
+const model = provider === "deepseek" ? "deepseek-chat" : "gpt-4.1-mini";
+const modelUrl =
+  provider === "deepseek"
+    ? "https://api.deepseek.com/models"
+    : "https://api.openai.com/v1/models";
+const chatUrl =
+  provider === "deepseek"
+    ? "https://api.deepseek.com/chat/completions"
+    : "https://api.openai.com/v1/chat/completions";
+let lastFrameMismatch: {
+  frame: number;
+  index: number;
+  actual: number;
+  expected: number;
+} | null = null;
 await writeFile(
   join(evidence, "provenance.json"),
   JSON.stringify({
@@ -115,7 +131,18 @@ async function assertFrame(page: Page, frame: number): Promise<void> {
     expected[index] = expected[index + 2]!;
     expected[index + 2] = blue;
   }
-  assert.deepEqual(Buffer.from(actual.pixels), expected);
+  const pixels = Buffer.from(actual.pixels);
+  for (let index = 0; index < pixels.length; index++) {
+    if (pixels[index] === expected[index]) continue;
+    lastFrameMismatch = {
+      frame,
+      index,
+      actual: pixels[index]!,
+      expected: expected[index]!,
+    };
+    throw new assert.AssertionError({ message: "Frame pixels differ" });
+  }
+  lastFrameMismatch = null;
 }
 
 async function expectFrame(page: Page, frame: number): Promise<void> {
@@ -177,21 +204,18 @@ try {
               `Bearer ${args.key}`
           )
             throw new Error("Unexpected test credential");
-          if (url === "https://api.openai.com/v1/models" && method === "GET") {
+          if (url === args.modelUrl && method === "GET") {
             state.requests.push("models");
-            return respond({ data: [{ id: "gpt-4.1-mini" }] });
+            return respond({ data: [{ id: args.model }] });
           }
-          if (
-            url !== "https://api.openai.com/v1/chat/completions" ||
-            method !== "POST"
-          )
+          if (url !== args.chatUrl || method !== "POST")
             throw new Error("Unexpected outbound request");
           state.requests.push("completion");
           const request = JSON.parse(String(init?.body)) as {
             model: string;
             messages: Array<{ role: string; content: string }>;
           };
-          if (request.model !== "gpt-4.1-mini" || !args.projectId)
+          if (request.model !== args.model || !args.projectId)
             throw new Error("Unexpected model or project");
           const user =
             request.messages.filter((item) => item.role === "user").at(-1)
@@ -203,7 +227,7 @@ try {
             return respond({ error: "private-test-provider-detail" }, 503);
           const tool = (name: string, input: unknown) =>
             respond({
-              model: "gpt-4.1-mini",
+              model: args.model,
               choices: [
                 {
                   finish_reason: "tool_calls",
@@ -275,7 +299,7 @@ try {
               };
             });
           return respond({
-            model: "gpt-4.1-mini",
+            model: args.model,
             choices: [
               {
                 finish_reason: "stop",
@@ -285,7 +309,7 @@ try {
           });
         };
       },
-      { key: testKey, projectId },
+      { key: testKey, projectId, model, modelUrl, chatUrl },
     );
   };
   const connect = async (page: Page) => {
@@ -293,25 +317,25 @@ try {
     await page
       .getByRole("button", { name: "API providers", exact: true })
       .click();
-    await page.locator("#api-provider-id").selectOption("openai");
+    await page.locator("#api-provider-id").selectOption(provider);
     await page.locator("#api-provider-remember").uncheck({ force: true });
     await page.locator("#api-provider-key").fill(testKey);
     await page.locator("#api-provider-connect").click();
     await expect(page.locator("#api-provider-status")).toHaveText(
       "Key available for this session",
     );
-    await page.locator("#api-provider-model").selectOption("gpt-4.1-mini");
+    await page.locator("#api-provider-model").selectOption(model);
     await expect
       .poll(async () => {
         const reply = await page.evaluate(() =>
           window.desktop.getApiProviders(),
         );
         return reply.ok
-          ? reply.value.providers.find((item) => item.id === "openai")
+          ? reply.value.providers.find((item) => item.id === provider)
               ?.selectedModel
           : null;
       })
-      .toBe("gpt-4.1-mini");
+      .toBe(model);
     await page.keyboard.press("Escape");
   };
   electron = await launch();
@@ -359,16 +383,16 @@ try {
   await installTransport(project.id);
   await connect(page);
   await page.getByRole("button", { name: "Codex", exact: true }).click();
-  await page.locator("#assistant-provider").selectOption("openai");
+  await page.locator("#assistant-provider").selectOption(provider);
   await expect(page.locator("#api-turn-notice")).toBeVisible();
   await page
     .getByRole("button", { name: "Open conversation", exact: true })
     .click();
   const request = {
-    schema_version: "1.0" as const,
+    schema_version: "1.0",
     project_id: project.id,
-    provider: "openai" as const,
-  };
+    provider,
+  } as const;
   const thread = async () => {
     const reply = await page.evaluate(
       (value) => window.desktop.getApiThread(value),
@@ -526,7 +550,29 @@ try {
   assert.equal(records[1]!.target_transaction_id, first.transaction_id);
   await expect(page.locator("#seek")).toHaveAttribute("max", "1000000");
   await page.screenshot({ path: join(evidence, "undo-private.png") });
-  await expectFrame(page, 0);
+  try {
+    await expectFrame(page, 0);
+  } catch (error) {
+    await page.screenshot({
+      path: join(evidence, "undo-after-wait-private.png"),
+    });
+    await writeFile(
+      join(evidence, "undo-after-wait.json"),
+      JSON.stringify(
+        await page.evaluate(() => ({
+          message: document.querySelector("#preview-message")?.textContent,
+          messageHidden: (
+            document.querySelector("#preview-message") as HTMLElement
+          )?.hidden,
+          canvasHidden: (document.querySelector("#frame") as HTMLElement)
+            ?.hidden,
+          seek: (document.querySelector("#seek") as HTMLInputElement)?.value,
+          error: document.querySelector("#error")?.textContent,
+        })),
+      ),
+    );
+    throw error;
+  }
   step = "provider-failure";
   const failure = await send("Test provider failure without an edit.");
   assert.equal(failure.status, "failed");
@@ -538,7 +584,7 @@ try {
   assert.ok(!JSON.stringify(failure).includes(testKey));
   assert.ok(!JSON.stringify(failure).includes("private-test-provider-detail"));
   const conversation = await readFile(
-    join(userData, "api-provider-threads", `${project.id}.openai.json`),
+    join(userData, "api-provider-threads", `${project.id}.${provider}.json`),
     "utf8",
   );
   assert.ok(!conversation.includes(testKey));
@@ -576,6 +622,7 @@ try {
     JSON.stringify({
       status: "pass",
       scope: "P2-packaged-synthetic-provider-draft",
+      provider,
       packagedNativeWindow: true,
       outboundTransport: "main-only deterministic test shim",
       liveCommittedTrim: true,
@@ -601,6 +648,7 @@ try {
       status: "fail",
       step,
       privateDiagnostic: detail,
+      lastFrameMismatch,
     }),
   );
   console.error(`Native synthetic provider draft test failed at ${step}.`);
