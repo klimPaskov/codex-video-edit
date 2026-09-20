@@ -1082,6 +1082,291 @@ test("host edit requests before the turn ID is known fail closed", async () => {
   }
 });
 
+test("a start notification before RPC submission cannot authorize a host call", async () => {
+  let invoked = 0;
+  const value = await fixture(undefined, async () => {
+    invoked++;
+    return { status: "unexpected" };
+  });
+  try {
+    await value.client.open();
+    const original = value.registry.threadForProject.bind(value.registry);
+    let entered!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    value.registry.threadForProject = async (projectId) => {
+      entered();
+      await held;
+      return original(projectId);
+    };
+    value.setHandler(async () => turnResponse("later-turn"));
+    const starting = value.client.startTurn({ text: "Read the project" });
+    await waiting;
+    value.client.notification("turn/started", {
+      threadId: "thread-1",
+      turn: { id: "unsent-turn", status: "inProgress", items: [] },
+    });
+    assert.throws(
+      () =>
+        value.client.serverRequest({
+          id: "unsent-host-call",
+          method: "item/tool/call",
+          params: {
+            threadId: "thread-1",
+            turnId: "unsent-turn",
+            callId: "unsent-call",
+            namespace: "codex_video_edit",
+            tool: "project_get_summary",
+            arguments: { schema_version: "1.0", project_id: "project-1" },
+          },
+          signal: new AbortController().signal,
+        }),
+      CodexThreadProtocolError,
+    );
+    assert.equal(invoked, 0);
+    release();
+    await assert.rejects(starting, CodexThreadProtocolError);
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("an owned start notification correlates a host call before the start response", async () => {
+  let invoked = 0;
+  const value = await fixture(undefined, async () => {
+    invoked++;
+    return { status: "read" };
+  });
+  try {
+    await value.client.open();
+    value.setHandler(async () => {
+      value.client.notification("turn/started", {
+        threadId: "thread-1",
+        turn: { id: "notified-turn", status: "inProgress", items: [] },
+      });
+      const result = await value.client.serverRequest({
+        id: "notified-call",
+        method: "item/tool/call",
+        params: {
+          threadId: "thread-1",
+          turnId: "notified-turn",
+          callId: "notified-call",
+          namespace: "codex_video_edit",
+          tool: "project_get_summary",
+          arguments: { schema_version: "1.0", project_id: "project-1" },
+        },
+        signal: new AbortController().signal,
+      });
+      assert.deepEqual(result, {
+        contentItems: [{ type: "inputText", text: '{"status":"read"}' }],
+        success: true,
+      });
+      return turnResponse("notified-turn");
+    });
+    await value.client.startTurn({ text: "Read the project" });
+    assert.equal(invoked, 1);
+    assert.deepEqual(
+      value.events.map((event) => event.type),
+      ["turn_started"],
+    );
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("a notified host call rejects a conflicting turn/start response", async () => {
+  let invoked = 0;
+  const value = await fixture(undefined, async () => {
+    invoked++;
+    return { status: "read" };
+  });
+  try {
+    await value.client.open();
+    value.setHandler(async () => {
+      value.client.notification("turn/started", {
+        threadId: "thread-1",
+        turn: { id: "notified-turn", status: "inProgress", items: [] },
+      });
+      await value.client.serverRequest({
+        id: "notified-call",
+        method: "item/tool/call",
+        params: {
+          threadId: "thread-1",
+          turnId: "notified-turn",
+          callId: "notified-call",
+          namespace: "codex_video_edit",
+          tool: "project_get_summary",
+          arguments: { schema_version: "1.0", project_id: "project-1" },
+        },
+        signal: new AbortController().signal,
+      });
+      return turnResponse("different-turn");
+    });
+    await assert.rejects(
+      value.client.startTurn({ text: "Read the project" }),
+      CodexThreadProtocolError,
+    );
+    assert.equal(invoked, 1);
+    await assert.rejects(
+      value.client.startTurn({ text: "Do not reuse this thread" }),
+      CodexThreadProtocolError,
+    );
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("a buffered terminal turn cannot authorize a late host call", async () => {
+  let invoked = 0;
+  const value = await fixture(undefined, async () => {
+    invoked++;
+    return { status: "unexpected" };
+  });
+  try {
+    await value.client.open();
+    value.setHandler(async () => {
+      value.client.notification("turn/started", {
+        threadId: "thread-1",
+        turn: { id: "finished-turn", status: "inProgress", items: [] },
+      });
+      value.client.notification("turn/completed", {
+        threadId: "thread-1",
+        turn: { id: "finished-turn", status: "completed", items: [] },
+      });
+      assert.throws(
+        () =>
+          value.client.serverRequest({
+            id: "late-host-call",
+            method: "item/tool/call",
+            params: {
+              threadId: "thread-1",
+              turnId: "finished-turn",
+              callId: "late-call",
+              namespace: "codex_video_edit",
+              tool: "project_get_summary",
+              arguments: { schema_version: "1.0", project_id: "project-1" },
+            },
+            signal: new AbortController().signal,
+          }),
+        CodexThreadProtocolError,
+      );
+      return turnResponse("finished-turn");
+    });
+    await value.client.startTurn({ text: "Read the project" });
+    assert.equal(invoked, 0);
+    await assert.rejects(
+      value.client.startTurn({ text: "Do not reuse this thread" }),
+      CodexThreadProtocolError,
+    );
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("a child start notification cannot authorize a project host call", async () => {
+  let invoked = 0;
+  const value = await fixture(undefined, async () => {
+    invoked++;
+    return { status: "unexpected" };
+  });
+  try {
+    await value.client.open();
+    value.setHandler(async () => {
+      value.client.notification("turn/started", {
+        threadId: "child-thread",
+        turn: { id: "child-turn", status: "inProgress", items: [] },
+      });
+      assert.throws(
+        () =>
+          value.client.serverRequest({
+            id: "child-host-call",
+            method: "item/tool/call",
+            params: {
+              threadId: "child-thread",
+              turnId: "child-turn",
+              callId: "child-call",
+              namespace: "codex_video_edit",
+              tool: "project_get_summary",
+              arguments: { schema_version: "1.0", project_id: "project-1" },
+            },
+            signal: new AbortController().signal,
+          }),
+        CodexThreadProtocolError,
+      );
+      return turnResponse("parent-turn");
+    });
+    await value.client.startTurn({ text: "Read the project" });
+    assert.equal(invoked, 0);
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("a previous turn ID cannot authorize a new in-flight host call", async () => {
+  let invoked = 0;
+  const value = await fixture(undefined, async () => {
+    invoked++;
+    return { status: "unexpected" };
+  });
+  try {
+    await value.client.open();
+    value.setHandler(async () => turnResponse("previous-turn"));
+    await value.client.startTurn({ text: "First read" });
+    value.client.notification("turn/completed", {
+      threadId: "thread-1",
+      turn: { id: "previous-turn", status: "completed", items: [] },
+    });
+    value.setHandler(async () => {
+      assert.throws(
+        () =>
+          value.client.notification("turn/started", {
+            threadId: "thread-1",
+            turn: { id: "previous-turn", status: "inProgress", items: [] },
+          }),
+        CodexThreadProtocolError,
+      );
+      return turnResponse("new-turn");
+    });
+    await value.client.startTurn({ text: "Second read" });
+    assert.equal(invoked, 0);
+    await assert.rejects(
+      value.client.startTurn({ text: "Do not reuse this thread" }),
+      CodexThreadProtocolError,
+    );
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
+test("a start rejection after a validated notification is a protocol conflict", async () => {
+  const value = await fixture(undefined, async () => ({ status: "read" }));
+  try {
+    await value.client.open();
+    value.setHandler(async () => {
+      value.client.notification("turn/started", {
+        threadId: "thread-1",
+        turn: { id: "accepted-turn", status: "inProgress", items: [] },
+      });
+      throw new CodexTransportError("remote_error");
+    });
+    await assert.rejects(
+      value.client.startTurn({ text: "Read the project" }),
+      CodexThreadProtocolError,
+    );
+    await assert.rejects(
+      value.client.startTurn({ text: "Do not reuse this thread" }),
+      CodexThreadProtocolError,
+    );
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
 test("poisoned project conversation disconnect and repeated close finish without RPC", async () => {
   const value = await fixture();
   try {

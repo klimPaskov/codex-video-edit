@@ -51,6 +51,8 @@ Thread resume consumes at most one validated page of 100 newest full turns and 1
 
 The private thread registry tags each version 2 binding with its tool route. Version 1 entries are interpreted only as MCP, and an incompatible process route fails before resume. A dynamic thread projects no MCP calls; an MCP thread rejects host calls even if an internal invoker exists. Corrupt or unknown routes fail without replacing the registry. Product main still uses MCP.
 
+For the optional dynamic route, a host call received before the `turn/start` RPC response requires a validated `turn/started` notification naming the registry-owned thread and a single provisional turn. The response must agree with that turn; a call before notification, after buffered completion, or after contradiction cannot reach the guarded invoker. Notifications stay buffered until reconciliation. Unit tests exercise those races, and a direct isolated App Server run completed one owned read; neither switches product routing nor proves full upstream tool confinement.
+
 ## Secrets
 
 Let the official Codex client own ChatGPT credentials. Do not copy tokens into project files, logs, crash reports, or renderer state. The MCP broker credential is inherited through the restricted process environment and never appears in command arguments, thread instructions, project data, or IPC.

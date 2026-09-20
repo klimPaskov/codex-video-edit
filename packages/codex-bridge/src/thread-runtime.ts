@@ -72,6 +72,9 @@ export class ProjectThreadRuntime {
   private threadId: string | undefined;
   private currentTurnId: string | undefined;
   private turnStarting = false;
+  private turnStartSubmitted = false;
+  private notifiedStartingTurnId: string | undefined;
+  private notifiedStartingTurnEnded = false;
   private lastTerminalTurnId: string | undefined;
   private expectedHistoryActive: boolean | null = null;
   private openingToolRoute: ProjectThreadToolRoute | undefined;
@@ -195,6 +198,9 @@ export class ProjectThreadRuntime {
     this.openingToolRoute = undefined;
     this.currentTurnId = undefined;
     this.turnStarting = false;
+    this.turnStartSubmitted = false;
+    this.notifiedStartingTurnId = undefined;
+    this.notifiedStartingTurnEnded = false;
     this.lastTerminalTurnId = undefined;
     this.expectedHistoryActive = resumed ? session.active : null;
     return historyPage;
@@ -223,6 +229,9 @@ export class ProjectThreadRuntime {
     }
     this.currentTurnId = history.activeTurnId ?? undefined;
     this.turnStarting = false;
+    this.turnStartSubmitted = false;
+    this.notifiedStartingTurnId = undefined;
+    this.notifiedStartingTurnEnded = false;
     this.expectedHistoryActive = null;
     return history;
   }
@@ -232,6 +241,9 @@ export class ProjectThreadRuntime {
       throw new CodexThreadProtocolError("configuration");
     }
     this.turnStarting = true;
+    this.turnStartSubmitted = false;
+    this.notifiedStartingTurnId = undefined;
+    this.notifiedStartingTurnEnded = false;
     try {
       const threadId = await this.requireThreadId();
       return buildTurnStartRequest(
@@ -246,9 +258,21 @@ export class ProjectThreadRuntime {
     }
   }
 
+  markTurnStartSubmitted(): void {
+    if (!this.turnStarting || this.turnStartSubmitted)
+      throw new CodexThreadProtocolError("configuration");
+    this.turnStartSubmitted = true;
+  }
+
   acceptTurnStartResponse(response: unknown): ThreadStreamEvent | null {
     const projector = this.requireProjector();
     const turn = decodeTurnStart(response);
+    if (
+      this.notifiedStartingTurnId &&
+      this.notifiedStartingTurnId !== turn.turnId
+    ) {
+      throw new CodexThreadProtocolError("protocol");
+    }
     if (
       !this.turnStarting &&
       this.currentTurnId !== turn.turnId &&
@@ -257,6 +281,9 @@ export class ProjectThreadRuntime {
       throw new CodexThreadProtocolError("protocol");
     }
     this.turnStarting = false;
+    this.turnStartSubmitted = false;
+    this.notifiedStartingTurnId = undefined;
+    this.notifiedStartingTurnEnded = false;
     if (this.lastTerminalTurnId === turn.turnId) return null;
     this.currentTurnId = turn.turnId;
     const event = projector.beginTurn(
@@ -305,6 +332,9 @@ export class ProjectThreadRuntime {
     this.openingToolRoute = undefined;
     this.currentTurnId = undefined;
     this.turnStarting = false;
+    this.turnStartSubmitted = false;
+    this.notifiedStartingTurnId = undefined;
+    this.notifiedStartingTurnEnded = false;
     this.lastTerminalTurnId = undefined;
     this.expectedHistoryActive = null;
   }
@@ -314,7 +344,52 @@ export class ProjectThreadRuntime {
     if (!this.turnStarting || this.currentTurnId) {
       throw new CodexThreadProtocolError("configuration");
     }
+    if (this.notifiedStartingTurnId)
+      throw new CodexThreadProtocolError("protocol");
     this.turnStarting = false;
+    this.turnStartSubmitted = false;
+    this.notifiedStartingTurnId = undefined;
+    this.notifiedStartingTurnEnded = false;
+  }
+
+  /** A buffered owned turn notification can authorize a host call before the RPC settles. */
+  noteBufferedTurnNotification(method: string, params: unknown): void {
+    if (
+      this.activeToolRoute !== "dynamic" ||
+      !this.turnStarting ||
+      !this.turnStartSubmitted ||
+      this.currentTurnId ||
+      (method !== "turn/started" && method !== "turn/completed")
+    )
+      return;
+    if (!threadProtocolInternals.record(params))
+      throw new CodexThreadProtocolError("protocol");
+    const threadId = threadProtocolInternals.identifier(
+      params.threadId,
+      "protocol",
+    );
+    if (threadId !== this.threadId)
+      throw new CodexThreadProtocolError("forbidden");
+    const turn = threadProtocolInternals.turn(params.turn);
+    if (
+      (method === "turn/started" && turn.status !== "inProgress") ||
+      (method === "turn/completed" && turn.status === "inProgress") ||
+      (this.notifiedStartingTurnId && this.notifiedStartingTurnId !== turn.id)
+    )
+      throw new CodexThreadProtocolError("protocol");
+    if (
+      !this.notifiedStartingTurnId &&
+      this.requireProjector().hasSeenTurn(turn.id)
+    )
+      throw new CodexThreadProtocolError("protocol");
+    if (method === "turn/started") {
+      if (this.notifiedStartingTurnEnded)
+        throw new CodexThreadProtocolError("protocol");
+      this.notifiedStartingTurnId = turn.id;
+    } else {
+      this.notifiedStartingTurnId = turn.id;
+      this.notifiedStartingTurnEnded = true;
+    }
   }
 
   assertActiveCorrelation(
@@ -334,11 +409,16 @@ export class ProjectThreadRuntime {
       params.turnId,
       "protocol",
     );
+    const startingAllowed =
+      this.turnStarting &&
+      this.turnStartSubmitted &&
+      !this.notifiedStartingTurnEnded &&
+      (this.notifiedStartingTurnId
+        ? turnId === this.notifiedStartingTurnId
+        : allowStarting);
     if (
       threadId !== this.threadId ||
-      (!this.currentTurnId
-        ? !allowStarting || !this.turnStarting
-        : turnId !== this.currentTurnId)
+      (this.currentTurnId ? turnId !== this.currentTurnId : !startingAllowed)
     ) {
       throw new CodexThreadProtocolError("forbidden");
     }
@@ -388,6 +468,9 @@ export class ProjectThreadRuntime {
       this.currentTurnId = undefined;
     }
     this.turnStarting = false;
+    this.turnStartSubmitted = false;
+    this.notifiedStartingTurnId = undefined;
+    this.notifiedStartingTurnEnded = false;
     return event;
   }
 
