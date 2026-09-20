@@ -198,6 +198,7 @@ function harness(
           return selection;
         },
       },
+      toolRouteForProject: async () => "mcp",
       createClient: (options) => {
         const client = clients.length ? new FakeClient() : fake;
         client.options = options;
@@ -209,6 +210,61 @@ function harness(
   );
   return { controller, clients, opened };
 }
+
+test("new dynamic projects and legacy MCP projects use separate guarded processes", async () => {
+  const clients: FakeClient[] = [];
+  const mcpRuntime = {
+    command: resolve("test-results/test-only-mcp-command"),
+    script: resolve("test-results/test-only-mcp-script"),
+    endpoint: "test-only-endpoint",
+    token: "a".repeat(64),
+  };
+  const dynamicToolInvoker: NonNullable<
+    DesktopCodexDependencies["dynamicToolInvoker"]
+  > = async () => ({ status: "read" });
+  const { controller } = harness(undefined, {
+    mcpRuntime,
+    dynamicToolInvoker,
+    toolRouteForProject: async (projectId) =>
+      projectId === "legacy-project" ? "mcp" : "dynamic",
+    createClient: (options) => {
+      const client = new FakeClient();
+      client.auth = signedIn();
+      client.options = options;
+      clients.push(client);
+      return client;
+    },
+  });
+  try {
+    await controller.get();
+    await controller.select({ modelId: model.id, reasoning: "medium" });
+    assert.deepEqual(clients[0]?.options.mcp, mcpRuntime);
+    assert.equal(clients[0]?.options.dynamicToolInvoker, undefined);
+    const dynamic = await controller.openThread("new-project");
+    assert.equal(dynamic.status, "ready");
+    assert.equal(clients.length, 2);
+    assert.equal(clients[0]?.closeCalls, 1);
+    assert.equal(clients[1]?.options.mcp, undefined);
+    assert.equal(clients[1]?.options.dynamicToolInvoker, dynamicToolInvoker);
+    assert.match(
+      clients[1]?.openThreadCalls[0]?.developerInstructions ?? "",
+      /codex_video_edit__project_get_summary/u,
+    );
+    await controller.closeThread("new-project");
+    const legacy = await controller.openThread("legacy-project");
+    assert.equal(legacy.status, "ready");
+    assert.equal(clients.length, 3);
+    assert.equal(clients[1]?.closeCalls, 1);
+    assert.deepEqual(clients[2]?.options.mcp, mcpRuntime);
+    assert.equal(clients[2]?.options.dynamicToolInvoker, undefined);
+    assert.match(
+      clients[2]?.openThreadCalls[0]?.developerInstructions ?? "",
+      /codex-video-edit MCP tools/u,
+    );
+  } finally {
+    await controller.close();
+  }
+});
 async function eventually(
   controller: DesktopCodex,
   check: (view: CodexView) => boolean,

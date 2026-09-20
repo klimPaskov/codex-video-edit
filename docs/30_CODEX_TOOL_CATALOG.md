@@ -141,7 +141,7 @@ A mutation response contains:
 
 Do not expose tools that overwrite sources, run arbitrary shell commands, read unrelated files, delete projects, approve licences, confirm export, or clear recoverable revisions.
 
-The current 0.155.1 Luna code-mode session exposes the six implemented owned editor tools. App Server launch and thread create/resume explicitly disable the plan tool, user-input tool and native agents; unrelated apps and nested namespaces are excluded. A bounded model-visible probe is required in packaged native tests. This does not prove an exact permanent upstream tool allowlist or satisfy P2-07.
+The current 0.155.1 Luna code-mode session exposes the six implemented owned editor tools. New project conversations use their `codex_video_edit__` host-defined names; existing MCP-bound conversations retain the corresponding dotted MCP names. The route-tagged registry and separate App Server processes prevent cross-route resume. Both dispatch through the same main-owned active-project transaction service. App Server launch and thread create/resume explicitly disable the plan tool, user-input tool and native agents; unrelated apps and nested namespaces are excluded. Packaged native dynamic trim/Undo/reopen and a bounded forbidden-command probe passed, but this does not prove an exact permanent upstream tool allowlist or satisfy P2-07.
 
 ## Authorization policy
 
