@@ -45,6 +45,10 @@ const restrictedApps = {
     open_world_enabled: false,
   },
 };
+const restrictedTools = {
+  update_plan: { enabled: false },
+  experimental_request_user_input: { enabled: false },
+};
 
 test("experimental initialization and no-environment requests are exact", () => {
   assert.deepEqual(buildExperimentalInitialize("0.0.0"), {
@@ -73,6 +77,8 @@ test("experimental initialization and no-environment requests are exact", () => 
       forced_login_method: "chatgpt",
       model_provider: "openai",
       apps: restrictedApps,
+      tools: restrictedTools,
+      agents: { enabled: false },
       project_root_markers: [],
       features: restrictedFeatures,
       web_search: "disabled",
@@ -99,6 +105,8 @@ test("experimental initialization and no-environment requests are exact", () => 
       forced_login_method: "chatgpt",
       model_provider: "openai",
       apps: restrictedApps,
+      tools: restrictedTools,
+      agents: { enabled: false },
       project_root_markers: [],
       features: restrictedFeatures,
       web_search: "disabled",

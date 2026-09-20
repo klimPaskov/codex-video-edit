@@ -273,11 +273,16 @@ try {
   mark("validated-account-catalog");
   const catalog = await page.evaluate(() => window.desktop.getCodex());
   assert.ok(catalog.ok);
-  const model =
-    catalog.value.models.find(
-      (item) => item.id === catalog.value.selection?.modelId,
-    ) ?? catalog.value.models[0]!;
-  const reasoning = model.defaultReasoning;
+  const requireLunaHigh = process.argv.includes("--require-luna-high");
+  const model = requireLunaHigh
+    ? catalog.value.models.find(
+        (item) => item.id === "gpt-5.6-luna" && item.reasoning.includes("high"),
+      )
+    : (catalog.value.models.find(
+        (item) => item.id === catalog.value.selection?.modelId,
+      ) ?? catalog.value.models[0]);
+  assert.ok(model, "The required Codex model is unavailable");
+  const reasoning = requireLunaHigh ? "high" : model.defaultReasoning;
   assert.ok(model.reasoning.includes(reasoning));
   mark("select-runtime-model-in-settings");
   await page.getByRole("button", { name: "Settings", exact: true }).click();

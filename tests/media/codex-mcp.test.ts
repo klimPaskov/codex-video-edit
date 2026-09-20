@@ -303,6 +303,11 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
   assert.ok(args.includes("apps._default.enabled=false"));
   assert.ok(args.includes("apps._default.destructive_enabled=false"));
   assert.ok(args.includes("apps._default.open_world_enabled=false"));
+  assert.ok(args.includes("tools.update_plan.enabled=false"));
+  assert.ok(
+    args.includes("tools.experimental_request_user_input.enabled=false"),
+  );
+  assert.ok(args.includes("agents.enabled=false"));
   assert.ok(
     args.includes(
       'features.code_mode.excluded_tool_namespaces=["mcp__codex_apps","multi_agent_v1","skills","functions","image_gen"]',
