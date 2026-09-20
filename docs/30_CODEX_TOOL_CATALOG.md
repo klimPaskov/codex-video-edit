@@ -137,6 +137,8 @@ A mutation response contains:
 
 Do not expose tools that overwrite sources, run arbitrary shell commands, read unrelated files, delete projects, approve licences, confirm export, or clear recoverable revisions.
 
+The current 0.155.1 Luna code-mode session exposes the six implemented owned editor tools. App Server launch and thread create/resume explicitly disable the plan tool, user-input tool and native agents; unrelated apps and nested namespaces are excluded. A bounded model-visible probe is required in packaged native tests. This does not prove an exact permanent upstream tool allowlist or satisfy P2-07.
+
 ## Authorization policy
 
 Tools scoped to `active_draft` or `export_staging` use `user_confirmation: none` for already authorized work. This includes Magic Wand and export preparation. Validate scope, source immutability, sequence, protected speech and undo guarantees on every call. Do not request approval again merely because a reversible edit changes the draft materially. Final export requires the explicit user action in the native Export screen; no AI tool may authorize it. Source deletion, cleanup, spending and publication remain explicit user actions.

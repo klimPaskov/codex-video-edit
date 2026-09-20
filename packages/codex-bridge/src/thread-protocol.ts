@@ -172,6 +172,11 @@ export interface ThreadStartRequest {
         open_world_enabled: false;
       };
     };
+    tools: {
+      update_plan: { enabled: false };
+      experimental_request_user_input: { enabled: false };
+    };
+    agents: { enabled: false };
     project_root_markers: [];
     features: {
       shell_tool: false;
@@ -220,6 +225,11 @@ export function buildThreadStartRequest(
           open_world_enabled: false,
         },
       },
+      tools: {
+        update_plan: { enabled: false },
+        experimental_request_user_input: { enabled: false },
+      },
+      agents: { enabled: false },
       project_root_markers: [],
       features: {
         shell_tool: false,
@@ -304,6 +314,11 @@ export function buildThreadResumeRequest(
           open_world_enabled: false,
         },
       },
+      tools: {
+        update_plan: { enabled: false },
+        experimental_request_user_input: { enabled: false },
+      },
+      agents: { enabled: false },
       project_root_markers: [],
       features: {
         shell_tool: false,

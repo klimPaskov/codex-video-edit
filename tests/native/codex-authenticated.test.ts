@@ -237,11 +237,19 @@ try {
     account.value.skills.length > 0,
     "Real skill discovery must return entries",
   );
-  const model =
-    account.value.models.find(
-      (item) => item.id === account.value.selection?.modelId,
-    ) ?? account.value.models[0]!;
-  const selection = { modelId: model.id, reasoning: model.defaultReasoning };
+  const requireLunaHigh = process.argv.includes("--require-luna-high");
+  const model = requireLunaHigh
+    ? account.value.models.find(
+        (item) => item.id === "gpt-5.6-luna" && item.reasoning.includes("high"),
+      )
+    : (account.value.models.find(
+        (item) => item.id === account.value.selection?.modelId,
+      ) ?? account.value.models[0]);
+  assert.ok(model, "The required Codex model is unavailable");
+  const selection = {
+    modelId: model.id,
+    reasoning: requireLunaHigh ? "high" : model.defaultReasoning,
+  };
   mark("authenticated-settings-select-model");
   await page.locator("#codex-model").selectOption(model.id);
   mark("authenticated-settings-model-settle");
@@ -689,6 +697,7 @@ try {
         modelCount: account.value.models.length,
         skillCount: account.value.skills.length,
         authenticated: true,
+        lunaHighTurn: requireLunaHigh,
         discoveredSelectionPersisted: true,
         trimSequence: 1,
         undoSequence: 2,

@@ -361,7 +361,7 @@ try {
   if (process.argv.includes("--probe-surface")) {
     mark("safe-tool-surface-probe");
     const diagnostic =
-      "In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.mcp__codex_video_edit__project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('mcp__codex_video_edit__')).length, unownedNames: ALL_TOOLS.filter(x => !x.name.startsWith('mcp__codex_video_edit__')).map(x => x.name).slice(0, 20)}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.";
+      "In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.mcp__codex_video_edit__project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, plan: typeof tools.update_plan, input: typeof tools.request_user_input_async, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('mcp__codex_video_edit__')).length, unownedNames: ALL_TOOLS.filter(x => !x.name.startsWith('mcp__codex_video_edit__')).map(x => x.name).slice(0, 20)}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.";
     await page.locator("#codex-thread-input").fill(diagnostic);
     await page.locator("#send-codex-thread").click();
     await expect
@@ -381,6 +381,8 @@ try {
     for (const key of [
       "apps",
       "goals",
+      "plan",
+      "input",
       "skills",
       "spawn",
       "images",
