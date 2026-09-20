@@ -27,6 +27,7 @@ const idPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$/u;
 const issues = new Set([
   "Choose a connected provider and model in Settings before sending.",
   "The provider request failed. Check the connection and try a new turn.",
+  "The provider rate or quota limit was reached. Check your API account before sending again.",
   "The provider rejected this response. Check the selected model and try a new turn.",
   "This turn stopped. Review the current draft before sending again.",
   "The edit may have been saved. Reopen the project before sending again.",

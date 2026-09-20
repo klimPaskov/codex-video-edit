@@ -225,6 +225,8 @@ try {
           );
           if (user.includes("provider failure"))
             return respond({ error: "private-test-provider-detail" }, 503);
+          if (user.includes("quota failure"))
+            return respond({ error: "private-test-provider-detail" }, 429);
           const tool = (name: string, input: unknown) =>
             respond({
               model: args.model,
@@ -583,6 +585,27 @@ try {
   assert.equal((await journal()).length, 2);
   assert.ok(!JSON.stringify(failure).includes(testKey));
   assert.ok(!JSON.stringify(failure).includes("private-test-provider-detail"));
+  step = "quota-failure";
+  const quota = await send("Test quota failure without an edit.");
+  assert.equal(quota.status, "failed");
+  assert.equal(
+    quota.message,
+    "The provider rate or quota limit was reached. Check your API account before sending again.",
+  );
+  assert.equal((await journal()).length, 2);
+  assert.ok(!JSON.stringify(quota).includes(testKey));
+  assert.ok(!JSON.stringify(quota).includes("private-test-provider-detail"));
+  await expect(page.locator("#codex-thread-error")).toHaveText(quota.message!);
+  const quotaCapture = JSON.parse(
+    execFileSync(
+      "python3",
+      [resolve("tests/desktop/guest-input.py"), "capture"],
+      { encoding: "utf8", timeout: 30000 },
+    ),
+  ) as { screenshot: string; display: string; hostInput: boolean };
+  assert.equal(quotaCapture.display, ":99");
+  assert.equal(quotaCapture.hostInput, false);
+  await copyFile(quotaCapture.screenshot, join(evidence, "quota-native.png"));
   const conversation = await readFile(
     join(userData, "api-provider-threads", `${project.id}.${provider}.json`),
     "utf8",
@@ -596,8 +619,8 @@ try {
     return scope.nativeProviderFixture?.requests ?? [];
   });
   assert.equal(requests.filter((entry) => entry === "models").length, 1);
-  assert.equal(requests.filter((entry) => entry === "completion").length, 9);
-  assert.equal(requests.length, 10);
+  assert.equal(requests.filter((entry) => entry === "completion").length, 10);
+  assert.equal(requests.length, 11);
   step = "reopen-project";
   await electron.close();
   electron = await launch();
@@ -630,6 +653,7 @@ try {
       sharedUndo: true,
       sourceAndBaselineUnchanged: true,
       providerFailureRedacted: true,
+      quotaFailureActionable: true,
       projectReopened: true,
       paidTurnStarted: false,
       hostInput: false,

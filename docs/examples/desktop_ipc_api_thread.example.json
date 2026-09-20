@@ -8,11 +8,17 @@
   "response": {
     "ok": true,
     "value": {
-      "status": "closed",
-      "projectId": null,
-      "provider": null,
-      "messages": [],
-      "message": null
+      "status": "failed",
+      "projectId": "project-example",
+      "provider": "deepseek",
+      "messages": [
+        {
+          "id": "message-example",
+          "role": "user",
+          "text": "Trim the fixture"
+        }
+      ],
+      "message": "The provider rate or quota limit was reached. Check your API account before sending again."
     }
   }
 }
