@@ -290,7 +290,12 @@ export class ApiProviderClient {
   private readonly timeoutMs: number;
 
   constructor(options: ApiProviderClientOptions = {}) {
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // Resolve the main-process transport at call time. Isolated native tests
+    // can replace it after Electron starts without adding a renderer API or
+    // a production credential/endpoint override.
+    this.fetchImpl =
+      options.fetchImpl ??
+      ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args));
     this.timeoutMs = options.timeoutMs ?? 30_000;
     if (
       !Number.isInteger(this.timeoutMs) ||
