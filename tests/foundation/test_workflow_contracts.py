@@ -67,6 +67,7 @@ class WorkflowContractsTests(unittest.TestCase):
                         "cut.trim_edge",
                         "cut.split",
                         "cut.delete_range",
+                        "cut.delete_ranges",
                         "timeline.undo",
                     ],
                 )

@@ -57,6 +57,8 @@ after reopen; it is not a ripple delete or an audio/video render.
 
 Expose the same split reducer to the guarded Codex and fixed API-provider adapters only with exact draft-head freshness, current clip ID, interior output time, pass group and reason. Main supplies origin and journal IDs; the AI tool must return committed state and refresh the native fragment projection. Without transcript or audio evidence, the call can honor an exact requested split but cannot infer a meaningful speech boundary.
 
+For a confirmed range batch, require 2–16 disjoint half-open output intervals in descending start-time order. Apply every interval against the same pre-transaction coordinates through one prepared transaction, persist once, and return one newest Undo. Reject overlap, ascending order, malformed ranges, stale heads and whole-draft removal without a partial journal entry. Do not label structural cuts as verified speech cleanup without transcript context and rendered A/V join checks.
+
 For the partial marked range cut, bind both marks to the current committed head and
 send only a strict `projects:manual-range-cut` output interval. Reject empty, reversed,
 out-of-bounds and whole-draft intervals. The half-open interval may cross fragment or

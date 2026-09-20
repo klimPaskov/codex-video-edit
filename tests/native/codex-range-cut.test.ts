@@ -40,7 +40,8 @@ assert.equal(
 assert.notEqual(configRoot, "/");
 const providedPaths = process.argv
   .slice(4)
-  .filter((argument) => argument !== "--inspect");
+  .filter((argument) => argument !== "--inspect" && argument !== "--batch");
+const batch = process.argv.includes("--batch");
 assert.ok(
   providedPaths.length === 0 || providedPaths.length === 2,
   "Supply exactly two optional guest media paths",
@@ -274,13 +275,23 @@ try {
   const joinUs = baseline.timeline.clips[0]!.timeline_end_us;
   const cutStartUs = providedPaths.length === 2 ? joinUs - 1_000_000 : 250_000;
   const cutEndUs = providedPaths.length === 2 ? joinUs + 1_000_000 : 1_500_000;
+  const earlyStartUs = 50_000;
+  const earlyEndUs = 150_000;
   assert.ok(
     cutStartUs > 0 && cutEndUs < totalUs,
     "Both sources must extend beyond the requested cut",
   );
+  if (batch) assert.ok(earlyEndUs < cutStartUs);
   const secondSourceStartUs = cutEndUs - joinUs;
-  const cutDurationUs = totalUs - (cutEndUs - cutStartUs);
-  await expect(page.locator("#duration")).toHaveText(` / ${clock(totalUs)}`);
+  const cutDurationUs =
+    totalUs - (cutEndUs - cutStartUs) - (batch ? earlyEndUs - earlyStartUs : 0);
+  const editedJoinUs = cutStartUs - (batch ? earlyEndUs - earlyStartUs : 0);
+  mark("select-combined-project");
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await page.locator(`#projects [data-project-id="${combined.id}"]`).click();
+  await expect(page.locator("#duration")).toHaveText(` / ${clock(totalUs)}`, {
+    timeout: 120_000,
+  });
   const library = new MediaLibrary(join(userData, "media-library"));
   const firstFrame = Buffer.from(
     (await library.frame(baseline.sources[0].source_id, cutStartUs)).rgbaBase64,
@@ -291,8 +302,9 @@ try {
       .rgbaBase64,
     "base64",
   );
+  mark("open-edit-stage");
   await page.getByRole("button", { name: "Edit", exact: true }).click();
-  await expect(page.locator("#edit-actions")).toBeVisible();
+  await expect(page.locator("#edit-actions")).toBeVisible({ timeout: 120_000 });
   await page.getByRole("button", { name: "Codex", exact: true }).click();
   await page
     .getByRole("button", { name: "Open conversation", exact: true })
@@ -312,6 +324,19 @@ try {
   await expect
     .poll(async () => (await thread()).status, { timeout: 90_000 })
     .toBe("ready");
+  if (batch) {
+    const registry = JSON.parse(
+      await readFile(
+        join(userData, "codex/context/threads/project-threads.json"),
+        "utf8",
+      ),
+    ) as { entries: Array<{ projectId: string; toolRoute?: string }> };
+    assert.equal(
+      registry.entries.find((entry) => entry.projectId === combined.id)
+        ?.toolRoute,
+      "dynamic",
+    );
+  }
   async function records(): Promise<DraftTransactionRecord[]> {
     const folder = join(projectFolder, "draft/journal");
     const names = (await readdir(folder).catch(() => []))
@@ -331,7 +356,9 @@ try {
   }
 
   mark("authenticated-range-cut");
-  const prompt = `Use the guarded editor tools to read the active two-source draft. Delete exactly the half-open output range [${cutStartUs}, ${cutEndUs}) microseconds using cut.delete_range, spanning the join between its two source clips. Apply exactly one range-cut transaction. The committed draft must be ${cutDurationUs} microseconds long. Do not trim, undo, or make another edit. Read the draft again to verify, then reply briefly.`;
+  const prompt = batch
+    ? `Use the guarded editor tools to read the active two-source draft. Call codex_video_edit__cut_delete_ranges exactly once with these two confirmed disjoint half-open output-time ranges in descending order: [${cutStartUs}, ${cutEndUs}) across the source join, then [${earlyStartUs}, ${earlyEndUs}) in the first source. The batch must be one transaction with two ripple_delete operations and final duration ${cutDurationUs} microseconds. Do not use cut_delete_range, split, trim, undo, or make another edit. Read the draft again to verify, then reply briefly.`
+    : `Use the guarded editor tools to read the active two-source draft. Delete exactly the half-open output range [${cutStartUs}, ${cutEndUs}) microseconds using cut.delete_range, spanning the join between its two source clips. Apply exactly one range-cut transaction. The committed draft must be ${cutDurationUs} microseconds long. Do not trim, undo, or make another edit. Read the draft again to verify, then reply briefly.`;
   await page.locator("#codex-thread-input").fill(prompt);
   await page.locator("#send-codex-thread").click();
   let committedDuringTurn = false;
@@ -380,19 +407,27 @@ try {
   assert.equal(cut.origin, "codex");
   assert.equal(cut.kind, "apply");
   assert.equal(cut.status, "committed");
-  assert.equal(cut.operations.length, 1);
+  assert.equal(cut.operations.length, batch ? 2 : 1);
   const operation = cut.operations[0]!;
   assert.equal(operation.operation_type, "ripple_delete");
   if (operation.operation_type !== "ripple_delete")
     throw new Error("Expected range cut");
   assert.equal(operation.start_us, cutStartUs);
   assert.equal(operation.end_us, cutEndUs);
+  if (batch) {
+    const second = cut.operations[1]!;
+    assert.equal(second.operation_type, "ripple_delete");
+    if (second.operation_type !== "ripple_delete")
+      throw new Error("Expected second range cut");
+    assert.equal(second.start_us, earlyStartUs);
+    assert.equal(second.end_us, earlyEndUs);
+  }
   assert.equal(cut.after.timeline.duration_us, cutDurationUs);
   assert.equal(cut.after.draft_sequence, 1);
   await expect(page.locator("#duration")).toHaveText(
     ` / ${clock(cutDurationUs)}`,
   );
-  await seek(page, cutStartUs);
+  await seek(page, editedJoinUs);
   await expect
     .poll(async () => (await canvasHash(page!)) === sha256(cutJoinFrame), {
       timeout: 30_000,
@@ -401,10 +436,10 @@ try {
   const edited = await page.evaluate(() => window.desktop.listProjects());
   assert.ok(edited.ok);
   const clips = edited.value.find((item) => item.id === combined.id)?.clips;
-  assert.equal(clips?.length, 2);
-  assert.equal(clips?.[0]?.timelineEndUs, cutStartUs);
-  assert.equal(clips?.[1]?.timelineStartUs, cutStartUs);
-  assert.equal(clips?.[1]?.sourceStartUs, secondSourceStartUs);
+  assert.equal(clips?.length, batch ? 3 : 2);
+  assert.equal(clips?.[batch ? 1 : 0]?.timelineEndUs, editedJoinUs);
+  assert.equal(clips?.[batch ? 2 : 1]?.timelineStartUs, editedJoinUs);
+  assert.equal(clips?.[batch ? 2 : 1]?.sourceStartUs, secondSourceStartUs);
   await page.screenshot({
     path: join(evidence, "committed-native-window.png"),
   });
@@ -489,7 +524,9 @@ try {
     JSON.stringify(
       {
         status: "pass",
-        scope: "real-authenticated-codex-range-cut",
+        scope: batch
+          ? "real-authenticated-codex-range-batch"
+          : "real-authenticated-codex-range-cut",
         packaged: true,
         nativeWindow: true,
         sourceCount: 2,

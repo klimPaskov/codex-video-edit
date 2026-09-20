@@ -498,6 +498,72 @@ test("API-provider range cut routes to the API origin and rejects unsafe ranges"
   );
 });
 
+test("guarded range batch is one reversible commit and rejects unsafe order", async () => {
+  const { active, drafts, service } = await fixture();
+  const initial = (await drafts.snapshot(active.project.project_id)).draft;
+  const base: Record<string, unknown> = structuredClone(rangeInput(initial));
+  delete base.start_us;
+  delete base.end_us;
+  const input = {
+    ...base,
+    request_id: "codex-range-batch-001",
+    ranges: [
+      { start_us: 700_000, end_us: 800_000 },
+      { start_us: 100_000, end_us: 200_000 },
+    ],
+  };
+  for (const ranges of [
+    input.ranges.toReversed(),
+    [
+      { start_us: 700_000, end_us: 800_000 },
+      { start_us: 650_000, end_us: 750_000 },
+    ],
+    [{ start_us: 700_000, end_us: 800_000 }],
+  ])
+    await assert.rejects(
+      service.invoke("cut.delete_ranges", { ...input, ranges }),
+      expectCode("invalid_request"),
+    );
+  assert.equal(
+    (await drafts.snapshot(initial.project_id)).draft.draft_sequence,
+    0,
+  );
+  const applied = (await service.invoke("cut.delete_ranges", input)) as {
+    transaction_id: string;
+    draft: { draft_sequence: number; duration_us: number };
+    applied_operation_ids: string[];
+  };
+  assert.equal(applied.draft.draft_sequence, 1);
+  assert.equal(applied.draft.duration_us, 800_000);
+  assert.equal(applied.applied_operation_ids.length, 2);
+  const replay = (await service.invoke("cut.delete_ranges", input)) as {
+    replayed: boolean;
+  };
+  assert.equal(replay.replayed, true);
+  const current = (await drafts.snapshot(initial.project_id)).draft;
+  await assert.rejects(
+    service.invoke("cut.delete_ranges", {
+      ...input,
+      request_id: "codex-range-batch-stale",
+      ranges: input.ranges,
+    }),
+    expectCode("stale_draft"),
+  );
+  const undone = (await service.invoke("timeline.undo", {
+    schema_version: "1.0",
+    request_id: "codex-range-batch-undo",
+    project_id: current.project_id,
+    draft_id: current.draft_id,
+    base_revision_id: current.base_revision_id,
+    expected_sequence: current.draft_sequence,
+    expected_timeline_sha256: current.timeline_sha256,
+    target_transaction_id: applied.transaction_id,
+    reason: "Restore both confirmed ranges.",
+  })) as { draft: { duration_us: number; draft_sequence: number } };
+  assert.equal(undone.draft.duration_us, 1_000_000);
+  assert.equal(undone.draft.draft_sequence, 2);
+});
+
 test("an undo committed before an uncertain response is idempotent on retry", async () => {
   let commits = 0;
   const { active, drafts, service } = await fixture({

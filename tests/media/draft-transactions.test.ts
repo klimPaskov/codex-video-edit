@@ -708,6 +708,102 @@ test("ripple delete may remove one complete source group and retain the later so
   );
 });
 
+test("descending range batch commits once, replays, and undoes both cuts atomically", async () => {
+  const { paths, projects, projectStore, baseline } = await twoSourceFixture();
+  const originalBytes = await Promise.all(paths.map((path) => readFile(path)));
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const request = {
+    ...rippleDelete(initial, 1_400_000, 1_600_000, "request-batch-001"),
+    operations: [
+      {
+        type: "ripple_delete" as const,
+        start_us: 1_400_000,
+        end_us: 1_600_000,
+      },
+      { type: "ripple_delete" as const, start_us: 200_000, end_us: 400_000 },
+    ],
+  };
+  const applied = await store.applyManual(request);
+  assert.equal(applied.draft.draft_sequence, 1);
+  assert.equal(applied.transaction.operations.length, 2);
+  assert.equal(applied.draft.timeline.duration_us, 1_600_000);
+  assert.deepEqual(
+    applied.draft.timeline.clips.map((clip) => [
+      clip.source_id,
+      clip.source_start_us,
+      clip.source_end_us,
+    ]),
+    [
+      [baseline.sources[0].source_id, 0, 200_000],
+      [baseline.sources[0].source_id, 400_000, 1_000_000],
+      [baseline.sources[1].source_id, 0, 400_000],
+      [baseline.sources[1].source_id, 600_000, 1_000_000],
+    ],
+  );
+  const reopened = new DraftTransactionStore(projects, projectStore);
+  assert.deepEqual(
+    (await reopened.snapshot(initial.project_id)).draft,
+    applied.draft,
+  );
+  const replay = await reopened.applyManual(request);
+  assert.equal(replay.replayed, true);
+  assert.equal(
+    replay.transaction.transaction_id,
+    applied.transaction.transaction_id,
+  );
+  const restored = await reopened.undoManual(
+    undo(applied.draft, applied.transaction.transaction_id),
+  );
+  assert.deepEqual(restored.draft.timeline.clips, initial.timeline.clips);
+  assert.deepEqual(
+    await Promise.all(paths.map((path) => readFile(path))),
+    originalBytes,
+  );
+});
+
+test("range batch rejects overlap and out-of-bounds cuts without a partial commit", async () => {
+  const { projects, projectStore, baseline } = await twoSourceFixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const base = rippleDelete(
+    initial,
+    1_400_000,
+    1_600_000,
+    "request-batch-invalid",
+  );
+  assert.throws(
+    () =>
+      store.applyManual({
+        ...base,
+        operations: [
+          { type: "ripple_delete", start_us: 1_400_000, end_us: 1_600_000 },
+          { type: "ripple_delete", start_us: 1_300_000, end_us: 1_500_000 },
+        ],
+      }),
+    code("invalid"),
+  );
+  await assert.rejects(
+    store.applyManual({
+      ...base,
+      operations: [
+        { type: "ripple_delete", start_us: 2_100_000, end_us: 2_200_000 },
+        { type: "ripple_delete", start_us: 0, end_us: 200_000 },
+      ],
+    }),
+    code("conflict"),
+  );
+  assert.deepEqual((await store.snapshot(initial.project_id)).draft, initial);
+});
+
 test("interior ripple delete retains the left ID and derives the right ID, then replays", async () => {
   const { projects, projectStore, baseline } = await fixture();
   const store = new DraftTransactionStore(

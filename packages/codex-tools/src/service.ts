@@ -12,6 +12,7 @@ export const codexVideoEditToolNames = [
   "cut.split",
   "cut.delete_range",
   "timeline.undo",
+  "cut.delete_ranges",
 ] as const;
 
 export type CodexVideoEditToolName = (typeof codexVideoEditToolNames)[number];
@@ -246,6 +247,8 @@ export class CodexVideoEditToolService {
           return await this.split(input);
         case "cut.delete_range":
           return await this.deleteRange(input);
+        case "cut.delete_ranges":
+          return await this.deleteRanges(input);
         case "timeline.undo":
           return await this.undo(input);
         default:
@@ -447,6 +450,67 @@ export class CodexVideoEditToolService {
       ],
     });
     return safeMutation(result, "Range cut applied to the active draft.");
+  }
+
+  private async deleteRanges(input: unknown): Promise<unknown> {
+    const request = exact(input, [
+      "schema_version",
+      "request_id",
+      "project_id",
+      "draft_id",
+      "base_revision_id",
+      "expected_sequence",
+      "expected_timeline_sha256",
+      "pass_group_id",
+      "reason",
+      "ranges",
+    ]);
+    freshness(request, this.activeProjectId);
+    id(request.pass_group_id);
+    if (
+      !Array.isArray(request.ranges) ||
+      request.ranges.length < 2 ||
+      request.ranges.length > 16
+    )
+      reject("invalid_request");
+    let previousStart: number | null = null;
+    const operations = request.ranges.map((item: unknown) => {
+      const range = exact(item, ["start_us", "end_us"]);
+      integer(range.start_us);
+      integer(range.end_us, 1);
+      if (
+        range.start_us >= range.end_us ||
+        (previousStart !== null && range.end_us > previousStart)
+      )
+        reject("invalid_request");
+      previousStart = range.start_us;
+      return {
+        type: "ripple_delete" as const,
+        start_us: range.start_us,
+        end_us: range.end_us,
+      };
+    });
+    const apply =
+      this.origin === "api_provider"
+        ? this.drafts.applyApiProvider?.bind(this.drafts)
+        : this.drafts.applyCodex.bind(this.drafts);
+    if (!apply) reject("service_unavailable");
+    const result = await apply({
+      schema_version: "1.0",
+      request_id: request.request_id,
+      project_id: request.project_id,
+      draft_id: request.draft_id,
+      base_revision_id: request.base_revision_id,
+      expected_sequence: request.expected_sequence,
+      expected_timeline_sha256: request.expected_timeline_sha256,
+      pass_group: { pass_group_id: request.pass_group_id, kind: "spoken_cut" },
+      reason: request.reason,
+      operations,
+    });
+    return safeMutation(
+      result,
+      "Range cuts applied together to the active draft.",
+    );
   }
 
   private async undo(input: unknown): Promise<unknown> {

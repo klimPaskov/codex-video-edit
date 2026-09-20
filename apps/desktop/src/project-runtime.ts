@@ -84,6 +84,7 @@ export async function invokeWithProjectDraftRefresh<T>(options: {
     options.toolName === "cut.trim_edge" ||
     options.toolName === "cut.split" ||
     options.toolName === "cut.delete_range" ||
+    options.toolName === "cut.delete_ranges" ||
     options.toolName === "timeline.split" ||
     options.toolName === "timeline.ripple_delete" ||
     options.toolName === "timeline.undo";

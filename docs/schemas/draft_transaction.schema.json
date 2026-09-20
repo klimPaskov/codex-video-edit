@@ -51,6 +51,7 @@
     "after": { "$ref": "#/$defs/state" },
     "operations": {
       "type": "array",
+      "description": "A confirmed ripple-delete batch uses disjoint half-open output ranges ordered by descending start time. They commit in one transaction and share one undo.",
       "maxItems": 64,
       "items": {
         "oneOf": [
