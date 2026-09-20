@@ -415,6 +415,11 @@ export class ThreadStreamProjector {
     return this.generation;
   }
 
+  /** A new in-flight turn may not borrow a previously projected turn identity. */
+  hasSeenTurn(turnId: string): boolean {
+    return this.active?.id === turnId || this.terminals.has(turnId);
+  }
+
   /** Restore one requested newest-first page before buffered live events flush. */
   restoreHistory(value: unknown): ThreadHistorySnapshot {
     this.assertHealthy();

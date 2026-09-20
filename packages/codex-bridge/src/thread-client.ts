@@ -141,6 +141,7 @@ export class CodexProjectThreadClient {
     let requestBuilt = false;
     try {
       const request = await this.runtime.turnStartRequest(input);
+      this.runtime.markTurnStartSubmitted();
       requestBuilt = true;
       const response = await this.options.rpc.request("turn/start", request);
       this.emit(this.runtime.acceptTurnStartResponse(response));
@@ -148,11 +149,23 @@ export class CodexProjectThreadClient {
     } catch (error) {
       this.pending = [];
       if (
+        error instanceof CodexThreadProtocolError &&
+        error.code !== "configuration"
+      )
+        this.quarantine();
+      if (
         requestBuilt &&
         error instanceof CodexTransportError &&
         error.code === "remote_error"
       ) {
-        this.runtime.rejectTurnStart();
+        try {
+          this.runtime.rejectTurnStart();
+        } catch (conflict) {
+          this.quarantine();
+          this.emit(this.runtime.disconnect());
+          this.opened = false;
+          throw conflict;
+        }
       } else if (requestBuilt) {
         this.emit(this.runtime.disconnect());
         this.opened = false;
@@ -233,6 +246,12 @@ export class CodexProjectThreadClient {
       ) {
         this.quarantine();
         throw new CodexThreadProtocolError("protocol");
+      }
+      try {
+        this.runtime.noteBufferedTurnNotification(method, params);
+      } catch (error) {
+        this.quarantine();
+        throw error;
       }
       this.pending.push({ method, params });
       return;
