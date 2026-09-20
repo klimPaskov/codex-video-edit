@@ -87,6 +87,33 @@ export const codexVideoEditMcpTools = [
   {
     name: codexVideoEditToolNames[3],
     description:
+      "Split one current clip at an interior output-time position and commit one undoable transaction.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        ...Object.keys(freshness),
+        "pass_group_id",
+        "clip_id",
+        "timeline_position_us",
+      ],
+      properties: {
+        ...freshness,
+        pass_group_id: id,
+        clip_id: id,
+        timeline_position_us: { type: "integer", minimum: 1 },
+      },
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    name: codexVideoEditToolNames[4],
+    description:
       "Ripple-delete a nonempty output-time interval from the active draft and commit one undoable transaction. End time is exclusive.",
     inputSchema: {
       type: "object",
@@ -112,7 +139,7 @@ export const codexVideoEditMcpTools = [
     },
   },
   {
-    name: codexVideoEditToolNames[4],
+    name: codexVideoEditToolNames[5],
     description:
       "Undo only the newest applied draft transaction after exact freshness validation.",
     inputSchema: {

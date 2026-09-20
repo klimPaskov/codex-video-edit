@@ -122,6 +122,7 @@ test("packaged MCP protocol lists only reviewed tools and forwards a bounded cal
         "project.get_summary",
         "timeline.get_summary",
         "cut.trim_edge",
+        "cut.split",
         "cut.delete_range",
         "timeline.undo",
       ],
@@ -134,6 +135,15 @@ test("packaged MCP protocol lists only reviewed tools and forwards a bounded cal
     assert.ok(range.inputSchema.required.includes("end_us"));
     assert.ok(range.inputSchema.required.includes("expected_timeline_sha256"));
     assert.ok(!Object.hasOwn(range.inputSchema.properties, "origin"));
+    const split = tools.find((tool) => tool.name === "cut.split");
+    assert.ok(split);
+    assert.equal(split.inputSchema.additionalProperties, false);
+    assert.ok(split.inputSchema.required.includes("clip_id"));
+    assert.ok(split.inputSchema.required.includes("timeline_position_us"));
+    assert.ok(split.inputSchema.required.includes("pass_group_id"));
+    assert.ok(split.inputSchema.required.includes("expected_sequence"));
+    assert.ok(split.inputSchema.required.includes("expected_timeline_sha256"));
+    assert.ok(!Object.hasOwn(split.inputSchema.properties, "origin"));
     const called = await rpc.request({
       jsonrpc: "2.0",
       id: 3,

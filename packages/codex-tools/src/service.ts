@@ -9,6 +9,7 @@ export const codexVideoEditToolNames = [
   "project.get_summary",
   "timeline.get_summary",
   "cut.trim_edge",
+  "cut.split",
   "cut.delete_range",
   "timeline.undo",
 ] as const;
@@ -241,6 +242,8 @@ export class CodexVideoEditToolService {
           return await this.timelineSummary(input);
         case "cut.trim_edge":
           return await this.trimEdge(input);
+        case "cut.split":
+          return await this.split(input);
         case "cut.delete_range":
           return await this.deleteRange(input);
         case "timeline.undo":
@@ -349,6 +352,53 @@ export class CodexVideoEditToolService {
       ],
     });
     return safeMutation(result, "Trim applied to the active draft.");
+  }
+
+  private async split(input: unknown): Promise<unknown> {
+    const request = exact(input, [
+      "schema_version",
+      "request_id",
+      "project_id",
+      "draft_id",
+      "base_revision_id",
+      "expected_sequence",
+      "expected_timeline_sha256",
+      "pass_group_id",
+      "reason",
+      "clip_id",
+      "timeline_position_us",
+    ]);
+    freshness(request, this.activeProjectId);
+    id(request.pass_group_id);
+    id(request.clip_id);
+    integer(request.timeline_position_us, 1);
+    const apply =
+      this.origin === "api_provider"
+        ? this.drafts.applyApiProvider?.bind(this.drafts)
+        : this.drafts.applyCodex.bind(this.drafts);
+    if (!apply) reject("service_unavailable");
+    const result = await apply({
+      schema_version: "1.0",
+      request_id: request.request_id,
+      project_id: request.project_id,
+      draft_id: request.draft_id,
+      base_revision_id: request.base_revision_id,
+      expected_sequence: request.expected_sequence,
+      expected_timeline_sha256: request.expected_timeline_sha256,
+      pass_group: {
+        pass_group_id: request.pass_group_id,
+        kind: "spoken_cut",
+      },
+      reason: request.reason,
+      operations: [
+        {
+          type: "split",
+          clip_id: request.clip_id,
+          timeline_position_us: request.timeline_position_us,
+        },
+      ],
+    });
+    return safeMutation(result, "Clip split on the active draft.");
   }
 
   private async deleteRange(input: unknown): Promise<unknown> {

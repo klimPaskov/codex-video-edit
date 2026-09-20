@@ -18,9 +18,9 @@ Each read request includes the schema version and active project ID. Every mutat
 
 Mutating calls also include a user-readable reason and, where relevant, a pass-group identity. The trusted manual, Codex, API-provider, or Magic Wand entrypoint injects origin, operation IDs, transaction ID, timestamp, and inverse data. Stale sequence, baseline revision, draft, or timeline hash values fail without partial mutation.
 
-The current P2 runtime exposes only `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, `cut.delete_range`, and newest-transaction `timeline.undo` through the packaged owned stdio MCP adapter. Electron main remains the only transaction writer. App-server startup verifies that this is the exact MCP inventory before any project thread can open. The remaining catalog entries retain their later-phase dependencies.
+The current P2 runtime exposes only `project.get_summary`, `timeline.get_summary`, `cut.trim_edge`, `cut.split`, `cut.delete_range`, and newest-transaction `timeline.undo` through the packaged owned stdio MCP adapter. Electron main remains the only transaction writer. App-server startup verifies that this is the exact MCP inventory before any project thread can open. The remaining catalog entries retain their later-phase dependencies.
 
-For the three current mutations, main refreshes the atomic project/draft authority after the tool settles rather than trusting model prose or MCP activity. This covers a journal commit followed by an uncertain response. The native project duration, seek bounds and preview mapping update only from that validated state; notification failure preserves the original tool outcome and asks the user to reopen.
+For the four current mutations, main refreshes the atomic project/draft authority after the tool settles rather than trusting model prose or MCP activity. This covers a journal commit followed by an uncertain response. The native project duration, seek bounds and preview mapping update only from that validated state; notification failure preserves the original tool outcome and asks the user to reopen.
 
 ## Read-only tools
 
@@ -64,7 +64,7 @@ Restores the exact before-state of the newest still-applied transaction through 
 
 ### `cut.split`
 
-Splits a supported clip at an exact mapped time.
+Splits one current clip at an exact interior output-time position without changing its source or total duration. The call carries the current project, draft, baseline, sequence and timeline hash, plus a clip ID, pass group and reason. Main supplies trusted origin and operation identity; the shared journal records an undoable `split` transaction. The present read tools cannot infer a semantically useful beat from speech or audio.
 
 ### `cut.delete_range`
 

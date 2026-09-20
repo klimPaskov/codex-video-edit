@@ -55,6 +55,8 @@ store the exact inverse in the shared journal, and refresh the committed fragmen
 before another manual or assistant edit. Split must be undoable and replay identically
 after reopen; it is not a ripple delete or an audio/video render.
 
+Expose the same split reducer to the guarded Codex and fixed API-provider adapters only with exact draft-head freshness, current clip ID, interior output time, pass group and reason. Main supplies origin and journal IDs; the AI tool must return committed state and refresh the native fragment projection. Without transcript or audio evidence, the call can honor an exact requested split but cannot infer a meaningful speech boundary.
+
 For the partial marked range cut, bind both marks to the current committed head and
 send only a strict `projects:manual-range-cut` output interval. Reject empty, reversed,
 out-of-bounds and whole-draft intervals. The half-open interval may cross fragment or

@@ -600,18 +600,22 @@ test("rejected manual edits publish the current committed clip map without claim
 test("split tool outcomes publish an authoritative committed fragment map", async () => {
   const { baseline, drafts } = await fixture();
   const notices: ProjectDraftNotice[] = [];
-  const result = await invokeWithProjectDraftRefresh({
-    toolName: "timeline.split",
-    projectId: baseline.project.project_id,
-    activeProjectId: () => baseline.project.project_id,
-    work: async () => "split-result",
-    drafts,
-    notify: (notice) => notices.push(notice),
-  });
-  assert.equal(result, "split-result");
-  assert.equal(notices.length, 1);
-  assert.equal(notices[0]?.ok, true);
-  if (notices[0]?.ok) assert.equal(notices[0].value.clips?.length, 1);
+  for (const toolName of ["timeline.split", "cut.split"]) {
+    const result = await invokeWithProjectDraftRefresh({
+      toolName,
+      projectId: baseline.project.project_id,
+      activeProjectId: () => baseline.project.project_id,
+      work: async () => "split-result",
+      drafts,
+      notify: (notice) => notices.push(notice),
+    });
+    assert.equal(result, "split-result");
+  }
+  assert.equal(notices.length, 2);
+  for (const notice of notices) {
+    assert.equal(notice.ok, true);
+    if (notice.ok) assert.equal(notice.value.clips?.length, 1);
+  }
 });
 
 test("ripple-delete tool outcomes publish the surviving committed map after an uncertain reply", async () => {

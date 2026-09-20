@@ -227,6 +227,51 @@ test("range-cut function is offered to API providers and routes to the guarded d
   }
 });
 
+test("split function routes exact clip intent to the guarded shared tool", async () => {
+  const input = {
+    schema_version: "1.0",
+    request_id: "api-split-001",
+    project_id: project,
+    draft_id: "draft-001",
+    base_revision_id: "revision-001",
+    expected_sequence: 0,
+    expected_timeline_sha256: "a".repeat(64),
+    pass_group_id: "spoken-cuts-001",
+    reason: "Split at the requested beat",
+    clip_id: "clip-001",
+    timeline_position_us: 500_000,
+  };
+  let round = 0;
+  const invoked: Array<[string, unknown]> = [];
+  const f = await fixture(
+    async (_provider, _key, request) => {
+      round++;
+      if (round === 1) {
+        const split = request.tools?.find((tool) => tool.name === "cut_split");
+        assert.ok(split);
+        assert.ok(Array.isArray(split.parameters.required));
+        assert.ok(split.parameters.required.includes("clip_id"));
+        assert.ok(split.parameters.required.includes("timeline_position_us"));
+        return call("cut_split", input);
+      }
+      assert.equal(request.messages.at(-1)?.role, "tool");
+      return stop("The split was committed.");
+    },
+    async (_project, name, parsed) => {
+      invoked.push([name, parsed]);
+      return { status: "committed" };
+    },
+  );
+  try {
+    await f.threads.open(project, provider);
+    const view = await f.threads.send(project, provider, "Split this clip");
+    assert.equal(view.status, "ready");
+    assert.deepEqual(invoked, [["cut.split", input]]);
+  } finally {
+    await f.cleanup();
+  }
+});
+
 test("tool chain stops at the round limit before an unanswerable edit", async () => {
   let invoked = 0;
   const f = await fixture(
