@@ -68,6 +68,8 @@ The separate direct `codex-dynamic-tools-resume.test.ts` passed one exact-thread
 
 The optional internal host-call adapter now uses pinned generated request/response types, maps only the reviewed six tool schemas into one namespace, bounds arguments/results, and allows only configured owned calls and redacted stream/history items. Product main still does not supply the invoker or register dynamic tools. Before enabling it, resolve turn-start correlation races, tag or otherwise separate legacy MCP-backed threads, and prove the existing shared transaction/Undo/reopen path in packaged Electron.
 
+The direct `codex-dynamic-tools-timing.test.ts` probe passed one Luna/high read-only call after `turn/start` supplied the trusted turn ID using the pinned package's matching code-mode host. Retain an early-call fail-closed guard: one observed order cannot prove every scheduling race. An older binary lacking its host led to no calls in two setup attempts; verify both matching executables before interpreting a no-call result.
+
 ## Runtime boundary
 
 Codex receives project context and edit tools. It does not receive unrestricted access to the installation, source repository, raw source mutation, project deletion, or export confirmation.
