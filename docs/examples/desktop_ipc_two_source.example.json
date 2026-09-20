@@ -1,0 +1,57 @@
+{
+  "channel": "projects:create-two",
+  "payload": {
+    "firstId": "d81632fb-4cde-4d40-a75d-679e22c15f2a",
+    "secondId": "43baf2a0-6c3b-42d1-9b6d-ef5d6712846a"
+  },
+  "response": {
+    "ok": true,
+    "value": {
+      "id": "ec68bd7a-79eb-4a96-9475-4db15df75d3a",
+      "name": "Part one.mp4",
+      "stage": "record_import",
+      "revisionId": "a647be34-c87d-44eb-82fb-70d6afcbdc31",
+      "draft": {
+        "id": "draft-bfddc982-903a-4570-8efc-27dc381b98b6",
+        "baseRevisionId": "a647be34-c87d-44eb-82fb-70d6afcbdc31",
+        "sequence": 0,
+        "timelineSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "undoTransactionId": null
+      },
+      "source": {
+        "id": "d81632fb-4cde-4d40-a75d-679e22c15f2a",
+        "name": "Part one.mp4",
+        "width": 1920,
+        "height": 1080,
+        "durationUs": 1000000,
+        "frameRate": 60,
+        "previewAvailable": true
+      },
+      "sources": [
+        {
+          "id": "d81632fb-4cde-4d40-a75d-679e22c15f2a",
+          "name": "Part one.mp4",
+          "width": 1920,
+          "height": 1080,
+          "durationUs": 1000000,
+          "frameRate": 60,
+          "previewAvailable": true
+        },
+        {
+          "id": "43baf2a0-6c3b-42d1-9b6d-ef5d6712846a",
+          "name": "Part two.mp4",
+          "width": 1920,
+          "height": 1080,
+          "durationUs": 1000000,
+          "frameRate": 60,
+          "previewAvailable": true
+        }
+      ],
+      "timeline": {
+        "id": "d0d743dc-b2af-4a60-8dd9-3cb7644a7ba4",
+        "durationUs": 2000000,
+        "frameRate": { "numerator": 60, "denominator": 1 }
+      }
+    }
+  }
+}

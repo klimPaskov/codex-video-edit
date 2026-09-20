@@ -16,6 +16,11 @@ export type ProjectStage = (typeof projectStages)[number];
 export interface ProjectRequest {
   id: string;
 }
+/** Ordered, path-free references to two already imported library sources. */
+export interface TwoSourceProjectRequest {
+  firstId: string;
+  secondId: string;
+}
 export interface ProjectNavigation extends ProjectRequest {
   stage: ProjectStage;
 }
@@ -61,6 +66,8 @@ export interface ProjectView extends Omit<ProjectDraftView, "projectId"> {
   stage: ProjectStage;
   revisionId: string;
   source: MediaSummary;
+  /** Present only for an ordered two-source project; source aliases sources[0]. */
+  sources?: MediaSummary[];
 }
 function invalid(): never {
   throw new Error("Invalid project exchange.");
@@ -104,6 +111,14 @@ export function assertProjectRequest(
 ): asserts value is ProjectRequest {
   exact(value, ["id"]);
   id(value.id);
+}
+export function assertTwoSourceProjectRequest(
+  value: unknown,
+): asserts value is TwoSourceProjectRequest {
+  exact(value, ["firstId", "secondId"]);
+  id(value.firstId);
+  id(value.secondId);
+  if (value.firstId === value.secondId) invalid();
 }
 export function assertProjectNavigation(
   value: unknown,
@@ -212,7 +227,7 @@ export function assertProjectDraftView(
 export function assertProjectView(
   value: unknown,
 ): asserts value is ProjectView {
-  exact(value, [
+  const keys = [
     "id",
     "name",
     "stage",
@@ -220,7 +235,13 @@ export function assertProjectView(
     "draft",
     "source",
     "timeline",
-  ]);
+  ];
+  const hasSources =
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.hasOwn(value, "sources");
+  exact(value, hasSources ? [...keys, "sources"] : keys);
   id(value.id);
   id(value.revisionId);
   if (
@@ -232,6 +253,23 @@ export function assertProjectView(
     invalid();
   if (!projectStages.includes(value.stage as ProjectStage)) invalid();
   assertMediaSummary(value.source);
+  let secondSourceId: string | undefined;
+  if (hasSources) {
+    if (!Array.isArray(value.sources) || value.sources.length !== 2) invalid();
+    value.sources.forEach(assertMediaSummary);
+    if (value.sources[0].id === value.sources[1].id) invalid();
+    secondSourceId = value.sources[1].id;
+    for (const key of [
+      "id",
+      "name",
+      "width",
+      "height",
+      "durationUs",
+      "frameRate",
+      "previewAvailable",
+    ] as const)
+      if (value.sources[0][key] !== value.source[key]) invalid();
+  }
   const draftView = {
     projectId: value.id,
     draft: value.draft,
@@ -246,6 +284,16 @@ export function assertProjectView(
       draftView.draft.id,
       draftView.timeline.id,
     ].includes(value.source.id)
+  )
+    invalid();
+  if (
+    secondSourceId !== undefined &&
+    [
+      value.id,
+      value.revisionId,
+      draftView.draft.id,
+      draftView.timeline.id,
+    ].includes(secondSourceId)
   )
     invalid();
 }

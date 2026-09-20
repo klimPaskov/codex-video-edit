@@ -333,6 +333,35 @@
       ],
       "properties": {
         "channel": {
+          "const": "projects:create-two"
+        },
+        "response": {
+          "oneOf": [
+            { "$ref": "#/$defs/error" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ok", "value"],
+              "properties": {
+                "ok": { "const": true },
+                "value": { "$ref": "#/$defs/projectView" }
+              }
+            }
+          ]
+        },
+        "payload": { "$ref": "#/$defs/twoSourceProjectRequest" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel",
+        "response",
+        "payload"
+      ],
+      "properties": {
+        "channel": {
           "const": "projects:open"
         },
         "response": {
@@ -1166,6 +1195,16 @@
       },
       "description": "For projects:create, id is an imported media ID. For projects:open, id is a project ID. Paths are never accepted."
     },
+    "twoSourceProjectRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["firstId", "secondId"],
+      "properties": {
+        "firstId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+        "secondId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" }
+      },
+      "description": "Ordered, distinct managed library IDs. Runtime rejects duplicates and does not accept filesystem paths."
+    },
     "projectNavigation": {
       "type": "object",
       "additionalProperties": false,
@@ -1228,6 +1267,13 @@
         "source": {
           "$ref": "#/$defs/summary"
         },
+        "sources": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "$ref": "#/$defs/summary" },
+          "description": "Present only for a two-source project, in timeline order. Runtime requires source to equal the first item and IDs to be distinct."
+        },
         "timeline": {
           "$ref": "#/$defs/projectTimelineView"
         },
@@ -1235,7 +1281,7 @@
           "$ref": "#/$defs/projectDraftHead"
         }
       },
-      "description": "Path-free committed project and draft view. Runtime additionally requires project, revision, draft, source and timeline IDs to be distinct and draft.baseRevisionId to equal revisionId. A stage identifies navigation, not successful feature execution or export."
+      "description": "Path-free committed project and draft view. Runtime additionally requires project, revision, draft, source and timeline IDs to be distinct, an ordered two-source inventory when present, and draft.baseRevisionId to equal revisionId. A stage identifies navigation, not successful feature execution or export."
     },
     "apiProvidersView": {
       "type": "object",

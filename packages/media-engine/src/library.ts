@@ -44,6 +44,16 @@ export interface VerifiedLibrarySource {
   sizeBytes: number;
   probe: Record<string, unknown>;
 }
+export interface VerifiedPresentationTiming {
+  timeBaseNumerator: number;
+  timeBaseDenominator: number;
+  firstPts: 0;
+  lastPts: number;
+  lastDurationTicks: number;
+  frameCount: number;
+  presentationEndUs: number;
+  variableCadence: boolean;
+}
 function invalid(): never {
   throw new MediaError(
     "INVALID_INPUT",
@@ -292,6 +302,43 @@ export class MediaLibrary {
       probe: structuredClone(entry.probe),
     };
   }
+  /** Main-only timing evidence for a future multi-source baseline; never a render proxy. */
+  async verifiedPresentationTiming(
+    id: string,
+  ): Promise<VerifiedPresentationTiming> {
+    const source = await this.verifiedSource(id);
+    const video = source.probe.streams;
+    const stream = Array.isArray(video)
+      ? video.find(
+          (item: unknown) => object(item) && item.codec_type === "video",
+        )
+      : undefined;
+    if (!object(stream)) invalid();
+    const timing = await probePresentationTiming(
+      this.ffprobe,
+      source.managedPath,
+      stream,
+    );
+    if (
+      timing.lastDurationTicks === null ||
+      timing.presentationEndUs === null ||
+      (await hash(source.managedPath)) !== source.sha256
+    )
+      throw new MediaError(
+        "UNSUPPORTED_PROFILE",
+        "The final displayed frame duration cannot be verified for this source.",
+      );
+    return {
+      timeBaseNumerator: timing.timeBaseNumerator,
+      timeBaseDenominator: timing.timeBaseDenominator,
+      firstPts: 0,
+      lastPts: timing.pts.at(-1)!,
+      lastDurationTicks: timing.lastDurationTicks,
+      frameCount: timing.pts.length,
+      presentationEndUs: timing.presentationEndUs,
+      variableCadence: timing.variableCadence,
+    };
+  }
   async importFile(
     sourcePath: string,
     signal?: AbortSignal,
@@ -388,8 +435,6 @@ export class MediaLibrary {
     await this.initialize();
     const entry = await this.entry(id);
     const { summary } = entry;
-    if (timeUs >= summary.durationUs)
-      throw new MediaError("INVALID_INPUT", "Seek is outside the video.");
     const streams = entry.probe.streams;
     const video: unknown = Array.isArray(streams)
       ? streams.find(
@@ -422,7 +467,14 @@ export class MediaLibrary {
       this.presentationTimings.set(timingKey, timing);
       void timing.catch(() => this.presentationTimings.delete(timingKey));
     }
-    const seekUs = presentationSeekUs(await timing, timeUs);
+    const indexed = await timing;
+    const seekUs = presentationSeekUs(indexed, timeUs);
+    const measuredEndUs = Math.max(
+      summary.durationUs,
+      indexed.presentationEndUs ?? 0,
+    );
+    if (timeUs >= measuredEndUs)
+      throw new MediaError("INVALID_INPUT", "Seek is outside the video.");
     const bytes = summary.width * summary.height * 4;
     const output = await runProcess({
       executable: this.ffmpeg,

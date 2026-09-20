@@ -35,6 +35,7 @@ import {
   assertProjectRequest,
   assertProjectNavigation,
   assertProjectList,
+  assertTwoSourceProjectRequest,
 } from "../../../packages/domain/src/project-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
@@ -325,6 +326,16 @@ async function start(): Promise<void> {
     assertProjectRequest(request);
     const created = await projects.createFromMedia(request.id),
       value = await projectRuntime.view(created.project.project_id);
+    activeProjectId = value.id;
+    return value;
+  });
+  register(channels.projectCreateTwo, async (request) => {
+    assertTwoSourceProjectRequest(request);
+    const created = await projects.createFromTwoMedia(
+      request.firstId,
+      request.secondId,
+    );
+    const value = await projectRuntime.view(created.project.project_id);
     activeProjectId = value.id;
     return value;
   });

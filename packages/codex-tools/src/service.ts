@@ -268,20 +268,19 @@ export class CodexVideoEditToolService {
       current_revision_id: project.project.current_revision_id,
       duration_us: draft.draft.timeline.duration_us,
       qa_status: project.revision.qa_status,
-      sources: [
-        {
-          source_id: project.source.source_id,
-          role: "main_video",
-          kind: project.source.kind,
-          duration_us: project.source.duration_us,
-          immutable: project.source.immutable,
-          stream_types: [
-            ...new Set(
-              project.source.streams.map((stream) => stream.media_type),
-            ),
-          ],
-        },
-      ],
+      sources: (project.schema_version === "1.1"
+        ? project.sources
+        : [project.source]
+      ).map((source) => ({
+        source_id: source.source_id,
+        role: "main_video",
+        kind: source.kind,
+        duration_us: source.duration_us,
+        immutable: source.immutable,
+        stream_types: [
+          ...new Set(source.streams.map((stream) => stream.media_type)),
+        ],
+      })),
       active_draft: {
         draft_id: draft.draft.draft_id,
         base_revision_id: draft.draft.base_revision_id,

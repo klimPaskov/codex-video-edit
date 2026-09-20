@@ -52,11 +52,11 @@ Use P1's actual project foundation and the shared transaction engine for the aut
 - [ ] P3-01 Create project storage, source manifests, autosave, locks, and recovery.
 - [ ] P3-02 Import and hash media without mutating it.
 - [ ] P3-03 Probe streams and build edit, audio, and thumbnail proxies.
-- [ ] P3-04 Implement the canonical microsecond timeline and deterministic frame conversion. A source still-frame PTS seek index is implemented as a partial foundation; canonical multi-source and final-frame timing remain open.
+- [ ] P3-04 Implement the canonical microsecond timeline and deterministic frame conversion. Partial foundations now include a verified source PTS/final-packet boundary and an ordered two-source clip map with trim/undo; synchronized A/V, canonical multi-source render and broader timing/format fixtures remain open.
 - [ ] P3-05 Build smooth preview playback with source-to-output mapping.
 - [ ] P3-06 Add recent projects, open, rename, duplicate, archive, and delete-project safeguards.
 
-The append-only library and native still-frame path now cover verified BGRA and a narrow tagged 8-bit H.264/BT.709 display profile. The import, probe, timeline and playback tasks stay open for the full format matrix, rational/VFR timing, two-source append, continuous synchronized A/V preview, and canonical render separation.
+The append-only library and native still-frame path now cover verified BGRA and a narrow tagged 8-bit H.264/BT.709 display profile. A compatible two-source project can be created in order, reopened and edited through the shared journal. The import, probe, timeline and playback tasks stay open for the full format matrix, rational/VFR render timing, additional sources, continuous synchronized A/V preview, and canonical render separation.
 
 Acceptance: an imported fixture reopens and previews identically.
 

@@ -34,6 +34,8 @@ No editor tools or empty project panels appear.
 
 The current P1 slice adds Settings to the working import/library Home. Keyboard source selection opens frame inspection with focus on Back; Back returns focus to the selected source card. Source information opens one inspector with actual imported metadata. The accepted P1 shell also lists actual projects separately and implements persisted five-stage navigation; visiting a stage does not execute its later editing or export workflow.
 
+The partial P3 two-source path offers Add footage on an unedited single-source project in Record or Import. The action uses the native picker, shows import/project progress, retains a successfully imported source if project creation fails, and opens the new combined project after commit. Home identifies the source count. Source details shows both ordered parts in one inspector; seeking across their join updates the native preview from committed clip mapping. The original project remains available. This is an import/preview affordance, not a continuous playback or export control.
+
 ## S03: capture setup
 
 Visible:

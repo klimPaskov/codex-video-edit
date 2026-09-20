@@ -36,6 +36,11 @@ Pending same-directory files may be ignored during recovery, while a corrupt com
 journal entry fails closed. Do not expose filesystem paths or let renderer or model input
 supply a trusted edit origin.
 
+For the partial two-source baseline, preserve the two ordered clip/source identities and
+half-open contiguous timeline intervals. A trim on the first clip must reflow the second
+through the same transaction and undo journal. Do not mutate either immutable source or
+the baseline, and do not treat this still-frame map as synchronized A/V playback or export.
+
 ## Validation
 
 Test zero and final boundaries, overlapping operations, ripple mapping, speed mapping, zoom blocks, transcript restore, batch undo, crash replay, stale dependencies, and revision compare. The first bounded reducer must also test immutable source/baseline bytes, reopen replay, postcommit-unknown recovery, strict input rejection, stale-head concurrency, and checkpoint invalidation. Use Playwright Electron for pointer and keyboard flows once the transaction path changes native UI behavior.
