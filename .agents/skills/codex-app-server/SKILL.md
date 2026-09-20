@@ -62,6 +62,8 @@ evidence.
 
 For pinned Codex 0.142.3, the exact six owned server tools and empty resources/templates do not establish absence of built-in MCP resource listing/template/read helpers. The upstream turn router and tool planner register those helpers whenever an MCP server exists, independently of empty environments; no supported disabling switch was found in the pinned schema review. Preserve quarantine for unreviewed items, including those helpers under the current policy. Do not invent a configuration key, silently widen parser acceptance, or treat injected project identity as tool confinement. See `docs/research/P2_RUNTIME_POLICY.md` for pinned sources and the observed failure.
 
+A separate direct 0.155.1 App Server probe in `tests/native/codex-dynamic-tools-probe.test.ts` found that a namespaced host-defined dynamic tool can be called without an MCP server, with one owned-only bounded `ALL_TOOLS` inventory. `item/tool/call.params.tool` used the bare function name even though code mode used the namespace-qualified identifier. Treat this as protocol feasibility only. Before routing production project threads through dynamic tools, validate the exact namespace/name mapping, active thread and turn, arguments, response bounds, persisted resume behavior, existing MCP-backed thread compatibility, shared transaction commit/Undo and packaged native behavior. Do not remove the functioning MCP path or claim P2-07 complete from this direct probe.
+
 ## Runtime boundary
 
 Codex receives project context and edit tools. It does not receive unrestricted access to the installation, source repository, raw source mutation, project deletion, or export confirmation.
