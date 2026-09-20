@@ -82,6 +82,8 @@
 ## S13 Settings
 
 - Codex remains available with managed ChatGPT sign-in; implemented OpenAI API and DeepSeek rows show separate key and billing states with no exposed key bytes.
+- A provider rejection after Send leaves the request visible and shows a fixed recovery message wholly inside the selected drawer. At 1366×768 the message is in the viewport, the conversation retains a usable scroll area, and the preview remains readable. An HTTP 401/403 cannot appear as a successful edit.
+- At 200% interface scale, the selected drawer keeps at least 80 CSS px of independently scrollable conversation history and reveals a changed error. Test preview and drawer after scrolling between them; simultaneous full visibility is not required in a small window.
 - Each provider lists only live-validated models and verified capabilities; a paid API turn starts only on explicit user action.
 - Runtime-discovered Codex models can be selected.
 - Only one settings section opens at a time.

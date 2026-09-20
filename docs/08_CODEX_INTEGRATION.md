@@ -52,6 +52,8 @@ OpenAI API and DeepSeek responses pass through fixed provider adapters and a bou
 
 Map a provider HTTP 429 to one fixed rate-or-quota message in both the persisted conversation projection and typed renderer reply. Preserve only the submitted user text; do not persist the raw provider response, key or generated assistant claim, and do not commit an edit unless a validated tool transaction succeeded. A live OpenAI-key packaged turn reached the provider and returned 429 with journal sequence zero. Synthetic packaged OpenAI and DeepSeek turns verified the 429 message and continued recovery path; neither proves a live model can edit with the supplied account.
 
+If a key is revoked or its account loses access after connection, provider HTTP 401/403 maps to a separate fixed API-connection message pointing to Settings. The transport does not infer which account condition caused rejection. The persisted thread and renderer omit response bodies, headers and key material, and no tool transaction is committed by the failed request. Native synthetic tests verify the visible message in both provider routes and a compact window. The live authenticated fixture harness accepts either provider, but the DeepSeek route remains unrun without an authorized key.
+
 ## Guarded tool set
 
 Required tool groups:

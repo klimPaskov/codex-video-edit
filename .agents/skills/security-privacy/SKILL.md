@@ -34,6 +34,8 @@ For synthetic native turns for both API providers, inject only into the isolated
 
 Map provider 429 to fixed rate-or-quota recovery text without persisting raw response bodies, headers, account data or credentials. A live-key test may keep status codes only in ignored private evidence; delete any transferred mode-600 key file before launching Electron. Never publish the live project, screenshot or test transcript.
 
+Map provider 401/403 on a started turn to separate fixed API-connection recovery text; do not infer a particular account, key or model-access cause. Keep the failed request in the local thread, but no raw response, credential or fictitious edit. Synthetic native assertions must check both renderer projection and unchanged journal for each provider.
+
 ## Stop condition
 
 Block the phase on unrestricted renderer privileges, source mutation, silent capture, token leakage, path escape, or unconfirmed deletion.

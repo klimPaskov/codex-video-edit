@@ -359,6 +359,33 @@ test("rate or quota rejection has an actionable redacted conversation error", as
   }
 });
 
+test("revoked API connection has an actionable redacted conversation error", async () => {
+  const f = await fixture(async () => {
+    throw new ApiProviderError("authentication_failed");
+  });
+  try {
+    await f.threads.open(project, provider);
+    const view = await f.threads.send(project, provider, "Inspect the cut");
+    assert.equal(view.status, "failed");
+    assert.equal(
+      view.message,
+      "The provider rejected this API connection. Check the key and account access in Settings before sending again.",
+    );
+    assert.deepEqual(
+      view.messages.map((item) => item.role),
+      ["user"],
+    );
+    const persisted = await readFile(
+      join(f.root, "api-provider-threads", `${project}.${provider}.json`),
+      "utf8",
+    );
+    assert.ok(!persisted.includes(key));
+    assert.ok(!persisted.includes("authentication_failed"));
+  } finally {
+    await f.cleanup();
+  }
+});
+
 test("IPC request and view validators reject surplus fields and malformed roles", () => {
   assertApiThreadProjectRequest({
     schema_version: "1.0",

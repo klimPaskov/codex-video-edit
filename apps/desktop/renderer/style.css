@@ -309,6 +309,11 @@ header nav {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto;
+}
+#viewer:has(#project-navigation:not([hidden])) #codex-drawer {
+  height: 590px;
+  max-height: 590px;
 }
 #codex-thread-status,
 #codex-thread-activity,
@@ -326,7 +331,7 @@ header nav {
   margin: 6px 0 12px;
 }
 #codex-thread-messages {
-  flex: 1;
+  flex: 1 0 90px;
   min-height: 90px;
   overflow: auto;
   margin: 8px 0 14px;

@@ -30,6 +30,8 @@ Show a simple remaining-usage or rate-limit state only when the protocol supplie
 
 If an explicitly started API turn receives HTTP 429, show a fixed rate-or-quota message in its conversation and direct the user to check that provider's API account before retrying. Do not infer the account's balance, reset time or billing state from the status alone.
 
+If that turn receives HTTP 401/403 after a previously successful connection, show a separate fixed message to check the key and API-account access in Settings. Keep the request for review and do not imply an edit committed. In the editor, bound the chosen drawer and let its conversation scroll so the composer and any recovery message remain visible at common desktop sizes.
+
 ## Context disclosure
 
 Before first use, explain which selected provider may receive project instructions, transcript excerpts, timeline state, requested preview frames and local tool results. Do not send full raw recordings by default. Require an explicit start action for any paid API turn.

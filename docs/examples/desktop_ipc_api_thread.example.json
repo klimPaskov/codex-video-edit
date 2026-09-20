@@ -18,7 +18,7 @@
           "text": "Trim the fixture"
         }
       ],
-      "message": "The provider rate or quota limit was reached. Check your API account before sending again."
+      "message": "The provider rejected this API connection. Check the key and account access in Settings before sending again."
     }
   }
 }

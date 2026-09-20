@@ -647,8 +647,11 @@ function renderCodexThread(view: CodexThreadView): void {
   stop.hidden = !["running", "interrupting"].includes(view.status);
   stop.disabled = view.status !== "running";
   const issue = element("codex-thread-error");
-  issue.textContent = view.message ?? codexThreadIssue ?? "";
+  const nextIssue = view.message ?? codexThreadIssue ?? "";
+  const revealIssue = issue.hidden || issue.textContent !== nextIssue;
+  issue.textContent = nextIssue;
   issue.hidden = !issue.textContent;
+  if (nextIssue && revealIssue) issue.scrollIntoView({ block: "nearest" });
   messages.scrollTop = messages.scrollHeight;
 }
 function renderApiThread(view: ApiThreadView): void {
@@ -688,8 +691,11 @@ function renderApiThread(view: ApiThreadView): void {
   stop.hidden = view.status !== "running" && view.status !== "interrupting";
   stop.disabled = view.status !== "running";
   const issue = element("codex-thread-error");
-  issue.textContent = view.message ?? codexThreadIssue ?? "";
+  const nextIssue = view.message ?? codexThreadIssue ?? "";
+  const revealIssue = issue.hidden || issue.textContent !== nextIssue;
+  issue.textContent = nextIssue;
   issue.hidden = !issue.textContent;
+  if (nextIssue && revealIssue) issue.scrollIntoView({ block: "nearest" });
   messages.scrollTop = messages.scrollHeight;
 }
 function clearAssistantDisplay(): void {

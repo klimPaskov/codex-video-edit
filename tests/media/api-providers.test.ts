@@ -128,6 +128,7 @@ test("redirected and cross-origin responses are rejected without leaking respons
 test("provider failures discard raw errors, bodies, and response headers", async () => {
   for (const [status, expected] of [
     [401, "authentication_failed"],
+    [403, "authentication_failed"],
     [429, "rate_limited"],
     [500, "provider_rejected"],
   ] as const) {
