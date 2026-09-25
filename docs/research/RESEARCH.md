@@ -80,3 +80,11 @@ The pinned Codex 0.155.1 configuration types document `apps._default.enabled=fal
 Source:
 
 - https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/config/src/types.rs#L2904-L2910
+
+## Codex browser OAuth callback failure path, 2026-09-25
+
+The pinned official Codex 0.155.1 login server binds a local callback listener, includes its selected port and OAuth state in the authorization URL, rejects a mismatched state with HTTP 400, and reports a matching provider denial as a failed login. The new packaged Electron regression uses that actual listener with a fresh signed-out account: an incorrect state leaves the attempt pending; a matching `access_denied` callback returns the app to signed out with fixed recovery text; a private error description and authorization state/URL stay out of the renderer; and a subsequent login can be canceled. This is negative callback and redaction evidence only. It does not exchange an authorization code, create an authenticated account, or prove successful browser OAuth completion. Keep the successful browser-login gate open until a real completion and reconciled account are observed.
+
+Sources:
+
+- https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/login/src/server.rs#L2470-L2865

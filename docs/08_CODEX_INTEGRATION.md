@@ -13,6 +13,8 @@ Codex remains the mandatory App Server provider. ADRs 0014 and 0015 also require
 - Display account state and plan type when returned.
 - Do not ask for an API key on the Codex subscription path. Separate API-provider key entry is main-owned under ADRs 0014 and 0015, with OS-backed encryption or session-only fallback; never put a key in a project, renderer-visible state or public evidence.
 
+A packaged signed-out callback test uses the real pinned App Server listener to verify OAuth state mismatch rejection, safe failed completion for `access_denied`, redacted provider details, and retry/cancel recovery. It never exchanges an authorization code and is not successful browser-login evidence. The separate device-code flow has an authenticated completion pass; successful browser OAuth completion remains unverified.
+
 ## Protocol
 
 Implement the official initialization handshake. Use generated types from the installed app-server version. Required functions include:
