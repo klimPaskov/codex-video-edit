@@ -38,7 +38,12 @@ export function ownedDynamicToolWireNames(): Set<string> {
   return new Set(internalNames.keys());
 }
 
-export function buildCodexVideoEditDynamicTools(): DynamicToolSpec[] {
+/** Bind model-visible identity to the main-owned project selected for this thread. */
+export function buildCodexVideoEditDynamicTools(
+  activeProjectId: string,
+): DynamicToolSpec[] {
+  if (!validIdentifier(activeProjectId))
+    throw new CodexThreadProtocolError("configuration");
   return [
     {
       type: "namespace",
@@ -48,10 +53,28 @@ export function buildCodexVideoEditDynamicTools(): DynamicToolSpec[] {
         type: "function" as const,
         name: dynamicNames[tool.name],
         description: tool.description,
-        inputSchema: structuredClone(tool.inputSchema) as unknown as JsonValue,
+        inputSchema: bindProjectIdSchema(tool.inputSchema, activeProjectId),
       })),
     },
   ];
+}
+
+function bindProjectIdSchema(
+  inputSchema: unknown,
+  projectId: string,
+): JsonValue {
+  const schema: unknown = structuredClone(inputSchema);
+  if (
+    !record(schema) ||
+    !record(schema.properties) ||
+    !record(schema.properties.project_id)
+  )
+    throw new CodexThreadProtocolError("configuration");
+  schema.properties.project_id = {
+    ...schema.properties.project_id,
+    const: projectId,
+  };
+  return schema as unknown as JsonValue;
 }
 
 function record(value: unknown): value is Record<string, unknown> {

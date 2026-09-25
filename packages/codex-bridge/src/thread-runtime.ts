@@ -153,7 +153,11 @@ export class ProjectThreadRuntime {
             nativeSubagents: toolRoute === "dynamic",
           }),
           ...(toolRoute === "dynamic"
-            ? { dynamicTools: buildCodexVideoEditDynamicTools() }
+            ? {
+                dynamicTools: buildCodexVideoEditDynamicTools(
+                  this.options.projectId,
+                ),
+              }
             : {}),
         },
       };

@@ -161,7 +161,7 @@ try {
       route: "dynamic",
       nativeSubagents: false,
     }),
-    dynamicTools: buildCodexVideoEditDynamicTools(),
+    dynamicTools: buildCodexVideoEditDynamicTools("fixture-project"),
   })) as { thread?: { id?: string } };
   assert.ok(response.thread?.id);
   threadId = response.thread.id;

@@ -37,7 +37,7 @@ network, shell, or permission expansion. Read tools return compact editor state.
 tools call the same transaction service as manual and Magic Wand edits, and return the
 committed draft sequence and timeline hash. Errors are stable, redacted application errors.
 
-On thread create and resume, append only main-owned validated `project_id` and `schema_version: "1.0"` as JSON read-tool input in developer instructions. Do not inject project paths, titles or a draft snapshot, or ask the user/model to guess the identifier. Test both create and resume context against the selected project. The read tools must still establish current draft identity, sequence and hash; injected identity never replaces active-project authorization or freshness validation.
+On thread create and resume, append only main-owned validated `project_id` and `schema_version: "1.0"` as JSON read-tool input in developer instructions. For new dynamic-bound threads, also put that project ID in a JSON Schema `const` on each model-visible tool's `project_id` property. Do not inject project paths, titles or a draft snapshot, or ask the user/model to guess the identifier. Test the dynamic schema and create/resume context against the selected project. This constraint is usability defense-in-depth only: the main service must still enforce active-project identity and freshness. Stored dynamic definitions remain with that thread on resume; MCP schemas remain unchanged.
 
 Read project metadata and the active draft in one transaction-store serialization. After every settled mutation, reread and publish the authoritative path-free draft even when journal promotion preceded an uncertain response. Do not derive editor state from model text or MCP activity. Bind project preview requests to draft ID, baseline revision, sequence and timeline hash; map output time to source time only in main, recheck the head after decode, and return no stale pixels.
 
@@ -67,7 +67,7 @@ Track and validate live user-message echoes without emitting a duplicate message
 
 Run the MCP child as a packaged fixed-hash resource. It forwards only tool name/input
 to a main-owned active-project broker authenticated by a process-only random secret.
-Verify the exact server name, version, six tool names and input schemas, and empty resources/templates
+Verify the exact server name, version, seven tool names and input schemas, and empty resources/templates
 through `mcpServerStatus/list` before opening a project thread. Never put the broker
 secret in app-server arguments, thread configuration, project files, renderer state, or
 evidence.
@@ -78,7 +78,7 @@ A separate direct 0.155.1 App Server probe in `tests/native/codex-dynamic-tools-
 
 The separate direct `codex-dynamic-tools-resume.test.ts` passed one exact-thread restart/resume with a second owned host call. The generated resume request has no `dynamicTools` field; the observed definition survived for that fresh thread. Continue to require old MCP-backed thread compatibility, full history, guarded transaction and packaged native checks before production routing.
 
-The host-call adapter uses pinned generated request/response types, maps only the reviewed six tool schemas into one namespace, bounds arguments/results, and allows only configured owned calls and redacted stream/history items. A validated owned `turn/started` notification may provisionally correlate a call before the RPC response; buffered activity stays hidden until the response confirms the same ID. Reject missing, completed or contradictory turns. Product main supplies the guarded invoker for new dynamic-route conversations, while old registry bindings retain MCP. Packaged native shared transaction/Undo/reopen passed; continue probing effective upstream-tool confinement.
+The host-call adapter uses pinned generated request/response types, maps only the reviewed seven tool schemas into one namespace, binds each new dynamic definition's `project_id` to the main-owned active project, bounds arguments/results, and allows only configured owned calls and redacted stream/history items. A validated owned `turn/started` notification may provisionally correlate a call before the RPC response; buffered activity stays hidden until the response confirms the same ID. Reject missing, completed or contradictory turns. Product main supplies the guarded invoker for new dynamic-route conversations, while old registry bindings retain MCP. Packaged native shared transaction/Undo/reopen passed; continue probing effective upstream-tool confinement.
 
 The direct `codex-dynamic-tools-timing.test.ts` probe passed one Luna/high read-only call after `turn/start` supplied the trusted turn ID using the pinned package's matching code-mode host. A later direct `CodexClient` probe passed one owned read using the actual optional project-client route without MCP; it did not establish early-call timing. Calls before any validated start notification still fail closed. An older binary lacking its host led to no calls in two setup attempts; verify both matching executables before interpreting a no-call result.
 

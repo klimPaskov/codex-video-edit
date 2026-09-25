@@ -187,6 +187,20 @@ test("dynamic thread start and resume retain the route-specific code-mode policy
       opening.params.dynamicTools?.[0]?.name,
       "codex_video_edit",
     );
+    const dynamicNamespace = opening.params.dynamicTools?.[0];
+    assert.ok(dynamicNamespace?.type === "namespace");
+    if (dynamicNamespace?.type !== "namespace")
+      throw new Error("Expected the owned dynamic namespace");
+    assert.equal(dynamicNamespace.tools.length, 7);
+    for (const tool of dynamicNamespace.tools) {
+      const inputSchema = tool.inputSchema as {
+        properties?: { project_id?: { const?: unknown } };
+      };
+      assert.equal(
+        inputSchema.properties?.project_id?.const,
+        "dynamic-project",
+      );
+    }
     await runtime.acceptThreadResponse({
       thread: { id: "dynamic-thread", ephemeral: false },
       model: policy.model,
