@@ -185,12 +185,15 @@ async function verifyAuthenticatedReadBeforeEdit(options: {
       assert.ok(record(call.arguments));
       assert.equal(call.arguments.project_id, options.projectId);
       assert.equal(call.arguments.schema_version, "1.0");
-      assert.ok(Array.isArray(call.contentItems) && call.contentItems.length === 1);
+      assert.ok(
+        Array.isArray(call.contentItems) && call.contentItems.length === 1,
+      );
       const output = call.contentItems[0];
       assert.ok(record(output) && output.type === "inputText");
-      assert.ok(typeof output.text === "string" && output.text.length <= 64_000);
-      if (call.tool === "project_get_summary")
-        projectPositions.push(index);
+      assert.ok(
+        typeof output.text === "string" && output.text.length <= 64_000,
+      );
+      if (call.tool === "project_get_summary") projectPositions.push(index);
       else if (call.tool === "timeline_get_summary")
         timelinePositions.push(index);
       else if (call.tool === "cut_delete_ranges") {
