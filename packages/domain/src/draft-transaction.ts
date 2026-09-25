@@ -75,6 +75,11 @@ export interface UndoDraftTransactionRequest {
   reason: string;
 }
 
+/** Redo only the latest undone transaction on the current exact draft head. */
+export interface RedoDraftTransactionRequest extends UndoDraftTransactionRequest {
+  kind: "redo";
+}
+
 export interface DraftVerificationCheck {
   check_id: string;
   status: "pass";
@@ -167,7 +172,7 @@ export interface DraftTransactionRecord {
   project_id: string;
   draft_id: string;
   base_revision_id: string;
-  kind: "apply" | "undo";
+  kind: "apply" | "undo" | "redo";
   origin: DraftOrigin;
   pass_group: DraftPassGroup | null;
   reason: string;
@@ -521,6 +526,26 @@ export function assertUndoDraftTransactionRequest(
   id(value.target_transaction_id);
 }
 
+export function assertRedoDraftTransactionRequest(
+  value: unknown,
+): asserts value is RedoDraftTransactionRequest {
+  exact(value, [
+    "schema_version",
+    "request_id",
+    "project_id",
+    "draft_id",
+    "base_revision_id",
+    "expected_sequence",
+    "expected_timeline_sha256",
+    "target_transaction_id",
+    "reason",
+    "kind",
+  ]);
+  commonRequest(value);
+  id(value.target_transaction_id);
+  if (value.kind !== "redo") invalid();
+}
+
 export function assertPassCheckpointRequest(
   value: unknown,
 ): asserts value is PassCheckpointRequest {
@@ -596,7 +621,10 @@ export function initialDraftState(
 }
 
 export function draftRequestSha256(
-  request: ApplyDraftTransactionRequest | UndoDraftTransactionRequest,
+  request:
+    | ApplyDraftTransactionRequest
+    | UndoDraftTransactionRequest
+    | RedoDraftTransactionRequest,
   origin: DraftOrigin,
 ): string {
   return canonicalSha256({ request, origin });

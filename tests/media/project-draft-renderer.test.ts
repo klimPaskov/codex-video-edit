@@ -19,6 +19,7 @@ function project(): ProjectView {
       sequence: 2,
       timelineSha256: "a".repeat(64),
       undoTransactionId: "transaction-002",
+      redoTransactionId: null,
     },
     source: {
       id: "33333333-3333-4333-8333-333333333333",
@@ -46,6 +47,7 @@ function changed(sequence: number, hash = "b".repeat(64)): ProjectDraftView {
       sequence,
       timelineSha256: hash,
       undoTransactionId: "transaction-003",
+      redoTransactionId: null,
     },
     timeline: { ...current.timeline, durationUs: 500_000 },
   };

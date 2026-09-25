@@ -42,6 +42,7 @@ const editActions = element("edit-actions"),
   trimEnd = element<HTMLButtonElement>("trim-end"),
   splitClip = element<HTMLButtonElement>("split-clip"),
   undoEdit = element<HTMLButtonElement>("undo-edit"),
+  redoEdit = element<HTMLButtonElement>("redo-edit"),
   markInButton = element<HTMLButtonElement>("mark-in"),
   markOutButton = element<HTMLButtonElement>("mark-out"),
   cutSelection = element("cut-selection"),
@@ -147,6 +148,8 @@ function renderEditTools(): void {
   splitClip.disabled = !interior || manualEditPending || navigating;
   undoEdit.disabled =
     !project.draft.undoTransactionId || manualEditPending || navigating;
+  redoEdit.disabled =
+    !project.draft.redoTransactionId || manualEditPending || navigating;
   const currentMarks = markHead === currentHeadKey(project),
     inUs = currentMarks ? markInUs : undefined,
     outUs = currentMarks ? markOutUs : undefined;
@@ -854,6 +857,37 @@ async function submitManualUndo(): Promise<void> {
     renderEditTools();
   }
 }
+async function submitManualRedo(): Promise<void> {
+  const project = activeProject,
+    target = project?.draft.redoTransactionId,
+    generation = routeGeneration;
+  if (!project || project.stage !== "edit" || !target || manualEditPending)
+    return;
+  manualEditPending = true;
+  back.disabled = true;
+  renderEditTools();
+  clearError();
+  try {
+    const reply = await window.desktop.redoManualEdit({
+      schema_version: "1.0",
+      projectId: project.id,
+      draftId: project.draft.id,
+      baseRevisionId: project.draft.baseRevisionId,
+      expectedSequence: project.draft.sequence,
+      expectedTimelineSha256: project.draft.timelineSha256,
+      targetTransactionId: target,
+    });
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      applyProjectDraft(reply);
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      showError("Redo could not be saved. Try again.");
+  } finally {
+    manualEditPending = false;
+    back.disabled = false;
+    renderEditTools();
+  }
+}
 trimStart.addEventListener("click", () => void submitManualTrim("start"));
 trimEnd.addEventListener("click", () => void submitManualTrim("end"));
 splitClip.addEventListener("click", () => void submitManualSplit());
@@ -867,6 +901,7 @@ clearMarksButton.addEventListener("click", () => {
   renderEditTools();
 });
 undoEdit.addEventListener("click", () => void submitManualUndo());
+redoEdit.addEventListener("click", () => void submitManualRedo());
 window.desktop.onProjectDraftChanged(applyProjectDraft);
 void loadLibrary().catch(() =>
   showError(

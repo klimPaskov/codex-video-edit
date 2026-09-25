@@ -37,7 +37,7 @@
     "project_id": { "$ref": "#/$defs/id" },
     "draft_id": { "$ref": "#/$defs/id" },
     "base_revision_id": { "$ref": "#/$defs/id" },
-    "kind": { "enum": ["apply", "undo"] },
+    "kind": { "enum": ["apply", "undo", "redo"] },
     "origin": { "enum": ["manual", "codex", "api_provider", "magic_wand"] },
     "pass_group": {
       "oneOf": [{ "$ref": "#/$defs/pass_group" }, { "type": "null" }]
@@ -51,7 +51,7 @@
     "after": { "$ref": "#/$defs/state" },
     "operations": {
       "type": "array",
-      "description": "A confirmed ripple-delete batch uses disjoint half-open output ranges ordered by descending start time. They commit in one transaction and share one undo.",
+      "description": "A confirmed ripple-delete batch uses disjoint half-open output ranges ordered by descending start time. They commit in one transaction and share one undo. Undo and redo are separate hash-chained transactions with no direct operations.",
       "maxItems": 64,
       "items": {
         "oneOf": [

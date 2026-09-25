@@ -7,6 +7,7 @@ import type {
   ApplyDraftTransactionRequest,
   DraftState,
   PassCheckpointRequest,
+  RedoDraftTransactionRequest,
   UndoDraftTransactionRequest,
 } from "../../packages/domain/src/draft-transaction.ts";
 import { MediaLibrary } from "../../packages/media-engine/src/library.ts";
@@ -162,10 +163,14 @@ async function twoSourceFixture() {
   return { root, paths, ids, library, projects, projectStore, baseline };
 }
 
-function undo(draft: DraftState, target: string): UndoDraftTransactionRequest {
+function undo(
+  draft: DraftState,
+  target: string,
+  requestId = "request-undo-001",
+): UndoDraftTransactionRequest {
   return {
     schema_version: "1.0",
-    request_id: "request-undo-001",
+    request_id: requestId,
     project_id: draft.project_id,
     draft_id: draft.draft_id,
     base_revision_id: draft.base_revision_id,
@@ -173,6 +178,19 @@ function undo(draft: DraftState, target: string): UndoDraftTransactionRequest {
     expected_timeline_sha256: draft.timeline_sha256,
     target_transaction_id: target,
     reason: "Restore the previous draft state.",
+  };
+}
+
+function redo(
+  draft: DraftState,
+  target: string,
+  requestId: string,
+): RedoDraftTransactionRequest {
+  return {
+    ...undo(draft, target),
+    request_id: requestId,
+    reason: "Redo the most recent undone edit.",
+    kind: "redo",
   };
 }
 
@@ -256,6 +274,7 @@ test("one journal orders manual, Magic Wand, Codex and API-provider edits with d
   assert.deepEqual(await reopened.snapshot(baseline.project.project_id), {
     draft: applied.draft,
     undo_transaction_id: applied.transaction.transaction_id,
+    redo_transaction_id: null,
     current_pass_checkpoint: verified.checkpoint,
   });
   const duplicate = await reopened.applyManual(request);
@@ -280,6 +299,7 @@ test("one journal orders manual, Magic Wand, Codex and API-provider edits with d
   assert.equal(undone.draft.timeline_sha256, baseline.revision.timeline_sha256);
   assert.deepEqual(undone.draft.timeline, baseline.timeline);
   assert.equal(undone.undo_transaction_id, null);
+  assert.equal(undone.redo_transaction_id, undone.transaction.transaction_id);
   assert.equal(undone.current_pass_checkpoint, null);
 
   const wand = await reopened.applyMagicWand({
@@ -318,6 +338,128 @@ test("one journal orders manual, Magic Wand, Codex and API-provider edits with d
       readFile(baseline.source.managed_path),
     ]),
     protectedBefore,
+  );
+});
+
+test("redo replays in stack order, survives reopen, and clears after a new edit", async () => {
+  const { projects, projectStore, baseline } = await fixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const first = await store.applyManual(trim(initial));
+  const secondRequest = trim(first.draft, {
+    request_id: "request-trim-second",
+    operations: [
+      {
+        type: "trim",
+        clip_id: first.draft.timeline.clips[0]!.clip_id,
+        edge: "start",
+        timeline_position_us: 400_000,
+      },
+    ],
+  });
+  const second = await store.applyManual(secondRequest);
+  const undoSecond = await store.undoManual(
+    undo(second.draft, second.transaction.transaction_id),
+  );
+  const undoFirst = await store.undoManual({
+    ...undo(
+      undoSecond.draft,
+      first.transaction.transaction_id,
+      "request-undo-first",
+    ),
+  });
+  assert.deepEqual(undoFirst.draft.timeline, initial.timeline);
+  assert.equal(
+    undoFirst.redo_transaction_id,
+    undoFirst.transaction.transaction_id,
+  );
+
+  const redoFirstRequest = redo(
+    undoFirst.draft,
+    undoFirst.transaction.transaction_id,
+    "request-redo-first",
+  );
+  const redoFirst = await store.redoManual(redoFirstRequest);
+  assert.deepEqual(redoFirst.draft.timeline, first.draft.timeline);
+  assert.equal(redoFirst.undo_transaction_id, first.transaction.transaction_id);
+  assert.equal(
+    redoFirst.redo_transaction_id,
+    undoSecond.transaction.transaction_id,
+  );
+  const retriedRedo = await new DraftTransactionStore(
+    projects,
+    projectStore,
+  ).redoManual(redoFirstRequest);
+  assert.equal(retriedRedo.replayed, true);
+  assert.equal(
+    retriedRedo.transaction.transaction_id,
+    redoFirst.transaction.transaction_id,
+  );
+  assert.deepEqual(retriedRedo.draft, redoFirst.draft);
+
+  const reopened = new DraftTransactionStore(projects, projectStore);
+  const redoSecond = await reopened.redoManual(
+    redo(
+      redoFirst.draft,
+      undoSecond.transaction.transaction_id,
+      "request-redo-second",
+    ),
+  );
+  assert.deepEqual(redoSecond.draft.timeline, second.draft.timeline);
+  assert.equal(
+    redoSecond.undo_transaction_id,
+    second.transaction.transaction_id,
+  );
+  assert.equal(redoSecond.redo_transaction_id, null);
+  assert.equal(redoSecond.draft.draft_sequence, 6);
+  assert.deepEqual(
+    (
+      await new DraftTransactionStore(projects, projectStore).snapshot(
+        baseline.project.project_id,
+      )
+    ).draft,
+    redoSecond.draft,
+  );
+
+  const undoAgain = await reopened.undoManual(
+    undo(
+      redoSecond.draft,
+      second.transaction.transaction_id,
+      "request-undo-again",
+    ),
+  );
+  const newEdit = await reopened.applyManual(
+    trim(undoAgain.draft, {
+      request_id: "request-trim-after-undo",
+      operations: [
+        {
+          type: "trim",
+          clip_id: undoAgain.draft.timeline.clips[0]!.clip_id,
+          edge: "start",
+          timeline_position_us: 500_000,
+        },
+      ],
+    }),
+  );
+  assert.equal(newEdit.redo_transaction_id, null);
+  await assert.rejects(
+    reopened.redoManual(
+      redo(
+        newEdit.draft,
+        undoAgain.transaction.transaction_id,
+        "request-redo-stale",
+      ),
+    ),
+    code("conflict"),
+  );
+  assert.equal(
+    (await reopened.snapshot(baseline.project.project_id)).draft
+      .timeline_sha256,
+    newEdit.draft.timeline_sha256,
   );
 });
 

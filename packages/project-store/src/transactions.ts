@@ -14,6 +14,7 @@ import {
   assertApplyDraftTransactionRequest,
   assertDraftState,
   assertPassCheckpointRequest,
+  assertRedoDraftTransactionRequest,
   assertUndoDraftTransactionRequest,
   cloneDraftState,
   draftRecordSha256,
@@ -29,6 +30,7 @@ import {
   type DraftTransactionRecord,
   type PassCheckpointRecord,
   type PassCheckpointRequest,
+  type RedoDraftTransactionRequest,
   type UndoDraftTransactionRequest,
 } from "../../domain/src/draft-transaction.ts";
 import {
@@ -95,6 +97,7 @@ export interface DraftTransactionDependencies {
 export interface DraftReadResult {
   draft: DraftState;
   undo_transaction_id: string | null;
+  redo_transaction_id: string | null;
   current_pass_checkpoint: PassCheckpointRecord | null;
 }
 export interface DraftProjectReadResult extends DraftReadResult {
@@ -145,6 +148,7 @@ interface LoadedDraft {
   records: Map<string, DraftTransactionRecord>;
   requests: Map<string, DraftTransactionRecord>;
   applied: DraftTransactionRecord[];
+  undone: DraftTransactionRecord[];
   journal: string;
   checkpointRequests: Map<string, PassCheckpointRecord>;
   currentCheckpoint: PassCheckpointRecord | null;
@@ -350,7 +354,7 @@ function assertRecordEnvelope(value: unknown): DraftTransactionRecord {
     !validId(record.project_id) ||
     !validId(record.draft_id) ||
     !validId(record.base_revision_id) ||
-    !["apply", "undo"].includes(record.kind as string) ||
+    !["apply", "undo", "redo"].includes(record.kind as string) ||
     !["manual", "codex", "api_provider", "magic_wand"].includes(
       record.origin as string,
     ) ||
@@ -706,6 +710,52 @@ function prepareUndo(
   return { ...partial, transaction_sha256 };
 }
 
+function prepareRedo(
+  baseline: ProjectBaseline,
+  before: DraftState,
+  request: RedoDraftTransactionRequest,
+  authority: DraftTransactionAuthority,
+  targetUndo: DraftTransactionRecord,
+  targetApply: DraftTransactionRecord,
+): DraftTransactionRecord {
+  ensureFresh(request, before);
+  if (
+    authority.operation_ids.length !== 0 ||
+    targetUndo.kind !== "undo" ||
+    targetUndo.transaction_id !== request.target_transaction_id ||
+    targetUndo.target_transaction_id !== targetApply.transaction_id ||
+    targetApply.kind !== "apply" ||
+    targetUndo.after.timeline_sha256 !== before.timeline_sha256 ||
+    targetUndo.before.timeline_sha256 !== targetApply.after.timeline_sha256
+  )
+    fail("conflict");
+  const after = nextState(before, structuredClone(targetApply.after.timeline));
+  assertDraftState(after, baseline);
+  const partial: Omit<DraftTransactionRecord, "transaction_sha256"> = {
+    schema_version: "1.0",
+    transaction_id: authority.transaction_id,
+    request_id: request.request_id,
+    request_sha256: draftRequestSha256(request, authority.origin),
+    previous_transaction_sha256: before.head_transaction_sha256,
+    project_id: before.project_id,
+    draft_id: before.draft_id,
+    base_revision_id: before.base_revision_id,
+    kind: "redo",
+    origin: authority.origin,
+    pass_group: null,
+    reason: request.reason,
+    created_at: authority.created_at,
+    target_transaction_id: targetUndo.transaction_id,
+    before: cloneDraftState(before),
+    after,
+    operations: [],
+    status: "committed",
+  };
+  const transaction_sha256 = draftRecordSha256(partial);
+  partial.after.head_transaction_sha256 = transaction_sha256;
+  return { ...partial, transaction_sha256 };
+}
+
 /** Shared durable history for manual, Codex, and Magic Wand draft mutations. */
 export class DraftTransactionStore {
   private readonly root: string;
@@ -809,6 +859,7 @@ export class DraftTransactionStore {
     const records = new Map<string, DraftTransactionRecord>(),
       requests = new Map<string, DraftTransactionRecord>(),
       applied: DraftTransactionRecord[] = [],
+      undone: DraftTransactionRecord[] = [],
       states = new Map<number, DraftState>([[0, cloneDraftState(state)]]),
       appliedIds = new Map<number, string[]>([[0, []]]);
     for (let index = 0; index < committed.length; index++) {
@@ -878,7 +929,8 @@ export class DraftTransactionStore {
           created_at: record.created_at,
         });
         applied.push(record);
-      } else {
+        undone.length = 0;
+      } else if (record.kind === "undo") {
         if (
           record.pass_group !== null ||
           record.operations.length ||
@@ -911,6 +963,46 @@ export class DraftTransactionStore {
           applied.at(-1)!,
         );
         applied.pop();
+        undone.push(record);
+      } else {
+        if (
+          record.pass_group !== null ||
+          record.operations.length ||
+          !record.target_transaction_id ||
+          undone.at(-1)?.transaction_id !== record.target_transaction_id
+        )
+          fail();
+        const targetUndo = undone.at(-1)!;
+        const targetApply = records.get(targetUndo.target_transaction_id ?? "");
+        if (!targetApply) fail();
+        const request: RedoDraftTransactionRequest = {
+          schema_version: "1.0",
+          request_id: record.request_id,
+          project_id: record.project_id,
+          draft_id: record.draft_id,
+          base_revision_id: record.base_revision_id,
+          expected_sequence: record.before.draft_sequence,
+          expected_timeline_sha256: record.before.timeline_sha256,
+          target_transaction_id: record.target_transaction_id,
+          reason: record.reason,
+          kind: "redo",
+        };
+        assertRedoDraftTransactionRequest(request);
+        replay = prepareRedo(
+          baseline,
+          state,
+          request,
+          {
+            origin: record.origin,
+            transaction_id: record.transaction_id,
+            operation_ids: [],
+            created_at: record.created_at,
+          },
+          targetUndo,
+          targetApply,
+        );
+        undone.pop();
+        applied.push(targetApply);
       }
       if (!same(replay, record)) fail();
       state = cloneDraftState(record.after);
@@ -1001,6 +1093,7 @@ export class DraftTransactionStore {
       records,
       requests,
       applied,
+      undone,
       journal,
       checkpointRequests,
       currentCheckpoint,
@@ -1023,6 +1116,7 @@ export class DraftTransactionStore {
       return {
         draft: cloneDraftState(loaded.state),
         undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
+        redo_transaction_id: loaded.undone.at(-1)?.transaction_id ?? null,
         current_pass_checkpoint: loaded.currentCheckpoint
           ? structuredClone(loaded.currentCheckpoint)
           : null,
@@ -1038,6 +1132,7 @@ export class DraftTransactionStore {
         project: structuredClone(loaded.baseline),
         draft: cloneDraftState(loaded.state),
         undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
+        redo_transaction_id: loaded.undone.at(-1)?.transaction_id ?? null,
         current_pass_checkpoint: loaded.currentCheckpoint
           ? structuredClone(loaded.currentCheckpoint)
           : null,
@@ -1081,6 +1176,7 @@ export class DraftTransactionStore {
         return {
           draft: cloneDraftState(loaded.state),
           undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
+          redo_transaction_id: loaded.undone.at(-1)?.transaction_id ?? null,
           current_pass_checkpoint: loaded.currentCheckpoint
             ? structuredClone(loaded.currentCheckpoint)
             : null,
@@ -1110,6 +1206,7 @@ export class DraftTransactionStore {
       return {
         draft: cloneDraftState(transaction.after),
         undo_transaction_id: transaction.transaction_id,
+        redo_transaction_id: null,
         current_pass_checkpoint: null,
         transaction: structuredClone(transaction),
         replayed: false,
@@ -1134,6 +1231,7 @@ export class DraftTransactionStore {
         return {
           draft: cloneDraftState(loaded.state),
           undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
+          redo_transaction_id: loaded.undone.at(-1)?.transaction_id ?? null,
           current_pass_checkpoint: loaded.currentCheckpoint
             ? structuredClone(loaded.currentCheckpoint)
             : null,
@@ -1196,6 +1294,7 @@ export class DraftTransactionStore {
       return {
         draft: cloneDraftState(loaded.state),
         undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
+        redo_transaction_id: loaded.undone.at(-1)?.transaction_id ?? null,
         current_pass_checkpoint: structuredClone(checkpoint),
         checkpoint: structuredClone(checkpoint),
         replayed: false,
@@ -1239,6 +1338,7 @@ export class DraftTransactionStore {
         return {
           draft: cloneDraftState(loaded.state),
           undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
+          redo_transaction_id: loaded.undone.at(-1)?.transaction_id ?? null,
           current_pass_checkpoint: loaded.currentCheckpoint
             ? structuredClone(loaded.currentCheckpoint)
             : null,
@@ -1272,9 +1372,103 @@ export class DraftTransactionStore {
         target,
       );
       await this.commit(loaded.journal, transaction);
+      loaded.applied.pop();
+      loaded.undone.push(transaction);
       return {
         draft: cloneDraftState(transaction.after),
-        undo_transaction_id: loaded.applied.at(-2)?.transaction_id ?? null,
+        undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
+        redo_transaction_id: transaction.transaction_id,
+        current_pass_checkpoint: null,
+        transaction: structuredClone(transaction),
+        replayed: false,
+      };
+    });
+  }
+
+  redoManual(value: unknown): Promise<DraftCommitResult> {
+    return this.redoAs("manual", value);
+  }
+
+  redoCodex(value: unknown): Promise<DraftCommitResult> {
+    return this.redoAs("codex", value);
+  }
+
+  redoApiProvider(value: unknown): Promise<DraftCommitResult> {
+    return this.redoAs("api_provider", value);
+  }
+
+  redoMagicWand(value: unknown): Promise<DraftCommitResult> {
+    return this.redoAs("magic_wand", value);
+  }
+
+  private redoAs(
+    origin: DraftOrigin,
+    value: unknown,
+  ): Promise<DraftCommitResult> {
+    try {
+      assertRedoDraftTransactionRequest(value);
+    } catch {
+      fail("invalid");
+    }
+    const request = structuredClone(value);
+    return this.serialize(request.project_id, async () => {
+      const loaded = await this.load(request.project_id),
+        requestHash = draftRequestSha256(request, origin),
+        previous = loaded.requests.get(request.request_id);
+      if (loaded.checkpointRequests.has(request.request_id)) fail("conflict");
+      if (previous) {
+        if (previous.request_sha256 !== requestHash) fail("conflict");
+        return {
+          draft: cloneDraftState(loaded.state),
+          undo_transaction_id: loaded.applied.at(-1)?.transaction_id ?? null,
+          redo_transaction_id: loaded.undone.at(-1)?.transaction_id ?? null,
+          current_pass_checkpoint: loaded.currentCheckpoint
+            ? structuredClone(loaded.currentCheckpoint)
+            : null,
+          transaction: structuredClone(previous),
+          replayed: true,
+        };
+      }
+      ensureFresh(request, loaded.state);
+      if (loaded.state.draft_sequence >= sequenceLimit) fail("conflict");
+      const targetUndo = loaded.undone.at(-1);
+      if (
+        !targetUndo ||
+        targetUndo.transaction_id !== request.target_transaction_id
+      )
+        fail("conflict");
+      const targetApply = loaded.records.get(
+        targetUndo.target_transaction_id ?? "",
+      );
+      if (!targetApply) fail("conflict");
+      const transactionId = this.dependencies.id(),
+        createdAt = this.dependencies.now();
+      if (
+        !validId(transactionId) ||
+        !validTimestamp(createdAt) ||
+        loaded.records.has(transactionId)
+      )
+        fail("invalid");
+      const transaction = prepareRedo(
+        loaded.baseline,
+        loaded.state,
+        request,
+        {
+          origin,
+          transaction_id: transactionId,
+          operation_ids: [],
+          created_at: createdAt,
+        },
+        targetUndo,
+        targetApply,
+      );
+      await this.commit(loaded.journal, transaction);
+      loaded.undone.pop();
+      loaded.applied.push(targetApply);
+      return {
+        draft: cloneDraftState(transaction.after),
+        undo_transaction_id: targetApply.transaction_id,
+        redo_transaction_id: loaded.undone.at(-1)?.transaction_id ?? null,
         current_pass_checkpoint: null,
         transaction: structuredClone(transaction),
         replayed: false,

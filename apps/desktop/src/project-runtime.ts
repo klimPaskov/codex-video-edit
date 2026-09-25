@@ -53,6 +53,7 @@ export function committedDraftView(result: DraftReadResult): ProjectDraftView {
       sequence: draft.draft_sequence,
       timelineSha256: draft.timeline_sha256,
       undoTransactionId: result.undo_transaction_id,
+      redoTransactionId: result.redo_transaction_id,
     },
     timeline: {
       id: draft.timeline.timeline_id,
@@ -87,7 +88,8 @@ export async function invokeWithProjectDraftRefresh<T>(options: {
     options.toolName === "cut.delete_ranges" ||
     options.toolName === "timeline.split" ||
     options.toolName === "timeline.ripple_delete" ||
-    options.toolName === "timeline.undo";
+    options.toolName === "timeline.undo" ||
+    options.toolName === "timeline.redo";
   try {
     return await options.work();
   } finally {

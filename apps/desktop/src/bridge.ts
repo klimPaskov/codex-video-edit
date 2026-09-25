@@ -22,6 +22,7 @@ import type {
   ManualSplitRequest,
   ManualRangeCutRequest,
   ManualUndoRequest,
+  ManualRedoRequest,
 } from "../../../packages/domain/src/project-view.ts";
 import type {
   FrameRequest,
@@ -98,6 +99,7 @@ export interface DesktopBridge {
     request: ManualRangeCutRequest,
   ): Promise<Reply<ProjectDraftView>>;
   undoManualEdit(request: ManualUndoRequest): Promise<Reply<ProjectDraftView>>;
+  redoManualEdit(request: ManualRedoRequest): Promise<Reply<ProjectDraftView>>;
   onProjectDraftChanged(
     listener: (reply: Reply<ProjectDraftView>) => void,
   ): () => void;
@@ -140,6 +142,7 @@ export const channels = Object.freeze({
   projectManualSplit: "projects:manual-split",
   projectManualRangeCut: "projects:manual-range-cut",
   projectManualUndo: "projects:manual-undo",
+  projectManualRedo: "projects:manual-redo",
   projectDraftChanged: "projects:draft-changed",
   preferencesGet: "preferences:get",
   preferencesSet: "preferences:set",
