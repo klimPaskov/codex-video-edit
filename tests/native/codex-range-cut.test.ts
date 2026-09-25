@@ -9,9 +9,10 @@ import {
   readFile,
   readdir,
   realpath,
+  stat,
   writeFile,
 } from "node:fs/promises";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron, expect } from "playwright/test";
 import type { Page } from "playwright/test";
@@ -22,6 +23,12 @@ import { sha256 } from "../../packages/media-engine/src/lossless.ts";
 import { runProcess } from "../../packages/media-engine/src/process.ts";
 import { ProjectStore } from "../../packages/project-store/src/store.ts";
 import { DraftTransactionStore } from "../../packages/project-store/src/transactions.ts";
+import {
+  CodexStdioTransport,
+  CodexTransportError,
+} from "../../packages/codex-bridge/src/transport.ts";
+import { buildCodexAppServerArguments } from "../../packages/codex-bridge/src/client.ts";
+import { buildExperimentalInitialize } from "../../packages/codex-bridge/src/thread-protocol.ts";
 
 assert.equal(process.platform, "linux", "Requires isolated Linux guest");
 assert.equal(process.getuid?.(), 1000);
@@ -52,6 +59,172 @@ async function fileHash(path: string): Promise<string> {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(path)) hash.update(chunk);
   return hash.digest("hex");
+}
+
+function record(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+interface ReadBeforeEditEvidence {
+  route: "dynamic";
+  completedTurn: true;
+  projectSummaryCalls: number;
+  timelineSummaryCalls: number;
+  rangeEditCalls: 1;
+  summaryBeforeEdit: true;
+  callOutputCorrelated: true;
+}
+
+async function verifyAuthenticatedReadBeforeEdit(options: {
+  executablePath: string;
+  userData: string;
+  projectId: string;
+  threadId: string;
+  prompt: string;
+}): Promise<ReadBeforeEditEvidence> {
+  const codexHome = join(options.userData, "codex/account");
+  const cwd = join(options.userData, "codex/context");
+  const runtime = join(
+    dirname(options.executablePath),
+    "resources/codex/codex",
+  );
+  const transport = new CodexStdioTransport({
+    executable: runtime,
+    args: buildCodexAppServerArguments(undefined, []),
+    cwd,
+    env: {
+      HOME: dirname(codexHome),
+      USERPROFILE: dirname(codexHome),
+      CODEX_HOME: codexHome,
+      ...(process.env.PATH ? { PATH: process.env.PATH } : {}),
+    },
+    requestTimeoutMs: 120_000,
+  });
+  try {
+    await transport.start(buildExperimentalInitialize("0.0.0"));
+    const threadRead: unknown = await transport.request("thread/read", {
+      threadId: options.threadId,
+      includeTurns: false,
+    });
+    assert.ok(record(threadRead) && record(threadRead.thread));
+    assert.equal(threadRead.thread.id, options.threadId);
+    assert.ok(typeof threadRead.thread.path === "string");
+
+    let page: unknown;
+    try {
+      page = await transport.request("thread/turns/list", {
+        threadId: options.threadId,
+        limit: 100,
+        sortDirection: "desc",
+        itemsView: "full",
+      });
+    } catch (error) {
+      if (
+        !(error instanceof CodexTransportError) ||
+        error.code !== "remote_error"
+      )
+        throw error;
+      await transport.request("thread/resume", {
+        threadId: options.threadId,
+        excludeTurns: true,
+      });
+      page = await transport.request("thread/turns/list", {
+        threadId: options.threadId,
+        limit: 100,
+        sortDirection: "desc",
+        itemsView: "full",
+      });
+    }
+    assert.ok(record(page) && Array.isArray(page.data));
+    assert.ok(page.data.length > 0 && page.data.length <= 100);
+    const matches = page.data.filter(
+      (turn) =>
+        record(turn) &&
+        Array.isArray(turn.items) &&
+        turn.items.some(
+          (item) =>
+            record(item) &&
+            item.type === "userMessage" &&
+            Array.isArray(item.content) &&
+            item.content.some(
+              (content) => record(content) && content.text === options.prompt,
+            ),
+        ),
+    );
+    assert.equal(matches.length, 1);
+    const turn = matches[0]!;
+    assert.equal(turn.status, "completed");
+    assert.ok(typeof turn.id === "string");
+
+    const accountRoot = await realpath(codexHome);
+    const rolloutPath = await realpath(threadRead.thread.path);
+    const relativePath = relative(accountRoot, rolloutPath);
+    assert.ok(
+      relativePath.length > 0 &&
+        !isAbsolute(relativePath) &&
+        !relativePath.split(sep).includes(".."),
+      "Read-before-edit rollout must remain inside the isolated account",
+    );
+    assert.ok((await stat(rolloutPath)).size <= 8_000_000);
+    const turnItems = turn.items;
+    assert.ok(Array.isArray(turnItems) && turnItems.length <= 128);
+    const toolCalls = turnItems.filter(
+      (item) => record(item) && item.type === "dynamicToolCall",
+    );
+    assert.ok(toolCalls.length > 0 && toolCalls.length <= 16);
+    const projectPositions: number[] = [];
+    const timelinePositions: number[] = [];
+    const editPositions: number[] = [];
+    for (const [index, rawCall] of toolCalls.entries()) {
+      assert.ok(record(rawCall));
+      const call = rawCall;
+      assert.equal(call.namespace, "codex_video_edit");
+      assert.equal(call.status, "completed");
+      assert.equal(call.success, true);
+      assert.ok(typeof call.id === "string");
+      assert.ok(record(call.arguments));
+      assert.equal(call.arguments.project_id, options.projectId);
+      assert.equal(call.arguments.schema_version, "1.0");
+      assert.ok(Array.isArray(call.contentItems) && call.contentItems.length === 1);
+      const output = call.contentItems[0];
+      assert.ok(record(output) && output.type === "inputText");
+      assert.ok(typeof output.text === "string" && output.text.length <= 64_000);
+      if (call.tool === "project_get_summary")
+        projectPositions.push(index);
+      else if (call.tool === "timeline_get_summary")
+        timelinePositions.push(index);
+      else if (call.tool === "cut_delete_ranges") {
+        editPositions.push(index);
+        assert.ok(Number.isSafeInteger(call.arguments.expected_sequence));
+        assert.ok(
+          typeof call.arguments.expected_timeline_sha256 === "string" &&
+            /^[a-f0-9]{64}$/u.test(call.arguments.expected_timeline_sha256),
+        );
+      } else {
+        assert.fail("Unexpected guarded tool in range-cut turn");
+      }
+    }
+    assert.ok(projectPositions.length > 0);
+    assert.ok(timelinePositions.length > 0);
+    assert.equal(editPositions.length, 1);
+    const firstEdit = editPositions[0]!;
+    assert.ok(
+      projectPositions.some((position) => position < firstEdit) &&
+        timelinePositions.some((position) => position < firstEdit),
+      "Both active-project summaries must precede the range mutation",
+    );
+    return {
+      route: "dynamic",
+      completedTurn: true,
+      projectSummaryCalls: projectPositions.length,
+      timelineSummaryCalls: timelinePositions.length,
+      rangeEditCalls: 1,
+      summaryBeforeEdit: true,
+      callOutputCorrelated: true,
+    };
+  } finally {
+    await transport.close();
+  }
 }
 const resultRoot = resolve("test-results");
 await mkdir(resultRoot, { recursive: true });
@@ -136,6 +309,7 @@ const launch = () =>
   });
 let electron = await launch();
 let page: Page | undefined;
+let readBeforeEditEvidence: ReadBeforeEditEvidence | undefined;
 async function canvasHash(active: Page): Promise<string | null> {
   return active.locator("canvas").evaluate(async (node) => {
     const canvas = node as HTMLCanvasElement;
@@ -324,18 +498,25 @@ try {
   await expect
     .poll(async () => (await thread()).status, { timeout: 90_000 })
     .toBe("ready");
+  let threadBinding: { threadId: string; toolRoute?: string } | undefined;
   if (batch) {
     const registry = JSON.parse(
       await readFile(
         join(userData, "codex/context/threads/project-threads.json"),
         "utf8",
       ),
-    ) as { entries: Array<{ projectId: string; toolRoute?: string }> };
-    assert.equal(
-      registry.entries.find((entry) => entry.projectId === combined.id)
-        ?.toolRoute,
-      "dynamic",
+    ) as {
+      entries: Array<{
+        projectId: string;
+        threadId: string;
+        toolRoute?: string;
+      }>;
+    };
+    threadBinding = registry.entries.find(
+      (entry) => entry.projectId === combined.id,
     );
+    assert.equal(threadBinding?.toolRoute, "dynamic");
+    assert.ok(threadBinding?.threadId);
   }
   async function records(): Promise<DraftTransactionRecord[]> {
     const folder = join(projectFolder, "draft/journal");
@@ -357,8 +538,8 @@ try {
 
   mark("authenticated-range-cut");
   const prompt = batch
-    ? `Use the guarded editor tools to read the active two-source draft. Call codex_video_edit__cut_delete_ranges exactly once with these two confirmed disjoint half-open output-time ranges in descending order: [${cutStartUs}, ${cutEndUs}) across the source join, then [${earlyStartUs}, ${earlyEndUs}) in the first source. The batch must be one transaction with two ripple_delete operations and final duration ${cutDurationUs} microseconds. Do not use cut_delete_range, split, trim, undo, or make another edit. Read the draft again to verify, then reply briefly.`
-    : `Use the guarded editor tools to read the active two-source draft. Delete exactly the half-open output range [${cutStartUs}, ${cutEndUs}) microseconds using cut.delete_range, spanning the join between its two source clips. Apply exactly one range-cut transaction. The committed draft must be ${cutDurationUs} microseconds long. Do not trim, undo, or make another edit. Read the draft again to verify, then reply briefly.`;
+    ? `The active project_id is ${combined.id}. Use the guarded editor tools with that exact project_id to read the active two-source draft. Call codex_video_edit__cut_delete_ranges exactly once with these two confirmed disjoint half-open output-time ranges in descending order: [${cutStartUs}, ${cutEndUs}) across the source join, then [${earlyStartUs}, ${earlyEndUs}) in the first source. The batch must be one transaction with two ripple_delete operations and final duration ${cutDurationUs} microseconds. Do not use cut_delete_range, split, trim, undo, or make another edit. Read the draft again to verify, then reply briefly.`
+    : `The active project_id is ${combined.id}. Use the guarded editor tools with that exact project_id to read the active two-source draft. Delete exactly the half-open output range [${cutStartUs}, ${cutEndUs}) microseconds using cut.delete_range, spanning the join between its two source clips. Apply exactly one range-cut transaction. The committed draft must be ${cutDurationUs} microseconds long. Do not trim, undo, or make another edit. Read the draft again to verify, then reply briefly.`;
   await page.locator("#codex-thread-input").fill(prompt);
   await page.locator("#send-codex-thread").click();
   let committedDuringTurn = false;
@@ -463,6 +644,17 @@ try {
     .toBe(true);
   mark("reopen-project");
   await electron.close();
+  if (batch) {
+    assert.ok(threadBinding);
+    mark("authoritative-read-before-edit");
+    readBeforeEditEvidence = await verifyAuthenticatedReadBeforeEdit({
+      executablePath,
+      userData,
+      projectId: combined.id,
+      threadId: threadBinding.threadId,
+      prompt,
+    });
+  }
   const offline = new DraftTransactionStore(
     join(userData, "project-store"),
     new ProjectStore(join(userData, "project-store"), library),
@@ -536,6 +728,7 @@ try {
         sharedUndo: true,
         reopen: true,
         immutableSourcesAndBaseline: true,
+        authenticatedReadBeforeEdit: readBeforeEditEvidence ?? null,
         audioListening: false,
         windowsAcceptance: false,
       },
