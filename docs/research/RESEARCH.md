@@ -62,3 +62,13 @@ Sources:
 - https://ai.google.dev/gemini-api/docs/generate-content/function-calling
 - https://ai.google.dev/gemini-api/docs/openai
 - https://ai.google.dev/gemini-api/docs/changelog
+
+## Codex App Server 0.156.0 confinement review, 2026-09-25
+
+Reviewed the current official release after the pinned 0.155.1 runtime's full tool-catalog gate remained open. The tagged 0.156.0 thread-start contract still offers `dynamicTools`, but the reviewed app-server request and configuration types expose no complete model-visible tool allowlist. The release notes add no such boundary. The product remains pinned to the already verified 0.155.1 package; upgrading would require generated-protocol and packaged native regression checks and does not, by itself, close P2-07.
+
+Sources:
+
+- https://github.com/openai/codex/releases/tag/rust-v0.156.0
+- https://github.com/openai/codex/blob/rust-v0.156.0/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
+- https://github.com/openai/codex/blob/rust-v0.156.0/codex-rs/config/src/config_toml.rs
