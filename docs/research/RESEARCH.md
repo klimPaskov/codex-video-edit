@@ -72,3 +72,11 @@ Sources:
 - https://github.com/openai/codex/releases/tag/rust-v0.156.0
 - https://github.com/openai/codex/blob/rust-v0.156.0/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
 - https://github.com/openai/codex/blob/rust-v0.156.0/codex-rs/config/src/config_toml.rs
+
+## Codex app-tool default override review, 2026-09-25
+
+The pinned Codex 0.155.1 configuration types document `apps._default.enabled=false` as disabling apps unless a per-app setting overrides it. The app currently supplies the disabled default and disables App Server app/plugin features per thread, but the hostile-config native fixture targets MCP entries, not named app overrides. This is a specific untested P2-07 edge; no app-registration behavior is inferred from the default alone.
+
+Source:
+
+- https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/config/src/types.rs#L2904-L2910
