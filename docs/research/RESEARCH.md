@@ -52,3 +52,13 @@ Sources:
 - https://www.electronjs.org/docs/latest/api/desktop-capturer/
 - https://www.electronjs.org/docs/latest/tutorial/security
 - https://playwright.dev/docs/api/class-electron
+
+## Gemini API provider model filter, 2026-09-25
+
+Google's current [function-calling model table](https://ai.google.dev/gemini-api/docs/generate-content/function-calling) lists the stable text/function families used by the editor's reviewed allowlist. The [OpenAI compatibility guide](https://ai.google.dev/gemini-api/docs/openai) describes the fixed OpenAI-compatible endpoints as beta and supports model listing; live account membership alone does not establish the full completion/tool-loop contract. Google release notes dated September 15 and 22 add 3.8 Live and 3.8 Flash TTS variants. The app continues to exclude Live, speech/TTS, image, embedding, transcription, video, and preview families per ADR 0015. New negative model-filter cases cover 3.8 Live, TTS, and Gemini 3.1 Pro Preview. See [P2 provider contract notes](P2_API_PROVIDERS.md#current-gemini-model-review-2026-09-25). No Gemini key was available for authenticated discovery or generation tests.
+
+Sources:
+
+- https://ai.google.dev/gemini-api/docs/generate-content/function-calling
+- https://ai.google.dev/gemini-api/docs/openai
+- https://ai.google.dev/gemini-api/docs/changelog
