@@ -108,3 +108,13 @@ Sources:
 - https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/features/src/lib.rs
 - https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/config.schema.json
 - https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/src/tools/spec_plan.rs
+
+## Current upstream App Server tool-boundary review, 2026-09-26
+
+Inspected the official `openai/codex` main-branch `ThreadStartParams`, app-server README, and tool planner after the pinned 0.155.1 complete-catalog gate remained open. The current public `thread/start` shape includes host-supplied `dynamicTools` and selected capability roots, but the inspected request type has no general allowed-tools field. The README says `disabledPluginIds` records a selection but does not filter plugin capabilities. The planner composes core, MCP, extension, dynamic, and hosted tool sources, so adding host tools is not by itself an allowlist. This main-branch review is not a released package and does not describe the exact pinned runtime; it is a reason not to upgrade or claim stronger isolation without a version-pinned contract and packaged regression. Retain the 0.155.1 tested configuration gates, per-thread routes, MCP inventory verification, sandbox boundaries, and owned-call validation. P2-07 remains open until supported runtime enforcement or stronger pinned evidence establishes the complete effective surface.
+
+Sources:
+
+- https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
+- https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md
+- https://github.com/openai/codex/blob/main/codex-rs/core/src/tools/spec_plan.rs
