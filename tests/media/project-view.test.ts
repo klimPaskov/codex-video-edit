@@ -9,6 +9,7 @@ import {
   assertManualSplitRequest,
   assertManualRangeCutRequest,
   assertManualUndoRequest,
+  assertManualRedoRequest,
   assertProjectNavigation,
   assertProjectRequest,
   assertTwoSourceProjectRequest,
@@ -29,6 +30,7 @@ function view(): ProjectView {
       sequence: 0,
       timelineSha256: "a".repeat(64),
       undoTransactionId: null,
+      redoTransactionId: null,
     },
     source: {
       id: "33333333-3333-4333-8333-333333333333",
@@ -178,6 +180,7 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
     timelinePositionUs: 500_000,
   };
   const undo = { ...head, targetTransactionId: "transaction-1" };
+  const redo = { ...head, targetTransactionId: "undo-transaction-1" };
   const split = {
     ...head,
     clipId: "clip-main",
@@ -188,6 +191,7 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
   assertManualSplitRequest(split);
   assertManualRangeCutRequest(rangeCut);
   assertManualUndoRequest(undo);
+  assertManualRedoRequest(redo);
   for (const bad of [
     { ...trim, path: "/private/source.mp4" },
     { ...trim, schema_version: "2.0" },
@@ -227,6 +231,13 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
     { ...undo, request_id: "renderer-owned" },
   ])
     assert.throws(() => assertManualUndoRequest(bad));
+  for (const bad of [
+    { ...redo, targetTransactionId: "" },
+    { ...redo, expectedSequence: -1 },
+    { ...redo, request_id: "renderer-owned" },
+    { ...redo, path: "/private/project" },
+  ])
+    assert.throws(() => assertManualRedoRequest(bad));
 });
 test("committed fragments retain ordered source intervals and reject overlap or source revisits", () => {
   const base = view();

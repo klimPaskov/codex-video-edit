@@ -52,6 +52,7 @@ export interface ProjectDraftView {
     sequence: number;
     timelineSha256: string;
     undoTransactionId: string | null;
+    redoTransactionId: string | null;
   };
   timeline: {
     id: string;
@@ -120,6 +121,7 @@ export interface ManualUndoRequest {
   expectedTimelineSha256: string;
   targetTransactionId: string;
 }
+export type ManualRedoRequest = ManualUndoRequest;
 function invalid(): never {
   throw new Error("Invalid project exchange.");
 }
@@ -281,6 +283,11 @@ export function assertManualUndoRequest(
   assertManualHead(value);
   opaqueId(value.targetTransactionId);
 }
+export function assertManualRedoRequest(
+  value: unknown,
+): asserts value is ManualRedoRequest {
+  assertManualUndoRequest(value);
+}
 export function assertProjectFrameView(
   value: unknown,
 ): asserts value is ProjectFrameView {
@@ -343,6 +350,7 @@ export function assertProjectDraftView(
     "sequence",
     "timelineSha256",
     "undoTransactionId",
+    "redoTransactionId",
   ]);
   opaqueId(value.draft.id);
   id(value.draft.baseRevisionId);
@@ -350,6 +358,8 @@ export function assertProjectDraftView(
   hash(value.draft.timelineSha256);
   if (value.draft.undoTransactionId !== null)
     opaqueId(value.draft.undoTransactionId);
+  if (value.draft.redoTransactionId !== null)
+    opaqueId(value.draft.redoTransactionId);
   exact(value.timeline, ["id", "durationUs", "frameRate"]);
   id(value.timeline.id);
   positive(value.timeline.durationUs);

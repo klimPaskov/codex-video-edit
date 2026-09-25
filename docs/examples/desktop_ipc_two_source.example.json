@@ -16,7 +16,8 @@
         "baseRevisionId": "a647be34-c87d-44eb-82fb-70d6afcbdc31",
         "sequence": 0,
         "timelineSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "undoTransactionId": null
+        "undoTransactionId": null,
+        "redoTransactionId": null
       },
       "source": {
         "id": "d81632fb-4cde-4d40-a75d-679e22c15f2a",

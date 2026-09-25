@@ -19,7 +19,8 @@
         "baseRevisionId": "a647be34-c87d-44eb-82fb-70d6afcbdc31",
         "sequence": 1,
         "timelineSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        "undoTransactionId": "manual-transaction-1"
+        "undoTransactionId": "manual-transaction-1",
+        "redoTransactionId": null
       },
       "timeline": {
         "id": "d0d743dc-b2af-4a60-8dd9-3cb7644a7ba4",

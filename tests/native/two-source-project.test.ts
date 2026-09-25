@@ -151,6 +151,7 @@ try {
   await expect(page.locator("#trim-end")).toBeDisabled();
   await expect(page.locator("#split-clip")).toBeDisabled();
   await expect(page.locator("#undo-edit")).toBeDisabled();
+  await expect(page.locator("#redo-edit")).toBeDisabled();
   await seek(page, 750_000);
   await expect(page.locator("#trim-start")).toBeEnabled();
   await page.locator("#trim-start").click();
@@ -175,6 +176,29 @@ try {
   );
   assert.equal(restored?.clips?.[0]?.sourceStartUs, 0);
   assert.equal(restored?.clips?.[1]?.timelineStartUs, 1_000_000);
+  await expect(page.locator("#redo-edit")).toBeEnabled();
+  await page.locator("#redo-edit").click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:01.250");
+  const redoneProjects = await page.evaluate(() =>
+    window.desktop.listProjects(),
+  );
+  assert.ok(redoneProjects.ok);
+  const redone = redoneProjects.value.find(
+    (project) => project.id === combined.id,
+  );
+  assert.equal(redone?.clips?.[0]?.sourceStartUs, 750_000);
+  assert.equal(redone?.clips?.[1]?.timelineStartUs, 250_000);
+  await seek(page, 0);
+  assert.deepEqual(
+    await canvasBytes(page),
+    Buffer.from(
+      (await library.frame(baseline.sources[0].source_id, 750_000)).rgbaBase64,
+      "base64",
+    ),
+  );
+  await expect(page.locator("#undo-edit")).toBeEnabled();
+  await page.locator("#undo-edit").click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:02.000");
   await seek(page, 500_000);
   await expect(page.locator("#split-clip")).toBeEnabled();
   await page.locator("#split-clip").click();
@@ -284,6 +308,17 @@ try {
       originals[index],
     );
   }
+  await expect(page.locator("#redo-edit")).toBeEnabled();
+  await page.locator("#redo-edit").click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:00.750");
+  await seek(page, 250_000);
+  await expect
+    .poll(async () => (await canvasBytes(page)).equals(expectedAfterCut), {
+      timeout: 30_000,
+    })
+    .toBe(true);
+  await page.locator("#undo-edit").click();
+  await expect(page.locator("#duration")).toHaveText(" / 0:02.000");
   await page.screenshot({ path: join(evidence, "two-source-reopened.png") });
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.locator("#interface-scale").selectOption("2");
@@ -327,6 +362,8 @@ try {
         sourceCount: 2,
         exactJoinFrame: true,
         reopen: true,
+        manualRedo: true,
+        redoSurvivesReopen: true,
         originalsAndManagedCopiesUnchanged: true,
         baselineUnchanged: true,
         syntheticFixtureHashes: originals.map((bytes) =>

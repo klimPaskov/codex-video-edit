@@ -1080,6 +1080,22 @@
     {
       "type": "object",
       "additionalProperties": false,
+      "required": ["channel", "payload", "response"],
+      "properties": {
+        "channel": { "const": "projects:manual-redo" },
+        "payload": { "$ref": "#/$defs/manualUndoRequest" },
+        "response": { "oneOf": [
+          { "$ref": "#/$defs/error" },
+          { "type": "object", "additionalProperties": false,
+            "required": ["ok", "value"],
+            "properties": { "ok": { "const": true }, "value": { "$ref": "#/$defs/projectDraftView" } }
+          }
+        ] }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
       "required": [
         "channel",
         "event"
@@ -1898,7 +1914,8 @@
         "baseRevisionId",
         "sequence",
         "timelineSha256",
-        "undoTransactionId"
+        "undoTransactionId",
+        "redoTransactionId"
       ],
       "properties": {
         "id": {
@@ -1919,6 +1936,17 @@
           "pattern": "^[a-f0-9]{64}$"
         },
         "undoTransactionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "redoTransactionId": {
           "anyOf": [
             {
               "type": "string",

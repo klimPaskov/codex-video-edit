@@ -44,6 +44,7 @@ import {
   assertManualSplitRequest,
   assertManualRangeCutRequest,
   assertManualUndoRequest,
+  assertManualRedoRequest,
 } from "../../../packages/domain/src/project-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
@@ -678,6 +679,38 @@ async function start(): Promise<void> {
             expected_timeline_sha256: request.expectedTimelineSha256,
             target_transaction_id: request.targetTransactionId,
             reason: "Undo last edit.",
+          }),
+      });
+      return committedDraftView(committed);
+    } catch (error) {
+      if (error instanceof DraftTransactionError)
+        throw new UserFacingError(error.message);
+      throw error;
+    }
+  });
+  register(channels.projectManualRedo, async (request) => {
+    assertManualRedoRequest(request);
+    if (activeProjectId !== request.projectId)
+      throw new UserFacingError("Open this project before editing it.");
+    try {
+      const committed = await invokeWithProjectDraftRefresh({
+        toolName: "timeline.redo",
+        projectId: request.projectId,
+        activeProjectId: () => activeProjectId,
+        drafts,
+        notify: publishDraftNotice,
+        work: () =>
+          drafts.redoManual({
+            schema_version: "1.0",
+            request_id: randomUUID(),
+            project_id: request.projectId,
+            draft_id: request.draftId,
+            base_revision_id: request.baseRevisionId,
+            expected_sequence: request.expectedSequence,
+            expected_timeline_sha256: request.expectedTimelineSha256,
+            target_transaction_id: request.targetTransactionId,
+            reason: "Redo last undone edit.",
+            kind: "redo",
           }),
       });
       return committedDraftView(committed);

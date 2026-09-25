@@ -115,7 +115,7 @@ class DesktopIpcContractTests(unittest.TestCase):
                 'id': 'draft-22222222-2222-4222-8222-222222222222',
                 'baseRevisionId': '22222222-2222-4222-8222-222222222222',
                 'sequence': 0, 'timelineSha256': 'a' * 64,
-                'undoTransactionId': None,
+                'undoTransactionId': None, 'redoTransactionId': None,
             },
             'source': deepcopy(self.summary),
             'timeline': {'id': '33333333-3333-4333-8333-333333333333', 'durationUs': 1001000,
