@@ -50,7 +50,7 @@ timeline summaries. Disable the confirmed unrelated default-mode-input, permissi
 approval-rule, exec-approval, web-search, MCP-auth/dependency-install, passive
 screen-memory, external-agent-memory, persisted-goal, plugin-sharing/suggestion and
 API-key-model-discovery capabilities in the process and thread
-configuration. Keep the full upstream effective tool catalog as an open gate. Treat
+configuration. Also explicitly disable the pinned default-on `sleep_tool` and `view_image` features in process arguments and thread start/resume; code-mode-only does not suppress every direct tool. Keep the full upstream effective tool catalog as an open gate. Treat
 streamed terminal events as authoritative, correlate them to the active thread and turn,
 and make retry a new turn with a new request identity. Feature flags or model text alone do
 not prove a current child exists or inherited policy. Require a permitted non-Astra model,

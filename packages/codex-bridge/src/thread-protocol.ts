@@ -235,11 +235,13 @@ function threadFeatures(policy: ThreadFeaturePolicy) {
     request_rule: false,
     search_tool: false,
     shell_tool: false,
+    sleep_tool: false,
     skill_mcp_dependency_install: false,
     skill_search: false,
     standalone_web_search: false,
     tool_call_mcp_elicitation: false,
     tool_suggest: false,
+    view_image: false,
     web_search_cached: false,
     web_search_request: false,
   } as const;
