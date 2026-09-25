@@ -24,6 +24,9 @@ const policy = {
   developerInstructions: "Keep source media immutable.",
 };
 const restrictedFeatures = {
+  apps: false,
+  plugins: false,
+  remote_plugin: false,
   shell_tool: false,
   multi_agent: false,
   multi_agent_v2: false,

@@ -255,6 +255,10 @@ export class CodexProjectThreadClient {
     }
   }
 
+  activeThreadId(): string | undefined {
+    return this.runtime.activeThreadId();
+  }
+
   notification(method: string, params: unknown): void {
     if (this.quarantined) throw new CodexThreadProtocolError("forbidden");
     if (method === "thread/started") {

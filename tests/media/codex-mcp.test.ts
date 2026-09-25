@@ -327,6 +327,10 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
   assert.ok(!serialized.includes("filesystem.read"));
 
   const dynamicArgs = buildCodexAppServerArguments();
+  assert.ok(dynamicArgs.includes("mcp_servers={}"));
+  assert.ok(
+    !dynamicArgs.some((arg) => arg.startsWith("mcp_servers.codex-video-edit.")),
+  );
   assert.ok(dynamicArgs.includes("features.multi_agent=true"));
   assert.ok(dynamicArgs.includes("agents.enabled=true"));
   assert.ok(!dynamicArgs.includes("features.multi_agent=false"));
@@ -337,6 +341,89 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
     ),
   );
   assert.ok(dynamicArgs.includes("agents.max_depth=1"));
+
+  const isolatedArgs = buildCodexAppServerArguments(undefined, [
+    "untrusted_test",
+  ]);
+  assert.ok(isolatedArgs.includes("mcp_servers.untrusted_test.enabled=false"));
+});
+
+test("Codex MCP inventory accepts only explicitly disabled configured servers", () => {
+  codexClientInternals.validateDisabledMcpStatus(
+    { data: [], nextCursor: null },
+    [],
+  );
+  const disabled = {
+    name: "external-server",
+    runtimeStatus: null,
+    tools: {},
+    resources: [],
+    resourceTemplates: [],
+  };
+  codexClientInternals.validateAppServerMcpStatus(
+    { data: [disabled], nextCursor: null },
+    ["external-server"],
+    false,
+  );
+  codexClientInternals.validateAppServerMcpStatus(
+    { data: [{ ...disabled, runtimeStatus: "disabled" }], nextCursor: null },
+    ["external-server"],
+    false,
+    true,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.validateAppServerMcpStatus(
+        {
+          data: [{ ...disabled, runtimeStatus: "connected" }],
+          nextCursor: null,
+        },
+        ["external-server"],
+        false,
+      ),
+    CodexTransportError,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.validateAppServerMcpStatus(
+        {
+          data: [{ ...disabled, tools: { filesystem: {} } }],
+          nextCursor: null,
+        },
+        ["external-server"],
+        false,
+      ),
+    CodexTransportError,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.validateAppServerMcpStatus(
+        { data: [disabled], nextCursor: null },
+        [],
+        false,
+      ),
+    CodexTransportError,
+  );
+  assert.deepEqual(
+    codexClientInternals.decodeConfiguredMcpServers([
+      { name: "external-server", enabled: true },
+    ]),
+    [{ name: "external-server", enabled: true }],
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.decodeConfiguredMcpServers([
+        { name: "external-server", enabled: "yes" },
+      ]),
+    CodexTransportError,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.decodeConfiguredMcpServers([
+        { name: "server.name", enabled: true },
+      ]),
+    CodexTransportError,
+  );
 });
 
 test("App Server startup accepts only the reviewed owned MCP schemas", () => {
@@ -356,6 +443,38 @@ test("App Server startup accepts only the reviewed owned MCP schemas", () => {
     nextCursor: null,
   };
   codexClientInternals.validateOwnedMcpStatus(structuredClone(status));
+  const configuredServer = {
+    name: "untrusted_test",
+    runtimeStatus: null,
+    serverInfo: null,
+    tools: {},
+    resources: [],
+    resourceTemplates: [],
+  };
+  codexClientInternals.validateAppServerMcpStatus(
+    {
+      data: [...structuredClone(status.data), configuredServer],
+      nextCursor: null,
+    },
+    ["untrusted_test"],
+    true,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.validateAppServerMcpStatus(
+        {
+          data: [
+            ...structuredClone(status.data),
+            { ...configuredServer, runtimeStatus: "connected" },
+          ],
+          nextCursor: null,
+        },
+        ["untrusted_test"],
+        true,
+        true,
+      ),
+    CodexTransportError,
+  );
   const changed = structuredClone(status) as unknown as {
     data: Array<{
       tools: Record<string, { inputSchema: unknown }>;

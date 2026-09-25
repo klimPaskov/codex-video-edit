@@ -188,6 +188,9 @@ export interface ThreadStartRequest {
     agents: { enabled: boolean; max_depth?: 1 };
     project_root_markers: [];
     features: {
+      apps: false;
+      plugins: false;
+      remote_plugin: false;
       shell_tool: false;
       multi_agent: boolean;
       multi_agent_v2: false;
@@ -238,6 +241,9 @@ export function buildThreadStartRequest(
         : { enabled: false },
       project_root_markers: [],
       features: {
+        apps: false,
+        plugins: false,
+        remote_plugin: false,
         shell_tool: false,
         multi_agent: nativeSubagents,
         multi_agent_v2: false,
@@ -324,6 +330,9 @@ export function buildThreadResumeRequest(
         : { enabled: false },
       project_root_markers: [],
       features: {
+        apps: false,
+        plugins: false,
+        remote_plugin: false,
         shell_tool: false,
         multi_agent: nativeSubagents,
         multi_agent_v2: false,

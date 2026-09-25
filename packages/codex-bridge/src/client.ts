@@ -38,6 +38,8 @@ import type { CodexMcpRuntime } from "../../codex-tools/src/broker.ts";
 
 export const CODEX_VERSION = "0.155.1";
 const execute = promisify(execFile);
+const MAX_CONFIGURED_MCP_SERVERS = 64;
+const MAX_MCP_SERVER_NAME_LENGTH = 128;
 const environmentKeys = ["PATH", "SystemRoot", "WINDIR", "TMP", "TEMP"];
 const fixedAppServerArguments = [
   "app-server",
@@ -93,8 +95,15 @@ const fixedAppServerArguments = [
   "project_root_markers=[]",
 ] as const;
 
-export function buildCodexAppServerArguments(mcp?: CodexMcpRuntime): string[] {
+export function buildCodexAppServerArguments(
+  mcp?: CodexMcpRuntime,
+  disabledMcpServers: readonly string[] = [],
+): string[] {
   const args: string[] = [...fixedAppServerArguments];
+  args.push("-c", "mcp_servers={}");
+  for (const name of disabledMcpServers) {
+    args.push("-c", `mcp_servers.${name}.enabled=false`);
+  }
   if (!mcp) {
     const multiAgentIndex = args.indexOf("features.multi_agent=false");
     const agentsIndex = args.indexOf("agents.enabled=false");
@@ -136,6 +145,87 @@ export function buildCodexAppServerArguments(mcp?: CodexMcpRuntime): string[] {
     "mcp_servers.codex-video-edit.tool_timeout_sec=40",
   );
   return args;
+}
+
+type ConfiguredMcpServer = { name: string; enabled: boolean };
+
+function decodeConfiguredMcpServers(value: unknown): ConfiguredMcpServer[] {
+  if (!Array.isArray(value) || value.length > MAX_CONFIGURED_MCP_SERVERS)
+    throw new CodexTransportError("protocol");
+  const seen = new Set<string>();
+  return value.map((item) => {
+    if (
+      !protocolRecord(item) ||
+      typeof item.name !== "string" ||
+      item.name.length > MAX_MCP_SERVER_NAME_LENGTH ||
+      !/^[A-Za-z0-9_-]+$/u.test(item.name) ||
+      typeof item.enabled !== "boolean" ||
+      seen.has(item.name)
+    )
+      throw new CodexTransportError("protocol");
+    seen.add(item.name);
+    return { name: item.name, enabled: item.enabled };
+  });
+}
+
+function serverListArgs(overrides: readonly string[] = []): string[] {
+  return [
+    "mcp",
+    "list",
+    "--json",
+    ...overrides.flatMap((value) => ["-c", value]),
+  ];
+}
+
+async function executeCodex(
+  executable: string,
+  args: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  signal?: AbortSignal,
+): Promise<unknown> {
+  try {
+    const result = await execute(executable, args, {
+      cwd,
+      env,
+      windowsHide: true,
+      timeout: 15000,
+      maxBuffer: 64 * 1024,
+      encoding: "utf8",
+      ...(signal ? { signal } : {}),
+    });
+    return JSON.parse(result.stdout);
+  } catch {
+    throw new CodexTransportError("configuration");
+  }
+}
+
+async function disableConfiguredMcpServers(
+  executable: string,
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+  signal: AbortSignal,
+): Promise<string[]> {
+  const configured = decodeConfiguredMcpServers(
+    await executeCodex(executable, serverListArgs(), cwd, env, signal),
+  );
+  const overrides = configured.map(
+    ({ name }) => `mcp_servers.${name}.enabled=false`,
+  );
+  if (overrides.join("").length > 12_000)
+    throw new CodexTransportError("configuration");
+  const verified = decodeConfiguredMcpServers(
+    await executeCodex(executable, serverListArgs(overrides), cwd, env, signal),
+  );
+  const verifiedByName = new Map(
+    verified.map(({ name, enabled }) => [name, enabled]),
+  );
+  if (
+    verified.length !== configured.length ||
+    configured.some(({ name }) => verifiedByName.get(name) !== false)
+  )
+    throw new CodexTransportError("configuration");
+  return configured.map(({ name }) => name);
 }
 
 function protocolRecord(value: unknown): value is Record<string, unknown> {
@@ -194,9 +284,100 @@ function validateOwnedMcpStatus(
     throw new CodexTransportError("protocol");
 }
 
+function validateDisabledMcpStatus(
+  value: unknown,
+  expectedNames: readonly string[],
+  requireRuntimeDisabled = false,
+): asserts value is ListMcpServerStatusResponse {
+  if (
+    !protocolRecord(value) ||
+    !Array.isArray(value.data) ||
+    value.data.length !== expectedNames.length ||
+    value.nextCursor !== null
+  )
+    throw new CodexTransportError("protocol");
+  const expected = [...expectedNames].sort();
+  const servers = value.data.toSorted((left, right) => {
+    if (!protocolRecord(left) || !protocolRecord(right)) return 0;
+    return String(left.name).localeCompare(String(right.name));
+  });
+  if (
+    new Set(expected).size !== expected.length ||
+    servers.some((server, index) => {
+      if (
+        !protocolRecord(server) ||
+        server.name !== expected[index] ||
+        !protocolRecord(server.tools) ||
+        Object.keys(server.tools).length !== 0 ||
+        !Array.isArray(server.resources) ||
+        server.resources.length !== 0 ||
+        !Array.isArray(server.resourceTemplates) ||
+        server.resourceTemplates.length !== 0
+      )
+        return true;
+      return requireRuntimeDisabled
+        ? server.runtimeStatus !== "disabled"
+        : server.runtimeStatus !== null && server.runtimeStatus !== "disabled";
+    })
+  )
+    throw new CodexTransportError("protocol");
+}
+
+function validateAppServerMcpStatus(
+  value: unknown,
+  disabledNames: readonly string[],
+  hasOwnedMcp: boolean,
+  requireRuntimeDisabled = false,
+): asserts value is ListMcpServerStatusResponse {
+  if (
+    !protocolRecord(value) ||
+    !Array.isArray(value.data) ||
+    value.nextCursor !== null ||
+    value.data.length !== disabledNames.length + Number(hasOwnedMcp)
+  )
+    throw new CodexTransportError("protocol");
+  const disabled = hasOwnedMcp
+    ? value.data.filter(
+        (server) =>
+          protocolRecord(server) && server.name !== "codex-video-edit",
+      )
+    : value.data;
+  const owned = value.data.filter(
+    (server) => protocolRecord(server) && server.name === "codex-video-edit",
+  );
+  validateDisabledMcpStatus(
+    { data: disabled, nextCursor: null },
+    disabledNames,
+    requireRuntimeDisabled,
+  );
+  if (hasOwnedMcp) {
+    if (owned.length !== 1) throw new CodexTransportError("protocol");
+    validateOwnedMcpStatus({ data: owned, nextCursor: null });
+  } else if (owned.length !== 0) {
+    // A configured server using our reserved name is not part of the dynamic route.
+    if (!disabledNames.includes("codex-video-edit"))
+      throw new CodexTransportError("protocol");
+    validateDisabledMcpStatus(
+      { data: owned, nextCursor: null },
+      ["codex-video-edit"],
+      requireRuntimeDisabled,
+    );
+  }
+}
+
 export const codexClientInternals: {
   validateOwnedMcpStatus: typeof validateOwnedMcpStatus;
-} = { validateOwnedMcpStatus };
+  validateDisabledMcpStatus: typeof validateDisabledMcpStatus;
+  validateAppServerMcpStatus: typeof validateAppServerMcpStatus;
+  decodeConfiguredMcpServers: typeof decodeConfiguredMcpServers;
+  serverListArgs: typeof serverListArgs;
+} = {
+  validateOwnedMcpStatus,
+  validateDisabledMcpStatus,
+  validateAppServerMcpStatus,
+  decodeConfiguredMcpServers,
+  serverListArgs,
+};
 
 export interface CodexClientOptions {
   executable: string;
@@ -245,6 +426,7 @@ export class CodexClient {
   private auth: CodexAuthController | undefined;
   private threadRegistry: ProjectThreadRegistry | undefined;
   private conversation: CodexProjectThreadClient | undefined;
+  private disabledMcpServers: string[] = [];
   private generation = 0;
   private resolvedCwd: string | undefined;
 
@@ -320,9 +502,17 @@ export class CodexClient {
       if (startupAbort.signal.aborted) throw new CodexTransportError("closed");
       if (version.stdout.trim() !== `codex-cli ${CODEX_VERSION}`)
         throw new CodexTransportError("protocol");
+      const disabledMcpServers = await disableConfiguredMcpServers(
+        executable,
+        cwd,
+        env,
+        startupAbort.signal,
+      );
+      if (mcp && disabledMcpServers.includes("codex-video-edit"))
+        throw new CodexTransportError("configuration");
       transport = new CodexStdioTransport({
         executable,
-        args: buildCodexAppServerArguments(mcp),
+        args: buildCodexAppServerArguments(mcp, disabledMcpServers),
         cwd,
         env,
         onNotification: (method, params) => {
@@ -365,19 +555,20 @@ export class CodexClient {
       if (normalize(response.codexHome) !== normalize(codexHome))
         throw new CodexTransportError("protocol");
       if (startupAbort.signal.aborted) throw new CodexTransportError("closed");
-      if (mcp) {
-        const mcpStatusRequest = {
-          cursor: null,
-          detail: "full",
-          limit: 10,
-          threadId: null,
-        } satisfies ListMcpServerStatusParams;
-        validateOwnedMcpStatus(
-          await transport.request("mcpServerStatus/list", mcpStatusRequest),
-        );
-      }
+      const mcpStatusRequest = {
+        cursor: null,
+        detail: "full",
+        limit: MAX_CONFIGURED_MCP_SERVERS + 1,
+        threadId: null,
+      } satisfies ListMcpServerStatusParams;
+      validateAppServerMcpStatus(
+        await transport.request("mcpServerStatus/list", mcpStatusRequest),
+        disabledMcpServers,
+        Boolean(mcp),
+      );
       this.threadRegistry = registry;
       this.resolvedCwd = cwd;
+      this.disabledMcpServers = disabledMcpServers;
       if (mcp) this.options.mcp = mcp;
       this.generation++;
     } catch (error) {
@@ -387,6 +578,7 @@ export class CodexClient {
       if (this.transport === transport) this.transport = undefined;
       this.threadRegistry = undefined;
       this.resolvedCwd = undefined;
+      this.disabledMcpServers = [];
       if (startupAbort.signal.aborted) throw new CodexTransportError("closed");
       if (error instanceof CodexTransportError) throw error;
       throw new CodexTransportError("process_failed");
@@ -533,8 +725,26 @@ export class CodexClient {
     this.conversation = conversation;
     try {
       await conversation.open();
+      const threadId = conversation.activeThreadId();
+      if (!threadId) throw new CodexTransportError("protocol");
+      const mcpStatusRequest = {
+        cursor: null,
+        detail: "full",
+        limit: MAX_CONFIGURED_MCP_SERVERS + 1,
+        threadId,
+      } satisfies ListMcpServerStatusParams;
+      validateAppServerMcpStatus(
+        await transport.request("mcpServerStatus/list", mcpStatusRequest),
+        this.disabledMcpServers,
+        Boolean(this.options.mcp),
+        true,
+      );
     } catch (error) {
-      if (this.conversation === conversation) this.conversation = undefined;
+      if (error instanceof CodexTransportError && error.code === "protocol") {
+        await this.close();
+      } else if (this.conversation === conversation) {
+        this.conversation = undefined;
+      }
       throw error;
     }
   }
@@ -578,6 +788,7 @@ export class CodexClient {
     this.conversation = undefined;
     this.threadRegistry = undefined;
     this.resolvedCwd = undefined;
+    this.disabledMcpServers = [];
     this.transport = undefined;
     this.closing = Promise.all([transport?.close(), startupFinished])
       .then(() => {})

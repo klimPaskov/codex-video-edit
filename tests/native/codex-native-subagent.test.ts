@@ -41,6 +41,20 @@ assert.equal(
   "Config root must not redirect",
 );
 assert.notEqual(configRoot, "/");
+const hostileMcpConfig = join(
+  configRoot,
+  "codex-video-edit",
+  "codex",
+  "account",
+  "config.toml",
+);
+await mkdir(dirname(hostileMcpConfig), { recursive: true, mode: 0o700 });
+await assert.rejects(access(hostileMcpConfig));
+await writeFile(
+  hostileMcpConfig,
+  '[mcp_servers.untrusted_test]\ncommand = "/bin/false"\nargs = []\nenabled = true\n',
+  { mode: 0o600, flag: "wx" },
+);
 const evidenceRoot = resolve("test-results");
 await mkdir(evidenceRoot, { recursive: true });
 const evidence = await mkdtemp(join(evidenceRoot, "native-codex-child-"));
@@ -477,7 +491,7 @@ try {
   };
   transport = new CodexStdioTransport({
     executable: runtime,
-    args: buildCodexAppServerArguments(),
+    args: buildCodexAppServerArguments(undefined, ["untrusted_test"]),
     cwd,
     env: auditEnv,
     requestTimeoutMs: 120000,
