@@ -33,7 +33,12 @@ import {
 import {
   CodexVideoEditToolError,
   CodexVideoEditToolService,
+  type CodexVideoEditToolName,
 } from "../../../packages/codex-tools/src/service.ts";
+import {
+  nativeChildReadOnlyToolNames,
+  type DynamicToolAccess,
+} from "../../../packages/codex-bridge/src/dynamic-tools.ts";
 import {
   assertProjectFrameRequest,
   assertProjectRequest,
@@ -209,8 +214,18 @@ async function start(): Promise<void> {
     if (!window || window.isDestroyed()) return;
     window.webContents.send(channels.projectDraftChanged, notice);
   };
-  const invokeCodexTool = async (name: unknown, input: unknown) => {
+  const invokeCodexTool = async (
+    name: unknown,
+    input: unknown,
+    access: DynamicToolAccess = "project_editor",
+  ) => {
     if (!activeProjectId) throw new CodexVideoEditToolError("inactive_project");
+    if (
+      access === "native_child_read_only" &&
+      !nativeChildReadOnlyToolNames.has(name as CodexVideoEditToolName)
+    ) {
+      throw new CodexVideoEditToolError("tool_not_available");
+    }
     const projectId = activeProjectId;
     return invokeWithProjectDraftRefresh({
       toolName: name,

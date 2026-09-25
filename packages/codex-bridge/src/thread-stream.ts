@@ -291,7 +291,8 @@ function itemProjection(
       if (
         item.status !== "inProgress" &&
         item.status !== "completed" &&
-        item.status !== "failed"
+        item.status !== "failed" &&
+        item.status !== "interrupted"
       ) {
         throw new CodexThreadProtocolError("protocol");
       }
@@ -358,7 +359,11 @@ function historicalItemComplete(
     item.type === "dynamicToolCall" ||
     item.type === "collabAgentToolCall"
   ) {
-    return item.status === "completed" || item.status === "failed";
+    return (
+      item.status === "completed" ||
+      item.status === "failed" ||
+      item.status === "interrupted"
+    );
   }
   return false;
 }

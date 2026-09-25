@@ -128,6 +128,27 @@ test("experimental initialization and no-environment requests are exact", () => 
     itemsView: "full",
   });
 
+  const collaborativeStart = buildThreadStartRequest(policy, true);
+  const collaborativeResume = buildThreadResumeRequest(
+    "thread-1",
+    policy,
+    true,
+  );
+  for (const request of [collaborativeStart, collaborativeResume]) {
+    assert.equal(request.config.features.multi_agent, true);
+    assert.equal(request.config.features.multi_agent_v2, false);
+    assert.equal(request.config.features.shell_tool, false);
+    assert.deepEqual(
+      request.config.features.code_mode.excluded_tool_namespaces,
+      ["mcp__codex_apps", "skills", "functions", "image_gen"],
+    );
+    assert.deepEqual(request.config.tools, restrictedTools);
+    assert.deepEqual(request.config.apps, restrictedApps);
+    assert.deepEqual(request.config.agents, { enabled: true, max_depth: 1 });
+    assert.equal(request.approvalPolicy, "never");
+    assert.equal(request.sandbox, "read-only");
+  }
+
   assert.deepEqual(
     buildTurnStartRequest(
       "thread-1",

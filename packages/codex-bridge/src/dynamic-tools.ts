@@ -10,6 +10,9 @@ import {
 } from "../../codex-tools/src/service.ts";
 
 export const CODEX_EDITOR_NAMESPACE = "codex_video_edit";
+export type DynamicToolAccess = "project_editor" | "native_child_read_only";
+export const nativeChildReadOnlyToolNames: ReadonlySet<CodexVideoEditToolName> =
+  new Set(["project.get_summary", "timeline.get_summary"]);
 const MAX_INPUT_BYTES = 16 * 1024;
 const MAX_OUTPUT_BYTES = 256 * 1024;
 const identifierPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/u;
@@ -132,10 +135,15 @@ function safeError(
 /** A rejected edit is a safe model-visible result; a malformed call is never dispatched. */
 export async function invokeOwnedDynamicTool(
   call: OwnedDynamicToolCall,
-  invoke: (name: CodexVideoEditToolName, input: unknown) => Promise<unknown>,
+  invoke: (
+    name: CodexVideoEditToolName,
+    input: unknown,
+    access: DynamicToolAccess,
+  ) => Promise<unknown>,
+  access: DynamicToolAccess = "project_editor",
 ): Promise<DynamicToolCallResponse> {
   try {
-    const value = await invoke(call.name, call.arguments);
+    const value = await invoke(call.name, call.arguments, access);
     const text = JSON.stringify(value);
     if (typeof text !== "string" || Buffer.byteLength(text) > MAX_OUTPUT_BYTES)
       return safeError("outcome_unknown");

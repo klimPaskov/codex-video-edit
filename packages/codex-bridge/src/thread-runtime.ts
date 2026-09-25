@@ -119,7 +119,7 @@ export class ProjectThreadRuntime {
       throw new CodexThreadProtocolError("configuration");
     }
     // Validate the complete no-environment thread policy at construction.
-    buildThreadStartRequest(this.options.policy);
+    buildThreadStartRequest(this.options.policy, false);
   }
 
   initializeRequest(applicationVersion: string): ExperimentalInitializeRequest {
@@ -144,7 +144,10 @@ export class ProjectThreadRuntime {
       return {
         method: "thread/start",
         params: {
-          ...buildThreadStartRequest(this.options.policy),
+          ...buildThreadStartRequest(
+            this.options.policy,
+            toolRoute === "dynamic",
+          ),
           ...(toolRoute === "dynamic"
             ? { dynamicTools: buildCodexVideoEditDynamicTools() }
             : {}),
@@ -156,6 +159,7 @@ export class ProjectThreadRuntime {
       params: await this.options.registry.resumeRequestForProject(
         this.options.projectId,
         this.options.policy,
+        toolRoute === "dynamic",
       ),
     };
   }
@@ -213,6 +217,23 @@ export class ProjectThreadRuntime {
 
   toolRoute(): ProjectThreadToolRoute | undefined {
     return this.activeToolRoute;
+  }
+
+  activeThreadId(): string | undefined {
+    return this.threadId;
+  }
+
+  activeTurnId(): string | undefined {
+    return this.currentTurnId;
+  }
+
+  notificationTurnId(): string | undefined {
+    if (this.currentTurnId) return this.currentTurnId;
+    return this.turnStarting &&
+      this.turnStartSubmitted &&
+      !this.notifiedStartingTurnEnded
+      ? this.notifiedStartingTurnId
+      : undefined;
   }
 
   acceptHistoryPage(
@@ -390,6 +411,50 @@ export class ProjectThreadRuntime {
       this.notifiedStartingTurnId = turn.id;
       this.notifiedStartingTurnEnded = true;
     }
+  }
+
+  /** A server-owned native spawn can identify a started turn before turn/started arrives. */
+  noteBufferedParentSpawn(method: string, params: unknown): void {
+    if (
+      method !== "item/started" ||
+      this.activeToolRoute !== "dynamic" ||
+      !this.turnStarting ||
+      !this.turnStartSubmitted ||
+      this.currentTurnId
+    )
+      return;
+    if (!threadProtocolInternals.record(params))
+      throw new CodexThreadProtocolError("protocol");
+    const threadId = threadProtocolInternals.identifier(
+      params.threadId,
+      "protocol",
+    );
+    const turnId = threadProtocolInternals.identifier(
+      params.turnId,
+      "protocol",
+    );
+    if (threadId !== this.threadId)
+      throw new CodexThreadProtocolError("forbidden");
+    if (!threadProtocolInternals.record(params.item)) return;
+    const item = params.item;
+    if (
+      item.type !== "collabAgentToolCall" ||
+      item.tool !== "spawnAgent" ||
+      item.status !== "inProgress" ||
+      item.senderThreadId !== this.threadId ||
+      !Array.isArray(item.receiverThreadIds) ||
+      item.receiverThreadIds.length === 0 ||
+      item.receiverThreadIds.length > 8
+    )
+      return;
+    if (
+      (this.notifiedStartingTurnId && this.notifiedStartingTurnId !== turnId) ||
+      this.notifiedStartingTurnEnded ||
+      (!this.notifiedStartingTurnId &&
+        this.requireProjector().hasSeenTurn(turnId))
+    )
+      throw new CodexThreadProtocolError("protocol");
+    this.notifiedStartingTurnId = turnId;
   }
 
   assertActiveCorrelation(

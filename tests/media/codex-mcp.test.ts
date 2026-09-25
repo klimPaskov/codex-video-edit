@@ -325,6 +325,18 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
   assert.ok(!serialized.includes(runtime.endpoint));
   assert.ok(!serialized.includes(runtime.token));
   assert.ok(!serialized.includes("filesystem.read"));
+
+  const dynamicArgs = buildCodexAppServerArguments();
+  assert.ok(dynamicArgs.includes("features.multi_agent=true"));
+  assert.ok(dynamicArgs.includes("agents.enabled=true"));
+  assert.ok(!dynamicArgs.includes("features.multi_agent=false"));
+  assert.ok(!dynamicArgs.includes("agents.enabled=false"));
+  assert.ok(
+    dynamicArgs.includes(
+      'features.code_mode.excluded_tool_namespaces=["mcp__codex_apps","skills","functions","image_gen"]',
+    ),
+  );
+  assert.ok(dynamicArgs.includes("agents.max_depth=1"));
 });
 
 test("App Server startup accepts only the reviewed owned MCP schemas", () => {

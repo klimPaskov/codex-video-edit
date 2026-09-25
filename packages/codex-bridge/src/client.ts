@@ -26,6 +26,7 @@ import { buildExperimentalInitialize } from "./thread-protocol.ts";
 import type { TurnStartInput } from "./thread-protocol.ts";
 import { ProjectThreadRegistry } from "./thread-registry.ts";
 import { CodexProjectThreadClient } from "./thread-client.ts";
+import type { DynamicToolAccess } from "./dynamic-tools.ts";
 import type {
   ThreadHistorySnapshot,
   ThreadStreamEvent,
@@ -94,7 +95,21 @@ const fixedAppServerArguments = [
 
 export function buildCodexAppServerArguments(mcp?: CodexMcpRuntime): string[] {
   const args: string[] = [...fixedAppServerArguments];
-  if (!mcp) return args;
+  if (!mcp) {
+    const multiAgentIndex = args.indexOf("features.multi_agent=false");
+    const agentsIndex = args.indexOf("agents.enabled=false");
+    const excludedNamespacesIndex = args.findIndex((arg) =>
+      arg.startsWith("features.code_mode.excluded_tool_namespaces="),
+    );
+    if (multiAgentIndex < 0 || agentsIndex < 0 || excludedNamespacesIndex < 0)
+      throw new CodexTransportError("configuration");
+    args[multiAgentIndex] = "features.multi_agent=true";
+    args[agentsIndex] = "agents.enabled=true";
+    args[excludedNamespacesIndex] =
+      'features.code_mode.excluded_tool_namespaces=["mcp__codex_apps","skills","functions","image_gen"]';
+    args.push("-c", "agents.max_depth=1");
+    return args;
+  }
   const quoted = (value: string) => JSON.stringify(value);
   args.push(
     "-c",
@@ -200,6 +215,7 @@ export interface CodexClientOptions {
   dynamicToolInvoker?: (
     name: CodexVideoEditToolName,
     input: unknown,
+    access: DynamicToolAccess,
   ) => Promise<unknown>;
 }
 

@@ -234,10 +234,11 @@ export class ProjectThreadRegistry {
   async resumeRequestForProject(
     projectId: string,
     policy: ThreadRuntimePolicy,
+    nativeSubagents = false,
   ): Promise<ThreadResumeRequest> {
     const threadId = await this.threadForProject(projectId);
     if (!threadId) throw new ProjectThreadRegistryError("missing");
-    return buildThreadResumeRequest(threadId, policy);
+    return buildThreadResumeRequest(threadId, policy, nativeSubagents);
   }
 
   private assertProjectId(projectId: string): void {
