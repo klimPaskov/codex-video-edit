@@ -13,6 +13,7 @@ The partial manual Edit surface uses the same main-owned transaction service for
 Acceptance:
 
 - parser, recovery, stale protocol, and tool validation tests pass
+- packaged nested-tool surface probes must correlate the exact diagnostic turn to an account-contained private rollout and verify the `exec` `custom_tool_call` with its matching output; an assistant's final text alone is not authoritative. Require seven guarded editor functions, five supported v1 collaboration functions only on the dynamic route, and zero connected-app or other nested functions. Repeat the dynamic probe with synthetic `[apps._default].enabled = true` and `[apps.adobe].enabled = true` configuration.
 - a real authenticated Codex smoke test discovers models and skills
 - OpenAI API, DeepSeek and Gemini API key paths pass fixed-endpoint, secure-storage/session-fallback, model-discovery, key-redaction and provider-failure tests; Gemini 3 function-call signature replay passes authenticated native verification
 - a remembered API model choice survives restart only with its protected key and live catalog membership; replacement, removal and session-only use clear it

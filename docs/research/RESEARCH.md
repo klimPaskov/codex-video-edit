@@ -75,7 +75,7 @@ Sources:
 
 ## Codex app-tool default override review, 2026-09-25
 
-The pinned Codex 0.155.1 configuration types document `apps._default.enabled=false` as disabling apps unless a per-app setting overrides it. The app currently supplies the disabled default and disables App Server app/plugin features per thread, but the hostile-config native fixture targets MCP entries, not named app overrides. This is a specific untested P2-07 edge; no app-registration behavior is inferred from the default alone.
+The pinned Codex 0.155.1 configuration types document `apps._default.enabled=false` as disabling apps unless a per-app setting overrides it. A later packaged native fixture seeded both `[apps._default].enabled=true` and `[apps.adobe].enabled=true`; its exact completed-turn rollout still showed zero connected-app functions on the dynamic editor route, and the guarded split/Undo/reopen checks passed. This closes that specific hostile per-app configuration edge for the tested thread and pinned runtime. It does not establish the complete effective tool catalog; P2-07 remains open.
 
 Source:
 

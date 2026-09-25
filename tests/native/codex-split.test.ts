@@ -14,7 +14,7 @@ import {
   stat,
   writeFile,
 } from "node:fs/promises";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { _electron, expect } from "playwright/test";
@@ -27,6 +27,12 @@ import { sha256 } from "../../packages/media-engine/src/lossless.ts";
 import { runProcess } from "../../packages/media-engine/src/process.ts";
 import { ProjectStore } from "../../packages/project-store/src/store.ts";
 import { DraftTransactionStore } from "../../packages/project-store/src/transactions.ts";
+import {
+  CodexStdioTransport,
+  CodexTransportError,
+} from "../../packages/codex-bridge/src/transport.ts";
+import { buildCodexAppServerArguments } from "../../packages/codex-bridge/src/client.ts";
+import { buildExperimentalInitialize } from "../../packages/codex-bridge/src/thread-protocol.ts";
 
 assert.equal(process.platform, "linux", "Requires isolated Linux guest");
 assert.equal(process.getuid?.(), 1000);
@@ -43,6 +49,11 @@ assert.equal(
   "Config root must not redirect",
 );
 assert.notEqual(configRoot, "/");
+if (process.argv.includes("--hostile-app-config")) {
+  assert.ok(process.argv.includes("--require-luna"));
+  assert.ok(process.argv.includes("--require-dynamic"));
+  assert.ok(process.argv.includes("--probe-surface"));
+}
 const providedPaths = process.argv
   .slice(4)
   .filter(
@@ -50,7 +61,8 @@ const providedPaths = process.argv
       argument !== "--inspect" &&
       argument !== "--require-luna" &&
       argument !== "--require-dynamic" &&
-      argument !== "--probe-surface",
+      argument !== "--probe-surface" &&
+      argument !== "--hostile-app-config",
   );
 assert.ok(
   providedPaths.length === 0 || providedPaths.length === 2,
@@ -62,6 +74,227 @@ async function fileHash(path: string): Promise<string> {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(path)) hash.update(chunk);
   return hash.digest("hex");
+}
+
+function record(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function collectStrings(value: unknown, depth = 0): string[] {
+  if (depth > 6) return [];
+  if (typeof value === "string") {
+    try {
+      return [value, ...collectStrings(JSON.parse(value), depth + 1)];
+    } catch {
+      return [value];
+    }
+  }
+  if (Array.isArray(value))
+    return value.flatMap((item) => collectStrings(item, depth + 1));
+  if (record(value))
+    return Object.values(value).flatMap((item) =>
+      collectStrings(item, depth + 1),
+    );
+  return [];
+}
+
+interface ToolSurfaceEvidence {
+  route: "mcp" | "dynamic";
+  ownedToolCount: 7;
+  nativeAgentToolCount: number;
+  applicationToolCount: 0;
+  otherToolCount: 0;
+  completedCodeModeCall: true;
+  callOutputCorrelated: true;
+}
+
+async function verifyToolSurfaceRollout(options: {
+  executablePath: string;
+  userData: string;
+  projectThreadId: string;
+  diagnostic: string;
+  toolRoute: "mcp" | "dynamic";
+}): Promise<ToolSurfaceEvidence> {
+  const codexHome = join(options.userData, "codex/account");
+  const cwd = join(options.userData, "codex/context");
+  const runtime = join(
+    dirname(options.executablePath),
+    "resources/codex/codex",
+  );
+  const transport = new CodexStdioTransport({
+    executable: runtime,
+    args: buildCodexAppServerArguments(undefined, []),
+    cwd,
+    env: {
+      HOME: dirname(codexHome),
+      USERPROFILE: dirname(codexHome),
+      CODEX_HOME: codexHome,
+      ...(process.env.PATH ? { PATH: process.env.PATH } : {}),
+    },
+    requestTimeoutMs: 120_000,
+  });
+  try {
+    await transport.start(buildExperimentalInitialize("0.0.0"));
+    const threadRead: unknown = await transport.request("thread/read", {
+      threadId: options.projectThreadId,
+      includeTurns: false,
+    });
+    assert.ok(record(threadRead) && record(threadRead.thread));
+    assert.equal(threadRead.thread.id, options.projectThreadId);
+    assert.ok(typeof threadRead.thread.path === "string");
+
+    let page: unknown;
+    try {
+      page = await transport.request("thread/turns/list", {
+        threadId: options.projectThreadId,
+        limit: 100,
+        sortDirection: "desc",
+        itemsView: "full",
+      });
+    } catch (error) {
+      if (
+        !(error instanceof CodexTransportError) ||
+        error.code !== "remote_error"
+      )
+        throw error;
+      await transport.request("thread/resume", {
+        threadId: options.projectThreadId,
+        excludeTurns: true,
+      });
+      page = await transport.request("thread/turns/list", {
+        threadId: options.projectThreadId,
+        limit: 100,
+        sortDirection: "desc",
+        itemsView: "full",
+      });
+    }
+    assert.ok(record(page) && Array.isArray(page.data));
+    assert.ok(page.data.length > 0 && page.data.length <= 100);
+    const turns = page.data.filter(record);
+    const matchingTurns = turns.filter(
+      (turn) =>
+        Array.isArray(turn.items) &&
+        turn.items.some(
+          (item) =>
+            record(item) &&
+            item.type === "userMessage" &&
+            Array.isArray(item.content) &&
+            item.content.some(
+              (content) =>
+                record(content) && content.text === options.diagnostic,
+            ),
+        ),
+    );
+    assert.equal(matchingTurns.length, 1);
+    const turn = matchingTurns[0]!;
+    assert.equal(turn.status, "completed");
+    assert.ok(typeof turn.id === "string");
+
+    const accountRoot = await realpath(codexHome);
+    const rolloutPath = await realpath(threadRead.thread.path);
+    const relativePath = relative(accountRoot, rolloutPath);
+    assert.ok(
+      relativePath.length > 0 &&
+        !isAbsolute(relativePath) &&
+        !relativePath.split(sep).includes(".."),
+      "Native tool-surface rollout must remain inside the isolated account",
+    );
+    assert.ok((await stat(rolloutPath)).size <= 8_000_000);
+    const lines = (await readFile(rolloutPath, "utf8"))
+      .split("\n")
+      .filter((line) => line.trim().length > 0);
+    assert.ok(lines.length > 0 && lines.length <= 2_000);
+    const records = lines.map((line: string) => {
+      const item: unknown = JSON.parse(line);
+      assert.ok(record(item));
+      return item;
+    });
+    const turnContextIndexes = records.flatMap((item, index) =>
+      item.type === "turn_context" &&
+      record(item.payload) &&
+      item.payload.turn_id === turn.id
+        ? [index]
+        : [],
+    );
+    assert.equal(turnContextIndexes.length, 1);
+    const turnStart = turnContextIndexes[0]!;
+    const nextTurn = records.findIndex(
+      (item, index) => index > turnStart && item.type === "turn_context",
+    );
+    const responseItems = records
+      .slice(turnStart, nextTurn < 0 ? undefined : nextTurn)
+      .filter((item) => item.type === "response_item" && record(item.payload))
+      .map((item) => item.payload as Record<string, unknown>);
+    const codeCalls = responseItems.filter(
+      (item) =>
+        item.type === "custom_tool_call" &&
+        item.name === "exec" &&
+        typeof item.input === "string" &&
+        item.input.includes("ALL_TOOLS.filter") &&
+        item.input.includes("agentCount") &&
+        item.input.includes("appCount"),
+    );
+    assert.equal(
+      codeCalls.length,
+      1,
+      "Require one actual code-mode inventory call",
+    );
+    const call = codeCalls[0]!;
+    assert.ok(typeof call.call_id === "string");
+    const codeOutputs = responseItems.filter(
+      (item) =>
+        item.type === "custom_tool_call_output" &&
+        item.call_id === call.call_id,
+    );
+    assert.equal(codeOutputs.length, 1, "Require its correlated tool output");
+    assert.ok(JSON.stringify(codeOutputs[0]).length <= 64_000);
+    const outputText = collectStrings(codeOutputs[0]).join("\n");
+    const expectedAgentCount = options.toolRoute === "dynamic" ? 5 : 0;
+    for (const [key, value] of [
+      ["ownedCount", 7],
+      ["agentCount", expectedAgentCount],
+      ["appCount", 0],
+      ["unownedCount", expectedAgentCount],
+      ["otherCount", 0],
+    ] as const)
+      assert.match(
+        outputText,
+        new RegExp(`"${key}"\\s*:\\s*${value}\\b`, "u"),
+        `Code-mode output did not report the expected ${key}`,
+      );
+    for (const key of [
+      "apps",
+      "goals",
+      "plan",
+      "input",
+      "skills",
+      "images",
+      "web",
+      "shell",
+    ])
+      assert.match(
+        outputText,
+        new RegExp(`"${key}"\\s*:\\s*"undefined"`, "u"),
+        `Code-mode output did not suppress ${key}`,
+      );
+    assert.match(
+      outputText,
+      options.toolRoute === "dynamic"
+        ? /"spawn"\s*:\s*"function"/u
+        : /"spawn"\s*:\s*"undefined"/u,
+    );
+    return {
+      route: options.toolRoute,
+      ownedToolCount: 7,
+      nativeAgentToolCount: expectedAgentCount,
+      applicationToolCount: 0,
+      otherToolCount: 0,
+      completedCodeModeCall: true,
+      callOutputCorrelated: true,
+    };
+  } finally {
+    await transport.close();
+  }
 }
 const resultRoot = resolve("test-results");
 await mkdir(resultRoot, { recursive: true });
@@ -77,9 +310,19 @@ if (process.argv.includes("--require-luna")) {
   await mkdir(target, { recursive: true, mode: 0o700 });
   await copyFile(source, join(target, "auth.json"));
   await chmod(join(target, "auth.json"), 0o600);
+  if (process.argv.includes("--hostile-app-config"))
+    await writeFile(
+      join(target, "config.toml"),
+      "[apps._default]\nenabled = true\n\n[apps.adobe]\nenabled = true\n",
+      { mode: 0o600 },
+    );
+  if (process.argv.includes("--hostile-app-config"))
+    assert.equal((await stat(join(target, "config.toml"))).mode & 0o077, 0);
   configRoot = fresh;
 }
 let step = "fixture";
+let surfaceDiagnostic: string | undefined;
+let surfaceEvidence: ToolSurfaceEvidence | undefined;
 const mark = (value: string): void => {
   step = value;
   console.log(`STEP ${value}`);
@@ -366,12 +609,17 @@ try {
     ),
   ) as {
     schemaVersion: number;
-    entries: Array<{ projectId: string; toolRoute?: string }>;
+    entries: Array<{
+      projectId: string;
+      threadId: string;
+      toolRoute?: string;
+    }>;
   };
   const bindings = registry.entries.filter(
     (entry) => entry.projectId === combined.id,
   );
   assert.equal(bindings.length, 1);
+  assert.ok(bindings[0]!.threadId.length > 0);
   const toolRoute = bindings[0]!.toolRoute ?? "mcp";
   assert.ok(toolRoute === "mcp" || toolRoute === "dynamic");
   if (process.argv.includes("--require-dynamic")) {
@@ -384,7 +632,8 @@ try {
       toolRoute === "dynamic"
         ? "codex_video_edit__"
         : "mcp__codex_video_edit__";
-    const diagnostic = `In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.${ownedPrefix}project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, plan: typeof tools.update_plan, input: typeof tools.request_user_input_async, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, ownedCount: ALL_TOOLS.filter(x => x.name.startsWith('${ownedPrefix}')).length, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).length, unownedNames: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).map(x => x.name).slice(0, 20)}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.`;
+    const diagnostic = `In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.${ownedPrefix}project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, plan: typeof tools.update_plan, input: typeof tools.request_user_input_async, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, ownedCount: ALL_TOOLS.filter(x => x.name.startsWith('${ownedPrefix}')).length, agentCount: ALL_TOOLS.filter(x => x.name.startsWith('multi_agent_v1__')).length, appCount: ALL_TOOLS.filter(x => x.name.startsWith('mcp__codex_apps__')).length, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).length, otherCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}') && !x.name.startsWith('multi_agent_v1__')).length}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.`;
+    surfaceDiagnostic = diagnostic;
     await page.locator("#codex-thread-input").fill(diagnostic);
     await page.locator("#send-codex-thread").click();
     await expect
@@ -395,20 +644,31 @@ try {
       .filter((message) => message.role === "codex" && message.complete)
       .at(-1)?.text;
     assert.ok(answer);
-    await writeFile(
-      join(evidence, "tool-surface-probe.json"),
-      JSON.stringify({ answer: answer.slice(0, 500) }),
-    );
     assert.match(answer, /"owned"\s*:\s*"function"/u);
     assert.match(answer, /"ownedCount"\s*:\s*7\b/u);
-    assert.match(answer, /"unownedCount"\s*:\s*0\b/u);
+    const expectedAgentCount = toolRoute === "dynamic" ? 5 : 0;
+    assert.match(
+      answer,
+      new RegExp(`"agentCount"\\s*:\\s*${expectedAgentCount}\\b`, "u"),
+    );
+    assert.match(answer, /"appCount"\s*:\s*0\b/u);
+    assert.match(
+      answer,
+      new RegExp(`"unownedCount"\\s*:\\s*${expectedAgentCount}\\b`, "u"),
+    );
+    assert.match(answer, /"otherCount"\s*:\s*0\b/u);
+    assert.match(
+      answer,
+      toolRoute === "dynamic"
+        ? /"spawn"\s*:\s*"function"/u
+        : /"spawn"\s*:\s*"undefined"/u,
+    );
     for (const key of [
       "apps",
       "goals",
       "plan",
       "input",
       "skills",
-      "spawn",
       "images",
       "web",
       "shell",
@@ -581,6 +841,20 @@ try {
     .toBe(true);
   mark("reopen-project");
   await electron.close();
+  if (surfaceDiagnostic) {
+    mark("authoritative-surface-rollout");
+    surfaceEvidence = await verifyToolSurfaceRollout({
+      executablePath,
+      userData,
+      projectThreadId: bindings[0]!.threadId,
+      diagnostic: surfaceDiagnostic,
+      toolRoute,
+    });
+    await writeFile(
+      join(evidence, "tool-surface-probe.json"),
+      JSON.stringify(surfaceEvidence),
+    );
+  }
   const offline = new DraftTransactionStore(
     join(userData, "project-store"),
     new ProjectStore(join(userData, "project-store"), library),
@@ -649,6 +923,8 @@ try {
         sharedUndo: true,
         reopen: true,
         immutableSourcesAndBaseline: true,
+        toolSurface: surfaceEvidence ?? null,
+        hostilePerAppConfig: process.argv.includes("--hostile-app-config"),
         audioListening: false,
         windowsAcceptance: false,
       },
