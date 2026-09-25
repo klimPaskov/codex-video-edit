@@ -426,6 +426,100 @@ test("Codex MCP inventory accepts only explicitly disabled configured servers", 
   );
 });
 
+test("configured MCP discovery disables every listed server and verifies the inventory", async () => {
+  const calls: string[][] = [];
+  const replies: unknown[] = [
+    [
+      { name: "untrusted_test", enabled: true },
+      { name: "already_disabled", enabled: false },
+    ],
+    [
+      { name: "untrusted_test", enabled: false },
+      { name: "already_disabled", enabled: false },
+    ],
+  ];
+  const runCodex: Parameters<
+    typeof codexClientInternals.disableConfiguredMcpServers
+  >[4] = async (_executable, args) => {
+    calls.push(args);
+    const reply = replies.shift();
+    assert.notEqual(reply, undefined);
+    return reply;
+  };
+
+  const names = await codexClientInternals.disableConfiguredMcpServers(
+    "codex",
+    "/isolated/context",
+    {},
+    new AbortController().signal,
+    runCodex,
+  );
+
+  assert.deepEqual(names, ["untrusted_test", "already_disabled"]);
+  assert.deepEqual(calls, [
+    ["mcp", "list", "--json"],
+    [
+      "mcp",
+      "list",
+      "--json",
+      "-c",
+      "mcp_servers.untrusted_test.enabled=false",
+      "-c",
+      "mcp_servers.already_disabled.enabled=false",
+    ],
+  ]);
+});
+
+test("configured MCP verification rejects a retained enabled server or changed inventory", async () => {
+  for (const verification of [
+    [{ name: "untrusted_test", enabled: true }],
+    [
+      { name: "untrusted_test", enabled: false },
+      { name: "new_server", enabled: false },
+    ],
+    [],
+  ]) {
+    const replies: unknown[] = [
+      [{ name: "untrusted_test", enabled: true }],
+      verification,
+    ];
+    await assert.rejects(
+      codexClientInternals.disableConfiguredMcpServers(
+        "codex",
+        "/isolated/context",
+        {},
+        new AbortController().signal,
+        async () => {
+          const reply = replies.shift();
+          assert.notEqual(reply, undefined);
+          return reply;
+        },
+      ),
+      (error: unknown) =>
+        error instanceof CodexTransportError && error.code === "configuration",
+    );
+  }
+});
+
+test("App Server argument builder rejects malformed, duplicate, and excess MCP names", () => {
+  assert.throws(
+    () => buildCodexAppServerArguments(undefined, ["untrusted.server"]),
+    CodexTransportError,
+  );
+  assert.throws(
+    () => buildCodexAppServerArguments(undefined, ["same", "same"]),
+    CodexTransportError,
+  );
+  assert.throws(
+    () =>
+      buildCodexAppServerArguments(
+        undefined,
+        Array.from({ length: 65 }, (_, index) => `server_${index}`),
+      ),
+    CodexTransportError,
+  );
+});
+
 test("App Server startup accepts only the reviewed owned MCP schemas", () => {
   const status = {
     data: [

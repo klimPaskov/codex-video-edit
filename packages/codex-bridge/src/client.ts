@@ -99,9 +99,20 @@ export function buildCodexAppServerArguments(
   mcp?: CodexMcpRuntime,
   disabledMcpServers: readonly string[] = [],
 ): string[] {
+  if (disabledMcpServers.length > MAX_CONFIGURED_MCP_SERVERS)
+    throw new CodexTransportError("configuration");
   const args: string[] = [...fixedAppServerArguments];
   args.push("-c", "mcp_servers={}");
+  const seenMcpServerNames = new Set<string>();
   for (const name of disabledMcpServers) {
+    if (
+      typeof name !== "string" ||
+      name.length > MAX_MCP_SERVER_NAME_LENGTH ||
+      !/^[A-Za-z0-9_-]+$/u.test(name) ||
+      seenMcpServerNames.has(name)
+    )
+      throw new CodexTransportError("configuration");
+    seenMcpServerNames.add(name);
     args.push("-c", `mcp_servers.${name}.enabled=false`);
   }
   if (!mcp) {
@@ -205,9 +216,10 @@ async function disableConfiguredMcpServers(
   cwd: string,
   env: NodeJS.ProcessEnv,
   signal: AbortSignal,
+  runCodex: typeof executeCodex = executeCodex,
 ): Promise<string[]> {
   const configured = decodeConfiguredMcpServers(
-    await executeCodex(executable, serverListArgs(), cwd, env, signal),
+    await runCodex(executable, serverListArgs(), cwd, env, signal),
   );
   const overrides = configured.map(
     ({ name }) => `mcp_servers.${name}.enabled=false`,
@@ -215,7 +227,7 @@ async function disableConfiguredMcpServers(
   if (overrides.join("").length > 12_000)
     throw new CodexTransportError("configuration");
   const verified = decodeConfiguredMcpServers(
-    await executeCodex(executable, serverListArgs(overrides), cwd, env, signal),
+    await runCodex(executable, serverListArgs(overrides), cwd, env, signal),
   );
   const verifiedByName = new Map(
     verified.map(({ name, enabled }) => [name, enabled]),
@@ -371,12 +383,14 @@ export const codexClientInternals: {
   validateAppServerMcpStatus: typeof validateAppServerMcpStatus;
   decodeConfiguredMcpServers: typeof decodeConfiguredMcpServers;
   serverListArgs: typeof serverListArgs;
+  disableConfiguredMcpServers: typeof disableConfiguredMcpServers;
 } = {
   validateOwnedMcpStatus,
   validateDisabledMcpStatus,
   validateAppServerMcpStatus,
   decodeConfiguredMcpServers,
   serverListArgs,
+  disableConfiguredMcpServers,
 };
 
 export interface CodexClientOptions {
