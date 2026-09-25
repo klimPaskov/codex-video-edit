@@ -96,3 +96,15 @@ The pinned official 0.155.1 configuration schema (https://github.com/openai/code
 Source:
 
 - https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/config.schema.json
+
+## Codex 0.155.1 additional capability gates, 2026-09-25
+
+The pinned [feature definitions](https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/features/src/lib.rs) identify API-key model discovery, passive Chronicle screen-context memory, external-agent memory import, persisted goals, permission/rule requests, MCP OAuth elicitation and MCP dependency installation as separate capabilities. The pinned [feature schema](https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/config.schema.json) accepts explicit false values for these switches. The project now disables them at App Server launch and in both route-specific thread policies, along with web search and plugin suggestions. This is account-default defense in depth; it does not expose or prove the complete effective tool catalog. The dynamic v1 child route remains available only with its existing depth-one main-process checks.
+
+The pinned [tool planner](https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/src/tools/spec_plan.rs) selects v1 collaboration tools from the runtime's resolved `MultiAgentVersion::V1` and applies the configured spawn-depth limit. The added gates leave that model-resolved, already-tested path unchanged. Exact route request tests and native split/child fixtures are required after the policy change; P2-07 remains partial until the effective upstream catalog boundary is proven.
+
+Sources:
+
+- https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/features/src/lib.rs
+- https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/config.schema.json
+- https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/src/tools/spec_plan.rs

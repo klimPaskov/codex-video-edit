@@ -24,10 +24,13 @@ const policy = {
   developerInstructions: "Keep source media immutable.",
 };
 const restrictedFeatures = {
+  api_key_model_discovery: false,
   apps: false,
+  auth_elicitation: false,
   browser_use: false,
   browser_use_external: false,
   browser_use_full_cdp_access: false,
+  chronicle: false,
   code_mode_only: false,
   code_mode: {
     excluded_tool_namespaces: [
@@ -46,22 +49,58 @@ const restrictedFeatures = {
   codex_hooks: false,
   computer_use: false,
   connectors: false,
+  default_mode_request_user_input: false,
   enable_mcp_apps: false,
+  exec_permission_approvals: false,
+  external_agent_memory_import: false,
+  goals: false,
   hooks: false,
   image_generation: false,
   imagegenext: false,
   in_app_browser: false,
+  mcp_oauth_refresh_coordination: false,
   memories: false,
   memory_tool: false,
   multi_agent: false,
   multi_agent_v2: false,
   plugins: false,
+  plugin_sharing: false,
+  recommended_plugins: false,
   remote_control: false,
   remote_plugin: false,
+  request_permissions_tool: false,
+  request_rule: false,
   search_tool: false,
   shell_tool: false,
+  skill_mcp_dependency_install: false,
   skill_search: false,
+  standalone_web_search: false,
+  tool_call_mcp_elicitation: false,
+  tool_suggest: false,
+  web_search_cached: false,
+  web_search_request: false,
 };
+const dynamicFeatures = (nativeSubagents: boolean) => ({
+  ...restrictedFeatures,
+  code_mode_only: true,
+  code_mode: {
+    enabled: true,
+    excluded_tool_namespaces: nativeSubagents
+      ? ["mcp__codex_apps", "skills", "functions", "image_gen"]
+      : [
+          "mcp__codex_apps",
+          "multi_agent_v1",
+          "skills",
+          "functions",
+          "image_gen",
+        ],
+  },
+  code_mode_host: {
+    enabled: true,
+    disable_in_process_fallback: true,
+  },
+  multi_agent: nativeSubagents,
+});
 const restrictedApps = {
   _default: {
     enabled: false,
@@ -168,6 +207,10 @@ test("experimental initialization and no-environment requests are exact", () => 
     route: "dynamic",
     nativeSubagents: true,
   });
+  assert.deepEqual(dynamicStart.config.features, dynamicFeatures(false));
+  assert.deepEqual(dynamicResume.config.features, dynamicFeatures(false));
+  assert.deepEqual(collaborativeStart.config.features, dynamicFeatures(true));
+  assert.deepEqual(collaborativeResume.config.features, dynamicFeatures(true));
   for (const request of [dynamicStart, dynamicResume]) {
     assert.equal(request.config.features.code_mode_only, true);
     assert.equal(request.config.features.code_mode.enabled, true);

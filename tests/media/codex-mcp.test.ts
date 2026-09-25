@@ -305,6 +305,28 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
   assert.match(serialized, /enabled_tools/u);
   assert.match(serialized, /default_tools_approval_mode/u);
   assert.ok(args.includes("features.multi_agent=false"));
+  for (const feature of [
+    "api_key_model_discovery",
+    "auth_elicitation",
+    "chronicle",
+    "default_mode_request_user_input",
+    "exec_permission_approvals",
+    "external_agent_memory_import",
+    "goals",
+    "request_permissions_tool",
+    "request_rule",
+    "skill_mcp_dependency_install",
+    "tool_call_mcp_elicitation",
+    "mcp_oauth_refresh_coordination",
+    "standalone_web_search",
+    "web_search_cached",
+    "web_search_request",
+    "plugin_sharing",
+    "recommended_plugins",
+    "tool_suggest",
+  ]) {
+    assert.ok(args.includes(`features.${feature}=false`));
+  }
   assert.ok(args.includes("apps._default.enabled=false"));
   assert.ok(args.includes("apps._default.destructive_enabled=false"));
   assert.ok(args.includes("apps._default.open_world_enabled=false"));
@@ -332,6 +354,28 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
     !dynamicArgs.some((arg) => arg.startsWith("mcp_servers.codex-video-edit.")),
   );
   assert.ok(dynamicArgs.includes("features.multi_agent=true"));
+  for (const feature of [
+    "api_key_model_discovery",
+    "auth_elicitation",
+    "chronicle",
+    "default_mode_request_user_input",
+    "exec_permission_approvals",
+    "external_agent_memory_import",
+    "goals",
+    "request_permissions_tool",
+    "request_rule",
+    "skill_mcp_dependency_install",
+    "tool_call_mcp_elicitation",
+    "mcp_oauth_refresh_coordination",
+    "standalone_web_search",
+    "web_search_cached",
+    "web_search_request",
+    "plugin_sharing",
+    "recommended_plugins",
+    "tool_suggest",
+  ]) {
+    assert.ok(dynamicArgs.includes(`features.${feature}=false`));
+  }
   assert.ok(dynamicArgs.includes("agents.enabled=true"));
   assert.ok(!dynamicArgs.includes("features.multi_agent=false"));
   assert.ok(!dynamicArgs.includes("agents.enabled=false"));
