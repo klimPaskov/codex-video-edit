@@ -157,7 +157,10 @@ try {
   );
   phase = "thread-start";
   const response = (await transport.request("thread/start", {
-    ...buildThreadStartRequest(policy),
+    ...buildThreadStartRequest(policy, {
+      route: "dynamic",
+      nativeSubagents: false,
+    }),
     dynamicTools: buildCodexVideoEditDynamicTools(),
   })) as { thread?: { id?: string } };
   assert.ok(response.thread?.id);

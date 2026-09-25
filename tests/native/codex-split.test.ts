@@ -879,16 +879,20 @@ try {
     })
     .toBe(true);
   mark("reopen-exact-frame");
-  mark("verify-immutable-inputs");
+  mark("verify-baseline-file-bytes");
   assert.deepEqual(await readFile(baselinePath), baselineBytes);
   for (let index = 0; index < sources.length; index++) {
+    mark(`verify-original-source-${index + 1}`);
     assert.equal(await fileHash(sources[index]!), originalHashes[index]);
+    mark(`verify-managed-source-${index + 1}`);
     assert.equal(
       await fileHash(baseline.sources[index]!.managed_path),
       originalHashes[index],
     );
   }
   if (process.argv.includes("--inspect")) {
+    mark("native-visual-inspection");
+    await page?.bringToFront();
     await writeFile(join(evidence, "inspection.ready"), "ready\n");
     const deadline = Date.now() + 120_000;
     while (

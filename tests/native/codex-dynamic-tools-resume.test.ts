@@ -112,7 +112,10 @@ try {
   transport = startTransport(resolveFirst);
   await transport.start(buildExperimentalInitialize("0.0.0"));
   const started = (await transport.request("thread/start", {
-    ...buildThreadStartRequest(policy),
+    ...buildThreadStartRequest(policy, {
+      route: "dynamic",
+      nativeSubagents: false,
+    }),
     dynamicTools: [
       {
         type: "namespace",
@@ -163,7 +166,10 @@ try {
   await transport.start(buildExperimentalInitialize("0.0.0"));
   const resumed = (await transport.request(
     "thread/resume",
-    buildThreadResumeRequest(expectedThread, policy),
+    buildThreadResumeRequest(expectedThread, policy, {
+      route: "dynamic",
+      nativeSubagents: false,
+    }),
   )) as { thread?: { id?: string } };
   assert.equal(resumed.thread?.id, expectedThread);
   step = "second-turn";

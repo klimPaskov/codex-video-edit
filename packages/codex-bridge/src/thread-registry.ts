@@ -12,6 +12,7 @@ import { isAbsolute, join, resolve } from "node:path";
 import {
   buildThreadResumeRequest,
   decodeThreadSession,
+  type ThreadFeaturePolicy,
   type ThreadResumeRequest,
   type ThreadRuntimePolicy,
 } from "./thread-protocol.ts";
@@ -234,11 +235,11 @@ export class ProjectThreadRegistry {
   async resumeRequestForProject(
     projectId: string,
     policy: ThreadRuntimePolicy,
-    nativeSubagents = false,
+    featurePolicy?: ThreadFeaturePolicy,
   ): Promise<ThreadResumeRequest> {
     const threadId = await this.threadForProject(projectId);
     if (!threadId) throw new ProjectThreadRegistryError("missing");
-    return buildThreadResumeRequest(threadId, policy, nativeSubagents);
+    return buildThreadResumeRequest(threadId, policy, featurePolicy);
   }
 
   private assertProjectId(projectId: string): void {

@@ -481,7 +481,10 @@ try {
       // Some pinned runtimes require the persisted thread to be loaded first.
       await transport!.request(
         "thread/resume",
-        buildThreadResumeRequest(threadId, auditPolicy),
+        buildThreadResumeRequest(threadId, auditPolicy, {
+          route: "dynamic",
+          nativeSubagents: true,
+        }),
       );
       return turns(
         await transport!.request("thread/turns/list", pageParams(threadId)),
@@ -574,7 +577,10 @@ try {
   mark("parent-policy-metadata");
   const resumed: unknown = await transport.request(
     "thread/resume",
-    buildThreadResumeRequest(parentThreadId, auditPolicy),
+    buildThreadResumeRequest(parentThreadId, auditPolicy, {
+      route: "dynamic",
+      nativeSubagents: true,
+    }),
   );
   mark("parent-policy-thread");
   assert.ok(record(resumed) && record(resumed.thread));

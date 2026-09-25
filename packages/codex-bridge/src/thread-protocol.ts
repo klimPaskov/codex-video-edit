@@ -157,10 +157,74 @@ function validatePolicy(policy: ThreadRuntimePolicy): ThreadRuntimePolicy {
 type CodeModeNamespace =
   "mcp__codex_apps" | "multi_agent_v1" | "skills" | "functions" | "image_gen";
 
+export type ThreadToolRoute = "mcp" | "dynamic";
+
+export interface ThreadFeaturePolicy {
+  route: ThreadToolRoute;
+  nativeSubagents: boolean;
+}
+
 function codeModeExclusions(nativeSubagents: boolean): CodeModeNamespace[] {
   return nativeSubagents
     ? ["mcp__codex_apps", "skills", "functions", "image_gen"]
     : ["mcp__codex_apps", "multi_agent_v1", "skills", "functions", "image_gen"];
+}
+
+const defaultThreadFeaturePolicy: ThreadFeaturePolicy = {
+  route: "mcp",
+  nativeSubagents: false,
+};
+
+function validatedFeaturePolicy(
+  supplied: ThreadFeaturePolicy = defaultThreadFeaturePolicy,
+): ThreadFeaturePolicy {
+  if (
+    (supplied.route !== "mcp" && supplied.route !== "dynamic") ||
+    typeof supplied.nativeSubagents !== "boolean" ||
+    (supplied.nativeSubagents && supplied.route !== "dynamic")
+  ) {
+    throw new CodexThreadProtocolError("configuration");
+  }
+  return supplied;
+}
+
+function threadFeatures(policy: ThreadFeaturePolicy) {
+  const codeModeOnly = policy.route === "dynamic";
+  return {
+    apps: false,
+    browser_use: false,
+    browser_use_external: false,
+    browser_use_full_cdp_access: false,
+    code_mode_only: codeModeOnly,
+    code_mode: {
+      ...(codeModeOnly ? { enabled: true } : {}),
+      excluded_tool_namespaces: codeModeExclusions(policy.nativeSubagents),
+    },
+    code_mode_host: {
+      ...(codeModeOnly ? { enabled: true } : {}),
+      disable_in_process_fallback: true,
+    },
+    codex_apps_mcp_2026_07_28: false,
+    codex_git_commit: false,
+    codex_hooks: false,
+    computer_use: false,
+    connectors: false,
+    enable_mcp_apps: false,
+    hooks: false,
+    image_generation: false,
+    imagegenext: false,
+    in_app_browser: false,
+    memories: false,
+    memory_tool: false,
+    multi_agent: policy.nativeSubagents,
+    multi_agent_v2: false,
+    plugins: false,
+    remote_control: false,
+    remote_plugin: false,
+    search_tool: false,
+    shell_tool: false,
+    skill_search: false,
+  } as const;
 }
 
 export interface ThreadStartRequest {
@@ -187,18 +251,7 @@ export interface ThreadStartRequest {
     };
     agents: { enabled: boolean; max_depth?: 1 };
     project_root_markers: [];
-    features: {
-      apps: false;
-      plugins: false;
-      remote_plugin: false;
-      shell_tool: false;
-      multi_agent: boolean;
-      multi_agent_v2: false;
-      code_mode: {
-        excluded_tool_namespaces: CodeModeNamespace[];
-      };
-      code_mode_host: { disable_in_process_fallback: true };
-    };
+    features: ReturnType<typeof threadFeatures>;
     web_search: "disabled";
   };
   ephemeral: false;
@@ -211,9 +264,10 @@ export interface ThreadStartRequest {
 
 export function buildThreadStartRequest(
   suppliedPolicy: ThreadRuntimePolicy,
-  nativeSubagents = false,
+  suppliedFeaturePolicy: ThreadFeaturePolicy = defaultThreadFeaturePolicy,
 ): ThreadStartRequest {
   const policy = validatePolicy(suppliedPolicy);
+  const featurePolicy = validatedFeaturePolicy(suppliedFeaturePolicy);
   const request: ThreadStartRequest = {
     model: policy.model,
     modelProvider: "openai",
@@ -236,22 +290,11 @@ export function buildThreadStartRequest(
         update_plan: { enabled: false },
         experimental_request_user_input: { enabled: false },
       },
-      agents: nativeSubagents
+      agents: featurePolicy.nativeSubagents
         ? { enabled: true, max_depth: 1 }
         : { enabled: false },
       project_root_markers: [],
-      features: {
-        apps: false,
-        plugins: false,
-        remote_plugin: false,
-        shell_tool: false,
-        multi_agent: nativeSubagents,
-        multi_agent_v2: false,
-        code_mode: {
-          excluded_tool_namespaces: codeModeExclusions(nativeSubagents),
-        },
-        code_mode_host: { disable_in_process_fallback: true },
-      },
+      features: threadFeatures(featurePolicy),
       web_search: "disabled",
     },
     ephemeral: false,
@@ -299,9 +342,10 @@ export interface ThreadTurnsListRequest {
 export function buildThreadResumeRequest(
   trustedThreadId: string,
   suppliedPolicy: ThreadRuntimePolicy,
-  nativeSubagents = false,
+  suppliedFeaturePolicy: ThreadFeaturePolicy = defaultThreadFeaturePolicy,
 ): ThreadResumeRequest {
   const policy = validatePolicy(suppliedPolicy);
+  const featurePolicy = validatedFeaturePolicy(suppliedFeaturePolicy);
   const request: ThreadResumeRequest = {
     threadId: identifier(trustedThreadId, "configuration"),
     model: policy.model,
@@ -325,22 +369,11 @@ export function buildThreadResumeRequest(
         update_plan: { enabled: false },
         experimental_request_user_input: { enabled: false },
       },
-      agents: nativeSubagents
+      agents: featurePolicy.nativeSubagents
         ? { enabled: true, max_depth: 1 }
         : { enabled: false },
       project_root_markers: [],
-      features: {
-        apps: false,
-        plugins: false,
-        remote_plugin: false,
-        shell_tool: false,
-        multi_agent: nativeSubagents,
-        multi_agent_v2: false,
-        code_mode: {
-          excluded_tool_namespaces: codeModeExclusions(nativeSubagents),
-        },
-        code_mode_host: { disable_in_process_fallback: true },
-      },
+      features: threadFeatures(featurePolicy),
       web_search: "disabled",
     },
     excludeTurns: true,

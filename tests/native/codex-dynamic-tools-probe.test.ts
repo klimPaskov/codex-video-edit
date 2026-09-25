@@ -156,7 +156,10 @@ try {
   );
   phase = "thread-start";
   const threadResponse = (await transport.request("thread/start", {
-    ...buildThreadStartRequest(policy),
+    ...buildThreadStartRequest(policy, {
+      route: "dynamic",
+      nativeSubagents: false,
+    }),
     dynamicTools: [
       {
         type: "namespace",

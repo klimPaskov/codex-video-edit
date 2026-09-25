@@ -13,6 +13,7 @@ import {
   decodeTurnStart,
   threadProtocolInternals,
   type ExperimentalInitializeRequest,
+  type ThreadFeaturePolicy,
   type ThreadResumeRequest,
   type ThreadRuntimePolicy,
   type ThreadStartRequest,
@@ -119,7 +120,10 @@ export class ProjectThreadRuntime {
       throw new CodexThreadProtocolError("configuration");
     }
     // Validate the complete no-environment thread policy at construction.
-    buildThreadStartRequest(this.options.policy, false);
+    buildThreadStartRequest(this.options.policy, {
+      route: this.options.newThreadToolRoute ?? "mcp",
+      nativeSubagents: false,
+    });
   }
 
   initializeRequest(applicationVersion: string): ExperimentalInitializeRequest {
@@ -144,10 +148,10 @@ export class ProjectThreadRuntime {
       return {
         method: "thread/start",
         params: {
-          ...buildThreadStartRequest(
-            this.options.policy,
-            toolRoute === "dynamic",
-          ),
+          ...buildThreadStartRequest(this.options.policy, {
+            route: toolRoute,
+            nativeSubagents: toolRoute === "dynamic",
+          }),
           ...(toolRoute === "dynamic"
             ? { dynamicTools: buildCodexVideoEditDynamicTools() }
             : {}),
@@ -159,7 +163,10 @@ export class ProjectThreadRuntime {
       params: await this.options.registry.resumeRequestForProject(
         this.options.projectId,
         this.options.policy,
-        toolRoute === "dynamic",
+        {
+          route: toolRoute,
+          nativeSubagents: toolRoute === "dynamic",
+        } satisfies ThreadFeaturePolicy,
       ),
     };
   }

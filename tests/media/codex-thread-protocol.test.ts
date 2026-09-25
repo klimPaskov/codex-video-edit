@@ -25,11 +25,10 @@ const policy = {
 };
 const restrictedFeatures = {
   apps: false,
-  plugins: false,
-  remote_plugin: false,
-  shell_tool: false,
-  multi_agent: false,
-  multi_agent_v2: false,
+  browser_use: false,
+  browser_use_external: false,
+  browser_use_full_cdp_access: false,
+  code_mode_only: false,
   code_mode: {
     excluded_tool_namespaces: [
       "mcp__codex_apps",
@@ -39,7 +38,29 @@ const restrictedFeatures = {
       "image_gen",
     ],
   },
-  code_mode_host: { disable_in_process_fallback: true },
+  code_mode_host: {
+    disable_in_process_fallback: true,
+  },
+  codex_apps_mcp_2026_07_28: false,
+  codex_git_commit: false,
+  codex_hooks: false,
+  computer_use: false,
+  connectors: false,
+  enable_mcp_apps: false,
+  hooks: false,
+  image_generation: false,
+  imagegenext: false,
+  in_app_browser: false,
+  memories: false,
+  memory_tool: false,
+  multi_agent: false,
+  multi_agent_v2: false,
+  plugins: false,
+  remote_control: false,
+  remote_plugin: false,
+  search_tool: false,
+  shell_tool: false,
+  skill_search: false,
 };
 const restrictedApps = {
   _default: {
@@ -131,16 +152,46 @@ test("experimental initialization and no-environment requests are exact", () => 
     itemsView: "full",
   });
 
-  const collaborativeStart = buildThreadStartRequest(policy, true);
-  const collaborativeResume = buildThreadResumeRequest(
-    "thread-1",
-    policy,
-    true,
-  );
+  const dynamicStart = buildThreadStartRequest(policy, {
+    route: "dynamic",
+    nativeSubagents: false,
+  });
+  const dynamicResume = buildThreadResumeRequest("thread-1", policy, {
+    route: "dynamic",
+    nativeSubagents: false,
+  });
+  const collaborativeStart = buildThreadStartRequest(policy, {
+    route: "dynamic",
+    nativeSubagents: true,
+  });
+  const collaborativeResume = buildThreadResumeRequest("thread-1", policy, {
+    route: "dynamic",
+    nativeSubagents: true,
+  });
+  for (const request of [dynamicStart, dynamicResume]) {
+    assert.equal(request.config.features.code_mode_only, true);
+    assert.equal(request.config.features.code_mode.enabled, true);
+    assert.equal(request.config.features.code_mode_host.enabled, true);
+    assert.equal(
+      request.config.features.code_mode_host.disable_in_process_fallback,
+      true,
+    );
+    assert.equal(request.config.features.multi_agent, false);
+    assert.deepEqual(
+      request.config.features.code_mode.excluded_tool_namespaces,
+      ["mcp__codex_apps", "multi_agent_v1", "skills", "functions", "image_gen"],
+    );
+  }
   for (const request of [collaborativeStart, collaborativeResume]) {
     assert.equal(request.config.features.multi_agent, true);
     assert.equal(request.config.features.multi_agent_v2, false);
     assert.equal(request.config.features.shell_tool, false);
+    assert.equal(request.config.features.code_mode_only, true);
+    assert.equal(request.config.features.computer_use, false);
+    assert.equal(request.config.features.browser_use, false);
+    assert.equal(request.config.features.image_generation, false);
+    assert.equal(request.config.features.connectors, false);
+    assert.equal(request.config.features.codex_git_commit, false);
     assert.deepEqual(
       request.config.features.code_mode.excluded_tool_namespaces,
       ["mcp__codex_apps", "skills", "functions", "image_gen"],
@@ -310,6 +361,14 @@ test("builders reject renderer-style policy and identifier overrides", () => {
         ...policy,
         approvalPolicy: "on-request",
       } as never),
+    CodexThreadProtocolError,
+  );
+  assert.throws(
+    () =>
+      buildThreadStartRequest(policy, {
+        route: "mcp",
+        nativeSubagents: true,
+      }),
     CodexThreadProtocolError,
   );
 });

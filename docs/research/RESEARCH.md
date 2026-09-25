@@ -88,3 +88,11 @@ The pinned official Codex 0.155.1 login server binds a local callback listener, 
 Sources:
 
 - https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/login/src/server.rs#L2470-L2865
+
+## Codex 0.155.1 route-specific thread features, 2026-09-25
+
+The pinned official 0.155.1 configuration schema (https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/config.schema.json) defines the feature fields used by the thread builder, including code_mode_only, code_mode.enabled, code_mode_host.enabled, disable_in_process_fallback, browser/computer-use, apps/connectors, image, memory, hooks, plugins, remote-control and commit switches. The route-aware builder applies only dynamic code-mode enablement to dynamic-bound Codex threads and keeps it off for existing MCP-bound threads; both routes disable the supported unrelated feature flags and disable in-process host fallback. Exact start/resume unit tests passed. A packaged Luna/high synthetic dynamic split run passed its bounded seven-editor/five-v1-child inventory, zero app/other counts, shared Undo/reopen and immutable-source/baseline checks after the real Electron window was inspected inside Docker. These schema fields and one tested nested surface do not establish a complete or permanent upstream effective-tool allowlist; P2-07 remains open.
+
+Source:
+
+- https://github.com/openai/codex/blob/rust-v0.155.1/codex-rs/core/config.schema.json
