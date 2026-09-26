@@ -318,6 +318,18 @@ class DesktopIpcContractTests(unittest.TestCase):
             'response': {'ok': True, 'value': leaked},
         })
 
+    def test_review_integrity_channel_returns_only_a_path_free_draft_head(self):
+        integrity = json.loads(
+            (ROOT / 'docs/examples/desktop_ipc_integrity_check.example.json').read_text(encoding='utf-8')
+        )
+        self.valid(integrity)
+        leaked = deepcopy(integrity)
+        leaked['response']['value']['sourcePath'] = 'C:/private/source.mkv'
+        self.invalid(leaked)
+        bad_payload = deepcopy(integrity)
+        bad_payload['payload']['path'] = 'C:/private/source.mkv'
+        self.invalid(bad_payload)
+
 
 if __name__ == '__main__':
     unittest.main()

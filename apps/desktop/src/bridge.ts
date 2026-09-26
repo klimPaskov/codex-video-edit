@@ -88,6 +88,9 @@ export interface DesktopBridge {
   openProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
   closeProject(request: ProjectRequest): Promise<Reply<null>>;
   navigateProject(request: ProjectNavigation): Promise<Reply<ProjectView>>;
+  verifyDraftIntegrity(
+    request: ProjectRequest,
+  ): Promise<Reply<ProjectDraftView>>;
   readProjectFrame(
     request: ProjectFrameRequest,
   ): Promise<Reply<ProjectFrameResult>>;
@@ -137,6 +140,7 @@ export const channels = Object.freeze({
   projectOpen: "projects:open",
   projectClose: "projects:close",
   projectNavigate: "projects:navigate",
+  projectIntegrityCheck: "projects:verify-draft-integrity",
   projectFrame: "projects:frame",
   projectManualTrim: "projects:manual-trim",
   projectManualSplit: "projects:manual-split",

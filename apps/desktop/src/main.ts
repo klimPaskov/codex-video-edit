@@ -406,6 +406,26 @@ async function start(): Promise<void> {
     await projects.navigate(request.id, request.stage);
     return projectRuntime.view(request.id);
   });
+  register(channels.projectIntegrityCheck, async (request) => {
+    assertProjectRequest(request);
+    if (activeProjectId !== request.id)
+      throw new UserFacingError(
+        "Open the active project in Review to check draft integrity.",
+      );
+    try {
+      const value = await projectRuntime.verifyDraftIntegrity(request.id);
+      if (activeProjectId !== request.id)
+        throw new UserFacingError(
+          "The active project changed. Run the check again.",
+        );
+      return value;
+    } catch (error) {
+      if (error instanceof UserFacingError) throw error;
+      throw new UserFacingError(
+        "Draft integrity could not be checked. Reopen the project and try again.",
+      );
+    }
+  });
   const activeCodexProject = async (projectId: string) => {
     if (activeProjectId !== projectId) throw new Error("Inactive project");
     await drafts.snapshotWithProject(projectId);

@@ -243,14 +243,81 @@ try {
   } finally {
     await chmod(projectFolder, 0o700);
   }
-  await window
+  const reviewStageButton = window
     .getByRole("navigation", { name: "Project stages" })
-    .getByRole("button", { name: "Review", exact: true })
-    .click();
+    .getByRole("button", { name: "Review", exact: true });
+  await reviewStageButton.click();
+  await expect(reviewStageButton).toHaveAttribute("aria-current", "step");
+  await expect(window.locator("#stage-select")).toHaveValue("review");
   await expect(window.locator("#error")).toBeHidden();
+  const reviewProjectBytes = await readFile(
+      join(projectFolder, "project.json"),
+    ),
+    integrityButton = window.getByRole("button", {
+      name: "Check draft integrity",
+      exact: true,
+    }),
+    managedSourcePath = baseline.source.managed_path,
+    managedSourceBytes = await readFile(managedSourcePath);
+  await expect(integrityButton).toBeVisible();
+  await expect(window.locator("#draft-integrity-result")).toBeHidden();
+  if (process.argv.includes("--inspect")) {
+    await integrityButton.scrollIntoViewIfNeeded();
+    await window.screenshot({
+      path: join(evidence, "review-integrity-ready.png"),
+    });
+    console.log(JSON.stringify({ reviewInspectionReady: true, evidence }));
+    const marker = join(evidence, "review-inspection.done"),
+      deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+      try {
+        await access(marker);
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+    await access(marker);
+  }
+  await integrityButton.click();
+  await expect(window.locator("#draft-integrity-result")).toHaveText(
+    "Structure and managed sources verified; meaning, playback and A/V joins not reviewed.",
+  );
+  await expect(window.locator("#draft-integrity-error")).toBeHidden();
+  assert.deepEqual(
+    await readFile(join(projectFolder, "project.json")),
+    reviewProjectBytes,
+  );
+  assert.deepEqual(await readFile(baselinePath), baselineBytes);
+  assert.equal(sha256(await readFile(source)), sourceHash);
+  await writeFile(
+    managedSourcePath,
+    Buffer.concat([managedSourceBytes, Buffer.from([0])]),
+  );
+  try {
+    await integrityButton.click();
+    await expect(window.locator("#draft-integrity-error")).toHaveText(
+      "Draft integrity could not be checked. Reopen the project and try again.",
+    );
+  } finally {
+    await writeFile(managedSourcePath, managedSourceBytes);
+  }
+  await integrityButton.click();
+  await expect(window.locator("#draft-integrity-result")).toHaveText(
+    "Structure and managed sources verified; meaning, playback and A/V joins not reviewed.",
+  );
+  await expect(window.locator("#draft-integrity-error")).toBeHidden();
+  assert.deepEqual(await readFile(managedSourcePath), managedSourceBytes);
+  assert.deepEqual(
+    await readFile(join(projectFolder, "project.json")),
+    reviewProjectBytes,
+  );
+  assert.deepEqual(await readFile(baselinePath), baselineBytes);
+  assert.equal(sha256(await readFile(source)), sourceHash);
   await window
     .getByRole("button", { name: "Source details", exact: true })
     .click();
+  await expect(window.locator("#review-actions")).toBeHidden();
   await expect(
     window.getByRole("complementary", { name: "Source details" }),
   ).toBeVisible();
@@ -280,6 +347,8 @@ try {
   ).toBeFocused();
   await window.keyboard.press("Escape");
   await expect(window.locator("#inspector")).toBeHidden();
+  await expect(window.locator("#review-actions")).toBeVisible();
+  await expect(window.locator("#draft-integrity-result")).toBeHidden();
   await expect(
     window.getByRole("button", { name: "Source details", exact: true }),
   ).toBeFocused();
@@ -287,6 +356,7 @@ try {
     .getByRole("button", { name: "Source details", exact: true })
     .click();
   await window.getByRole("button", { name: "Codex", exact: true }).click();
+  await expect(window.locator("#review-actions")).toBeHidden();
   await expect(window.locator("#inspector")).toBeHidden();
   await expect(
     window.getByRole("complementary", { name: "Codex conversation" }),
@@ -336,6 +406,7 @@ try {
   await window.locator("#assistant-provider").selectOption("codex");
   await window.getByRole("button", { name: "Close Codex" }).click();
   await expect(window.locator("#codex-drawer")).toBeHidden();
+  await expect(window.locator("#review-actions")).toBeVisible();
   for (const [width, height, scale] of [
     [1366, 768, 1],
     [1366, 768, 1.5],

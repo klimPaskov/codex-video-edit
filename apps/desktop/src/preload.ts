@@ -179,6 +179,14 @@ const bridge: DesktopBridge = {
     assertProjectNavigation(request);
     return invoke(channels.projectNavigate, request, assertProjectView);
   },
+  verifyDraftIntegrity: (request) => {
+    assertProjectRequest(request);
+    return invoke(
+      channels.projectIntegrityCheck,
+      request,
+      assertProjectDraftView,
+    );
+  },
   readProjectFrame: (request) => {
     assertProjectFrameRequest(request);
     return invoke(channels.projectFrame, request, assertProjectFrameResult);

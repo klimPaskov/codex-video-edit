@@ -259,6 +259,29 @@ canvas {
   gap: 8px;
   flex-basis: 100%;
 }
+#review-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  margin: 0 auto;
+  max-width: 920px;
+}
+#review-actions[hidden] {
+  display: none;
+}
+#draft-integrity-result,
+#draft-integrity-error {
+  max-width: 680px;
+  margin: 0;
+  color: #b6bac8;
+  font-size: 13px;
+  text-align: center;
+}
 #cut-selection {
   color: #b6bac8;
   font-size: 13px;

@@ -1,4 +1,5 @@
 import { setupCodexSettings } from "./codex-settings.ts";
+import { draftIntegrityFreshness } from "./draft-integrity.ts";
 import { reconcileProjectDraft } from "./project-draft.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import type { DesktopBridge, Reply } from "../src/bridge.ts";
@@ -48,6 +49,12 @@ const editActions = element("edit-actions"),
   cutSelection = element("cut-selection"),
   cutRangeButton = element<HTMLButtonElement>("cut-range"),
   clearMarksButton = element<HTMLButtonElement>("clear-marks");
+const reviewActions = element("review-actions"),
+  checkDraftIntegrityButton = element<HTMLButtonElement>(
+    "check-draft-integrity",
+  ),
+  draftIntegrityResult = element("draft-integrity-result"),
+  draftIntegrityError = element("draft-integrity-error");
 let selected: MediaSummary | undefined;
 let selectedButton: HTMLButtonElement | undefined;
 let requestedTime: number | undefined;
@@ -60,6 +67,10 @@ let loadingHome = 0;
 let navigating = false;
 let addingFootage = false;
 let manualEditPending = false;
+let draftIntegrityPending = false;
+let draftIntegrityHeadKey: string | undefined;
+let draftIntegrityMessage: string | null = null;
+let draftIntegrityIssue: string | null = null;
 let markHead: string | undefined;
 let markInUs: number | undefined;
 let markOutUs: number | undefined;
@@ -107,6 +118,7 @@ function renderStage(): void {
     else button.removeAttribute("aria-current");
   }
   renderEditTools();
+  renderDraftIntegrityAction();
 }
 function currentClip(): NonNullable<ProjectView["clips"]>[number] | undefined {
   if (!activeProject?.clips) return undefined;
@@ -117,6 +129,36 @@ function currentClip(): NonNullable<ProjectView["clips"]>[number] | undefined {
 }
 function currentHeadKey(project: ProjectView): string {
   return `${project.id}:${project.draft.id}:${project.draft.sequence}:${project.draft.timelineSha256}`;
+}
+function clearDraftIntegrityResult(): void {
+  draftIntegrityHeadKey = undefined;
+  draftIntegrityMessage = null;
+  draftIntegrityIssue = null;
+}
+function renderDraftIntegrityAction(): void {
+  const project = activeProject,
+    visible =
+      project?.stage === "review" &&
+      element("inspector").hidden &&
+      element("codex-drawer").hidden;
+  if (
+    !visible ||
+    (draftIntegrityHeadKey &&
+      project &&
+      draftIntegrityHeadKey !== currentHeadKey(project))
+  )
+    clearDraftIntegrityResult();
+  reviewActions.hidden = !visible;
+  reviewActions.setAttribute("aria-busy", String(draftIntegrityPending));
+  checkDraftIntegrityButton.disabled =
+    !visible || navigating || draftIntegrityPending;
+  checkDraftIntegrityButton.textContent = draftIntegrityPending
+    ? "Checking…"
+    : "Check draft integrity";
+  draftIntegrityResult.textContent = draftIntegrityMessage ?? "";
+  draftIntegrityResult.hidden = !visible || !draftIntegrityMessage;
+  draftIntegrityError.textContent = draftIntegrityIssue ?? "";
+  draftIntegrityError.hidden = !visible || !draftIntegrityIssue;
 }
 function renderEditTools(): void {
   const project = activeProject;
@@ -235,6 +277,7 @@ async function openProject(
 }
 function selectProject(project: ProjectView, origin?: HTMLButtonElement): void {
   activeProject = project;
+  clearDraftIntegrityResult();
   codexThreadView = undefined;
   apiThreadView = undefined;
   codexThreadIssue = null;
@@ -684,7 +727,65 @@ function applyProjectDraft(reply: Reply<ProjectDraftView>): void {
   clearError();
   requestFrame(position);
   renderEditTools();
+  renderDraftIntegrityAction();
 }
+checkDraftIntegrityButton.addEventListener("click", async () => {
+  const project = activeProject;
+  if (!project || project.stage !== "review" || draftIntegrityPending) return;
+  const generation = routeGeneration,
+    requestedHead = currentHeadKey(project);
+  draftIntegrityPending = true;
+  draftIntegrityHeadKey = requestedHead;
+  draftIntegrityMessage = null;
+  draftIntegrityIssue = null;
+  renderDraftIntegrityAction();
+  try {
+    const reply = await window.desktop.verifyDraftIntegrity({ id: project.id });
+    if (
+      generation !== routeGeneration ||
+      activeProject?.id !== project.id ||
+      activeProject.stage !== "review"
+    )
+      return;
+    if (!reply.ok) {
+      draftIntegrityIssue = reply.message;
+      return;
+    }
+    const checkedHead = `${reply.value.projectId}:${reply.value.draft.id}:${reply.value.draft.sequence}:${reply.value.draft.timelineSha256}`;
+    const freshness = draftIntegrityFreshness(
+      requestedHead,
+      currentHeadKey(activeProject),
+      checkedHead,
+    );
+    if (freshness === "active-head-changed") {
+      draftIntegrityHeadKey = currentHeadKey(activeProject);
+      draftIntegrityIssue =
+        "Draft changed while the check was running. Run it again.";
+      return;
+    }
+    applyProjectDraft(reply);
+    if (
+      generation !== routeGeneration ||
+      activeProject?.id !== project.id ||
+      activeProject.stage !== "review"
+    )
+      return;
+    draftIntegrityHeadKey = currentHeadKey(activeProject);
+    if (freshness !== "current" || checkedHead !== draftIntegrityHeadKey) {
+      draftIntegrityIssue = "Draft changed during the check. Run it again.";
+      return;
+    }
+    draftIntegrityMessage =
+      "Structure and managed sources verified; meaning, playback and A/V joins not reviewed.";
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      draftIntegrityIssue =
+        "Draft integrity could not be checked. Reopen the project and try again.";
+  } finally {
+    draftIntegrityPending = false;
+    renderDraftIntegrityAction();
+  }
+});
 async function submitManualTrim(edge: "start" | "end"): Promise<void> {
   const project = activeProject,
     clip = currentClip(),
@@ -948,6 +1049,7 @@ function setInspector(open: boolean): void {
       list.append(term, definition);
     }
   }
+  renderDraftIntegrityAction();
 }
 
 let codexThreadView: CodexThreadView | undefined;
@@ -1109,6 +1211,7 @@ function setCodexDrawer(open: boolean): void {
   } else {
     codexPollGeneration++;
   }
+  renderDraftIntegrityAction();
 }
 async function pollCodex(generation: number): Promise<void> {
   while (

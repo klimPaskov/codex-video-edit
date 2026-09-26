@@ -47,6 +47,8 @@
 
 ## Human visual review
 
+The current Review-stage **Check draft integrity** action validates the saved timeline, journal chain and managed-source manifest through main. It is a structural/storage check only; it does not perform the human visual review, full-draft playback, speech-meaning review or audio/video join inspection below. It is hidden whenever the Source inspector or Codex drawer is selected, and its result clears when the committed head changes.
+
 Computer use must inspect the real native app and rendered media. Review at least:
 
 - first launch and onboarding

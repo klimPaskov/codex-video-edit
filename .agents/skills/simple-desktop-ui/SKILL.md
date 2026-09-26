@@ -21,6 +21,10 @@ Changing screen flow, visual hierarchy, design system, editor panels, or empty a
 - Hide empty tracks and unavailable controls.
 - Use plain user language.
 
+If only a structural draft-integrity check is implemented in Review, show one Check draft integrity action there and report only what main actually revalidated. Clear the result when the committed draft head changes. Do not label the result a full review, semantic speech check, playback, A/V join review, or export readiness.
+
+Hide the Review integrity action while the Source inspector or Codex drawer is open, and clear its transient result on panel changes. Keep the check in the Review stage beside the preview; do not turn it into a persistent status dashboard.
+
 For a partial Edit tool, put only actionable trim, Split and Undo controls by the current preview position. Show which part or fragment a two-source action targets, disable trim and Split at fragment boundaries or during a save, and retain the single-inspector/drawer rule. Do not add inactive tracks or a fake full tool rail to match a reference image.
 
 For marked range cutting, keep Mark in, Mark out, Cut range and Clear adjacent to those Edit controls. Show only the marked times needed to understand the pending cut, disable Cut range for missing, reversed, empty or whole-draft marks and while saving, and clear stale marks when the committed head or project changes. Show the shortened preview from committed state and preserve newest Undo. A cut across parts does not remove either part from the Source inspector or justify an additional panel.

@@ -435,6 +435,29 @@
     {
       "type": "object",
       "additionalProperties": false,
+      "required": ["channel", "response", "payload"],
+      "properties": {
+        "channel": { "const": "projects:verify-draft-integrity" },
+        "payload": { "$ref": "#/$defs/projectRequest" },
+        "response": {
+          "oneOf": [
+            { "$ref": "#/$defs/error" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ok", "value"],
+              "properties": {
+                "ok": { "const": true },
+                "value": { "$ref": "#/$defs/projectDraftView" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
       "required": [
         "channel",
         "response"

@@ -129,7 +129,11 @@ Visible:
 
 ## S10: review and quality summary (Review stage; internal screen `qa`)
 
-The editorial report exposes measured changes, unresolved cues and selective graphics suggestions at final-cut times. Each suggestion contains its complete prompt and remains distinct from an imported asset; viewing it never triggers generation or export. Keep this in the selected review surface or Codex drawer, respecting the single-panel rule. A pass checkpoint does not certify whole-result review. These are later implementation requirements, not current shell controls.
+The current Review shell offers one **Check draft integrity** action. Main re-reads the committed project, draft journal and managed-source measurements, then returns the validated draft head. Its success message is limited to structure and managed-source integrity; it does not assess spoken meaning, rendered joins, playback, or whole-result review. A changed draft invalidates the displayed result. This check does not create an editorial pass checkpoint or enable export. The action and result hide while the Source inspector or Codex drawer is open, preserving the single-panel rule.
+
+The full editorial report exposes measured changes, unresolved cues and selective graphics suggestions at final-cut times. Each suggestion contains its complete prompt and remains distinct from an imported asset; viewing it never triggers generation or export. Keep this in the selected review surface or Codex drawer, respecting the single-panel rule. A pass checkpoint does not certify whole-result review.
+
+The remaining bullets below are target screen requirements. Only Check draft integrity is currently implemented in Review.
 
 Visible:
 

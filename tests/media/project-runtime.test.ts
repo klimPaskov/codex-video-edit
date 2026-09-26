@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 
 import {
+  committedDraftView,
   DesktopProjectRuntime,
   invokeWithProjectDraftRefresh,
   type ProjectDraftNotice,
@@ -123,6 +124,35 @@ function rangeCutRequest(
     ],
   };
 }
+
+test("Review draft integrity check returns only a validated committed head", async () => {
+  const { source, projects, baseline, drafts, runtime } = await fixture();
+  const baselinePath = join(
+      baseline.project.storage.project_root,
+      "baseline.json",
+    ),
+    projectPath = join(baseline.project.storage.project_root, "project.json"),
+    baselineBytes = await readFile(baselinePath),
+    managedBytes = await readFile(baseline.source.managed_path),
+    originalBytes = await readFile(source);
+  await projects.navigate(baseline.project.project_id, "review");
+  const projectBytes = await readFile(projectPath),
+    before = await drafts.snapshotWithProject(baseline.project.project_id),
+    checked = await runtime.verifyDraftIntegrity(baseline.project.project_id);
+  assert.deepEqual(checked, committedDraftView(before));
+
+  const after = await drafts.snapshotWithProject(baseline.project.project_id);
+  assert.deepEqual(after.draft, before.draft);
+  assert.deepEqual(await readFile(baselinePath), baselineBytes);
+  assert.deepEqual(await readFile(projectPath), projectBytes);
+  assert.deepEqual(await readFile(baseline.source.managed_path), managedBytes);
+  assert.deepEqual(await readFile(source), originalBytes);
+
+  await projects.navigate(baseline.project.project_id, "edit");
+  await assert.rejects(
+    runtime.verifyDraftIntegrity(baseline.project.project_id),
+  );
+});
 
 test("committed project views and frames follow trim and undo state without changing source or baseline", async () => {
   const { source, library, projects, baseline, drafts, runtime } =

@@ -164,6 +164,16 @@ export class DesktopProjectRuntime {
     return value;
   }
 
+  async verifyDraftIntegrity(projectId: string): Promise<ProjectDraftView> {
+    const current = await this.drafts.snapshotWithProject(projectId);
+    if (
+      current.project.project.project_id !== projectId ||
+      current.project.project.workflow_step !== "review"
+    )
+      invalid();
+    return committedDraftView(current);
+  }
+
   async frame(
     request: ProjectFrameRequest,
     signal?: AbortSignal,
