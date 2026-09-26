@@ -80,6 +80,14 @@ function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function multiAgentVersionForModel(
+  modelId: string | undefined,
+): "v1" | "v2" | null {
+  if (modelId === "gpt-6-luna") return "v2";
+  if (modelId === "gpt-5.6-luna") return "v1";
+  return null;
+}
+
 function collectStrings(value: unknown, depth = 0): string[] {
   if (depth > 6) return [];
   if (typeof value === "string") {
@@ -100,10 +108,12 @@ function collectStrings(value: unknown, depth = 0): string[] {
 
 interface ToolSurfaceEvidence {
   route: "mcp" | "dynamic";
-  ownedToolCount: 7;
+  ownedToolCount: 8;
   nativeAgentToolCount: number;
   applicationToolCount: 0;
-  otherToolCount: 0;
+  otherToolCount: number;
+  multiAgentVersion: "disabled" | "v1" | "v2" | null;
+  readOnlyUtilityNames: string[];
   completedCodeModeCall: true;
   callOutputCorrelated: true;
 }
@@ -114,6 +124,7 @@ async function verifyToolSurfaceRollout(options: {
   projectThreadId: string;
   diagnostic: string;
   toolRoute: "mcp" | "dynamic";
+  multiAgentVersion: "disabled" | "v1" | "v2" | null;
 }): Promise<ToolSurfaceEvidence> {
   const codexHome = join(options.userData, "codex/account");
   const cwd = join(options.userData, "codex/context");
@@ -249,13 +260,22 @@ async function verifyToolSurfaceRollout(options: {
     assert.equal(codeOutputs.length, 1, "Require its correlated tool output");
     assert.ok(JSON.stringify(codeOutputs[0]).length <= 64_000);
     const outputText = collectStrings(codeOutputs[0]).join("\n");
-    const expectedAgentCount = options.toolRoute === "dynamic" ? 5 : 0;
+    const expectedAgentCount =
+      options.toolRoute === "dynamic" && options.multiAgentVersion === "v1"
+        ? 5
+        : 0;
+    const utilityNames =
+      options.toolRoute === "dynamic" && options.multiAgentVersion === "v2"
+        ? ["clock__curr_time"]
+        : [];
+    const expectedUnownedCount = expectedAgentCount + utilityNames.length;
+    const expectedOtherCount = utilityNames.length;
     for (const [key, value] of [
-      ["ownedCount", 7],
+      ["ownedCount", 8],
       ["agentCount", expectedAgentCount],
       ["appCount", 0],
-      ["unownedCount", expectedAgentCount],
-      ["otherCount", 0],
+      ["unownedCount", expectedUnownedCount],
+      ["otherCount", expectedOtherCount],
     ] as const)
       assert.match(
         outputText,
@@ -279,16 +299,23 @@ async function verifyToolSurfaceRollout(options: {
       );
     assert.match(
       outputText,
-      options.toolRoute === "dynamic"
+      expectedAgentCount > 0
         ? /"spawn"\s*:\s*"function"/u
         : /"spawn"\s*:\s*"undefined"/u,
     );
+    if (utilityNames.length)
+      assert.match(
+        outputText,
+        /"unownedNames"\s*:\s*\[\s*"clock__curr_time"\s*\]/u,
+      );
     return {
       route: options.toolRoute,
-      ownedToolCount: 7,
+      ownedToolCount: 8,
       nativeAgentToolCount: expectedAgentCount,
       applicationToolCount: 0,
-      otherToolCount: 0,
+      otherToolCount: expectedOtherCount,
+      multiAgentVersion: options.multiAgentVersion,
+      readOnlyUtilityNames: utilityNames,
       completedCodeModeCall: true,
       callOutputCorrelated: true,
     };
@@ -322,6 +349,16 @@ if (process.argv.includes("--require-luna")) {
 }
 let step = "fixture";
 let surfaceDiagnostic: string | undefined;
+let surfaceCounts:
+  | {
+      ownedCount: number;
+      agentCount: number;
+      appCount: number;
+      unownedCount: number;
+      otherCount: number;
+      unownedNames: string[];
+    }
+  | undefined;
 let surfaceEvidence: ToolSurfaceEvidence | undefined;
 const mark = (value: string): void => {
   step = value;
@@ -477,11 +514,12 @@ try {
     .toBe(true);
   const account = await page.evaluate(() => window.desktop.getCodex());
   assert.ok(account.ok);
-  if (process.argv.includes("--require-luna"))
+  if (process.argv.includes("--require-luna")) {
     assert.deepEqual(account.value.selection, {
-      modelId: "gpt-5.6-luna",
+      modelId: "gpt-6-luna",
       reasoning: "high",
     });
+  }
   if (!account.value.selection) {
     const model = account.value.models[0]!;
     await page.locator("#codex-model").selectOption(model.id);
@@ -632,7 +670,7 @@ try {
       toolRoute === "dynamic"
         ? "codex_video_edit__"
         : "mcp__codex_video_edit__";
-    const diagnostic = `In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.${ownedPrefix}project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, plan: typeof tools.update_plan, input: typeof tools.request_user_input_async, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, ownedCount: ALL_TOOLS.filter(x => x.name.startsWith('${ownedPrefix}')).length, agentCount: ALL_TOOLS.filter(x => x.name.startsWith('multi_agent_v1__')).length, appCount: ALL_TOOLS.filter(x => x.name.startsWith('mcp__codex_apps__')).length, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).length, otherCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}') && !x.name.startsWith('multi_agent_v1__')).length}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.`;
+    const diagnostic = `In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.${ownedPrefix}project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, plan: typeof tools.update_plan, input: typeof tools.request_user_input_async, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, ownedCount: ALL_TOOLS.filter(x => x.name.startsWith('${ownedPrefix}')).length, agentCount: ALL_TOOLS.filter(x => x.name.startsWith('multi_agent_v1__')).length, appCount: ALL_TOOLS.filter(x => x.name.startsWith('mcp__codex_apps__')).length, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).length, otherCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}') && !x.name.startsWith('multi_agent_v1__')).length, unownedNames: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).map(x => x.name)}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.`;
     surfaceDiagnostic = diagnostic;
     await page.locator("#codex-thread-input").fill(diagnostic);
     await page.locator("#send-codex-thread").click();
@@ -643,23 +681,80 @@ try {
     const answer = diagnosticState.messages
       .filter((message) => message.role === "codex" && message.complete)
       .at(-1)?.text;
+    step = "surface-answer-present";
     assert.ok(answer);
+    try {
+      const json = answer.match(/\{[^{}]*"ownedCount"[^{}]*\}/u)?.[0];
+      const observed: unknown = json ? JSON.parse(json) : null;
+      if (record(observed)) {
+        const values = [
+          observed.ownedCount,
+          observed.agentCount,
+          observed.appCount,
+          observed.unownedCount,
+          observed.otherCount,
+        ];
+        if (values.every(Number.isSafeInteger))
+          if (
+            Array.isArray(observed.unownedNames) &&
+            observed.unownedNames.every(
+              (name) =>
+                typeof name === "string" &&
+                name.length <= 128 &&
+                /^[A-Za-z0-9_.:-]+$/u.test(name),
+            )
+          )
+            surfaceCounts = {
+              ownedCount: observed.ownedCount as number,
+              agentCount: observed.agentCount as number,
+              appCount: observed.appCount as number,
+              unownedCount: observed.unownedCount as number,
+              otherCount: observed.otherCount as number,
+              unownedNames: observed.unownedNames as string[],
+            };
+      }
+    } catch {
+      surfaceCounts = undefined;
+    }
+    step = "surface-owned-function";
     assert.match(answer, /"owned"\s*:\s*"function"/u);
-    assert.match(answer, /"ownedCount"\s*:\s*7\b/u);
-    const expectedAgentCount = toolRoute === "dynamic" ? 5 : 0;
+    step = "surface-owned-count";
+    assert.match(answer, /"ownedCount"\s*:\s*8\b/u);
+    const multiAgentVersion = multiAgentVersionForModel(
+      account.value.selection?.modelId,
+    );
+    const expectedAgentCount =
+      toolRoute === "dynamic" && multiAgentVersion === "v1" ? 5 : 0;
+    const utilityNames =
+      toolRoute === "dynamic" && multiAgentVersion === "v2"
+        ? ["clock__curr_time"]
+        : [];
+    const expectedUnownedCount = expectedAgentCount + utilityNames.length;
+    const expectedOtherCount = utilityNames.length;
+    step = "surface-agent-count";
     assert.match(
       answer,
       new RegExp(`"agentCount"\\s*:\\s*${expectedAgentCount}\\b`, "u"),
     );
+    step = "surface-app-count";
     assert.match(answer, /"appCount"\s*:\s*0\b/u);
+    step = "surface-unowned-count";
     assert.match(
       answer,
-      new RegExp(`"unownedCount"\\s*:\\s*${expectedAgentCount}\\b`, "u"),
+      new RegExp(`"unownedCount"\\s*:\\s*${expectedUnownedCount}\\b`, "u"),
     );
-    assert.match(answer, /"otherCount"\s*:\s*0\b/u);
+    step = "surface-other-count";
     assert.match(
       answer,
-      toolRoute === "dynamic"
+      new RegExp(`"otherCount"\\s*:\\s*${expectedOtherCount}\\b`, "u"),
+    );
+    step = "surface-clock-helper";
+    if (utilityNames.length)
+      assert.deepEqual(surfaceCounts?.unownedNames, utilityNames);
+    step = "surface-spawn-function";
+    assert.match(
+      answer,
+      expectedAgentCount > 0
         ? /"spawn"\s*:\s*"function"/u
         : /"spawn"\s*:\s*"undefined"/u,
     );
@@ -672,8 +767,10 @@ try {
       "images",
       "web",
       "shell",
-    ])
+    ]) {
+      step = `surface-disabled-${key}`;
       assert.match(answer, new RegExp(`"${key}"\\s*:\\s*"undefined"`, "u"));
+    }
   }
   async function records(): Promise<DraftTransactionRecord[]> {
     const folder = join(projectFolder, "draft/journal");
@@ -849,6 +946,9 @@ try {
       projectThreadId: bindings[0]!.threadId,
       diagnostic: surfaceDiagnostic,
       toolRoute,
+      multiAgentVersion: multiAgentVersionForModel(
+        account.value.selection?.modelId,
+      ),
     });
     await writeFile(
       join(evidence, "tool-surface-probe.json"),
@@ -953,6 +1053,7 @@ try {
       step,
       detailsOmitted: true,
       errorName: error instanceof Error ? error.name : "unknown",
+      ...(surfaceCounts ? { surfaceCounts } : {}),
     }),
   );
   console.error(

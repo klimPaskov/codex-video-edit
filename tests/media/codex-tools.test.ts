@@ -113,6 +113,27 @@ function rangeInput(
   };
 }
 
+function restoreInput(
+  draft: Awaited<ReturnType<DraftTransactionStore["snapshot"]>>["draft"],
+  sourceId = draft.timeline.clips[0]!.source_id,
+) {
+  return {
+    schema_version: "1.0",
+    request_id: "codex-restore-request-001",
+    project_id: draft.project_id,
+    draft_id: draft.draft_id,
+    base_revision_id: draft.base_revision_id,
+    expected_sequence: draft.draft_sequence,
+    expected_timeline_sha256: draft.timeline_sha256,
+    pass_group_id: "codex-spoken-cut-001",
+    reason:
+      "Restore the reviewed source interval that is missing from the cut.",
+    source_id: sourceId,
+    source_start_us: 200_000,
+    source_end_us: 400_000,
+  };
+}
+
 function splitInput(
   draft: Awaited<ReturnType<DraftTransactionStore["snapshot"]>>["draft"],
 ) {
@@ -562,6 +583,153 @@ test("guarded range batch is one reversible commit and rejects unsafe order", as
   })) as { draft: { duration_us: number; draft_sequence: number } };
   assert.equal(undone.draft.duration_us, 1_000_000);
   assert.equal(undone.draft.draft_sequence, 2);
+});
+
+test("guarded restore_range uses source coordinates, exact freshness, and the shared journal", async () => {
+  const { active, source, projectsRoot, drafts, service } = await fixture();
+  const baselinePath = join(
+    projectsRoot,
+    active.project.project_id,
+    "baseline.json",
+  );
+  const [sourceBytes, baselineBytes] = await Promise.all([
+    readFile(source),
+    readFile(baselinePath),
+  ]);
+  const initial = (await drafts.snapshot(active.project.project_id)).draft;
+  const cut = (await service.invoke("cut.delete_range", {
+    ...rangeInput(initial),
+    start_us: 200_000,
+    end_us: 400_000,
+  })) as { draft: { draft_sequence: number; timeline_sha256: string } };
+  const cutDraft = (await drafts.snapshot(active.project.project_id)).draft;
+  assert.equal(cut.draft.draft_sequence, 1);
+  assert.equal(cutDraft.timeline_sha256, cut.draft.timeline_sha256);
+  const input = restoreInput(cutDraft);
+  await assert.rejects(
+    service.invoke("cut.restore_range", {
+      ...input,
+      source_start_us: 0,
+      source_end_us: 200_000,
+    }),
+    expectCode("edit_conflict"),
+  );
+  assert.equal(
+    (await drafts.snapshot(active.project.project_id)).draft.draft_sequence,
+    1,
+  );
+  const restored = (await service.invoke("cut.restore_range", input)) as {
+    transaction_id: string;
+    draft: {
+      draft_sequence: number;
+      duration_us: number;
+      clips: { source_start_us: number; source_end_us: number }[];
+    };
+  };
+  assert.equal(restored.draft.draft_sequence, 2);
+  assert.equal(restored.draft.duration_us, 1_000_000);
+  assert.deepEqual(
+    restored.draft.clips.map((clip) => [
+      clip.source_start_us,
+      clip.source_end_us,
+    ]),
+    [
+      [0, 200_000],
+      [200_000, 400_000],
+      [400_000, 1_000_000],
+    ],
+  );
+  const journal = join(
+    projectsRoot,
+    active.project.project_id,
+    "draft",
+    "journal",
+  );
+  const record = JSON.parse(
+    await readFile(
+      join(journal, "000000000002." + restored.transaction_id + ".json"),
+      "utf8",
+    ),
+  ) as { origin: string; operations: { operation_type: string }[] };
+  assert.equal(record.origin, "codex");
+  assert.equal(record.operations[0]?.operation_type, "restore");
+  await assert.rejects(
+    service.invoke("cut.restore_range", {
+      ...input,
+      request_id: "codex-restore-stale-001",
+    }),
+    expectCode("stale_draft"),
+  );
+  assert.deepEqual(
+    await Promise.all([readFile(source), readFile(baselinePath)]),
+    [sourceBytes, baselineBytes],
+  );
+});
+
+test("API-provider restore uses the same active draft journal and Undo", async () => {
+  const { active, source, projectsRoot, drafts, service } = await fixture();
+  const baselinePath = join(
+    projectsRoot,
+    active.project.project_id,
+    "baseline.json",
+  );
+  const [baselineBytes, sourceBytes] = await Promise.all([
+    readFile(baselinePath),
+    readFile(source),
+  ]);
+  const initial = (await drafts.snapshot(active.project.project_id)).draft;
+  await service.invoke("cut.delete_range", {
+    ...rangeInput(initial),
+    start_us: 200_000,
+    end_us: 400_000,
+  });
+  const missing = (await drafts.snapshot(active.project.project_id)).draft;
+  const api = new CodexVideoEditToolService(
+    active.project.project_id,
+    drafts,
+    "api_provider",
+  );
+  const input = {
+    ...restoreInput(missing),
+    request_id: "api-restore-request-001",
+  };
+  const restored = (await api.invoke("cut.restore_range", input)) as {
+    transaction_id: string;
+    draft: { draft_sequence: number; duration_us: number };
+  };
+  assert.equal(restored.draft.draft_sequence, 2);
+  assert.equal(restored.draft.duration_us, 1_000_000);
+  const head = (await drafts.snapshot(active.project.project_id)).draft;
+  const undone = (await api.invoke("timeline.undo", {
+    schema_version: "1.0",
+    request_id: "api-restore-undo-001",
+    project_id: head.project_id,
+    draft_id: head.draft_id,
+    base_revision_id: head.base_revision_id,
+    expected_sequence: head.draft_sequence,
+    expected_timeline_sha256: head.timeline_sha256,
+    target_transaction_id: restored.transaction_id,
+    reason: "Undo the provider restore through the shared journal.",
+  })) as { draft: { draft_sequence: number; duration_us: number } };
+  assert.equal(undone.draft.draft_sequence, 3);
+  assert.equal(undone.draft.duration_us, 800_000);
+  const journal = join(
+    projectsRoot,
+    active.project.project_id,
+    "draft",
+    "journal",
+  );
+  const records = (await readdir(journal)).sort();
+  assert.equal(records.length, 3);
+  const restoreRecord = JSON.parse(
+    await readFile(join(journal, records[1]!), "utf8"),
+  ) as { origin: string; operations: { operation_type: string }[] };
+  assert.equal(restoreRecord.origin, "api_provider");
+  assert.equal(restoreRecord.operations[0]?.operation_type, "restore");
+  assert.deepEqual(
+    await Promise.all([readFile(baselinePath), readFile(source)]),
+    [baselineBytes, sourceBytes],
+  );
 });
 
 test("an undo committed before an uncertain response is idempotent on retry", async () => {

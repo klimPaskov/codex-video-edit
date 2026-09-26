@@ -240,7 +240,7 @@ try {
   const requireLunaHigh = process.argv.includes("--require-luna-high");
   const model = requireLunaHigh
     ? account.value.models.find(
-        (item) => item.id === "gpt-5.6-luna" && item.reasoning.includes("high"),
+        (item) => item.id === "gpt-6-luna" && item.reasoning.includes("high"),
       )
     : (account.value.models.find(
         (item) => item.id === account.value.selection?.modelId,

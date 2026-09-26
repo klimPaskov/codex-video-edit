@@ -69,6 +69,7 @@ class WorkflowContractsTests(unittest.TestCase):
                         "cut.delete_range",
                         "cut.delete_ranges",
                         "timeline.undo",
+                        "cut.restore_range",
                     ],
                 )
                 self.assertNotIn("export.prepare", by_name)

@@ -192,4 +192,33 @@ export const codexVideoEditMcpTools = [
       openWorldHint: false,
     },
   },
+  {
+    name: codexVideoEditToolNames[7],
+    description:
+      "Restore one half-open source-time range that is missing from the active draft. It must fit one original source clip, must not overlap visible material, and is placed in original source order as one undoable transaction.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        ...Object.keys(freshness),
+        "pass_group_id",
+        "source_id",
+        "source_start_us",
+        "source_end_us",
+      ],
+      properties: {
+        ...freshness,
+        pass_group_id: id,
+        source_id: id,
+        source_start_us: { type: "integer", minimum: 0 },
+        source_end_us: { type: "integer", minimum: 1 },
+      },
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
 ] as const;

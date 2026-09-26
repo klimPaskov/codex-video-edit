@@ -298,6 +298,8 @@ try {
     .toBe(true);
   const catalog = await page.evaluate(() => window.desktop.getCodex());
   assert.ok(catalog.ok);
+  // This fixture covers V1 child support; GPT-6-Luna currently selects the V2
+  // protocol, which remains disabled until the app validates that route.
   const model = catalog.value.models.find((item) => item.id === "gpt-5.6-luna");
   assert.ok(
     model,

@@ -276,7 +276,7 @@ try {
   const requireLunaHigh = process.argv.includes("--require-luna-high");
   const model = requireLunaHigh
     ? catalog.value.models.find(
-        (item) => item.id === "gpt-5.6-luna" && item.reasoning.includes("high"),
+        (item) => item.id === "gpt-6-luna" && item.reasoning.includes("high"),
       )
     : (catalog.value.models.find(
         (item) => item.id === catalog.value.selection?.modelId,

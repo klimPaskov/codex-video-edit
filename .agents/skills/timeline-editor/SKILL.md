@@ -71,6 +71,18 @@ shared durable journal. Refresh preview and tool targeting from the committed ma
 newest Undo must restore the previous map after reopen. Do not call this a general
 transcript cut, synchronized A/V render, or model-visible Codex tool.
 
+For guarded `cut.restore_range`, accept exactly one confirmed missing half-open
+source-time interval per transaction, identified by `source_id`, `source_start_us` and
+`source_end_us`. Resolve it against exactly one immutable baseline source clip; reject
+unknown or ambiguous sources, out-of-bounds/reversed intervals, visible overlap, and
+mixed-operation requests before any journal write. Insert the clip using baseline source
+order and source-time position, then reflow output positions. Persist the complete
+before/after clip maps and their hash-bound inverse in the same manual/Codex/API/Magic
+Wand transaction store. Reopen must replay deterministically; newest Undo and Redo must
+restore the adjacent maps without touching source files or the baseline. Test later
+trim before restore, restoring a fully removed earlier source ahead of a later source,
+overlap/ambiguity rejection, stale freshness, reopen, undo/redo and immutable inputs.
+
 ## Validation
 
 Test zero and final boundaries, overlapping operations, ripple mapping, speed mapping, zoom blocks, transcript restore, batch undo, stacked undo/redo replay, clearing redo after new work, crash recovery, stale dependencies, and revision compare. The first bounded reducer must also test immutable source/baseline bytes, reopen replay, postcommit-unknown recovery, strict input rejection, stale-head concurrency, and checkpoint invalidation. For split, test exact interior/boundary behavior, fragment IDs/order/limits, seek equivalence on both sides, trim-after-split, undo and replay. Use Playwright Electron for pointer and keyboard flows once the transaction path changes native UI behavior.

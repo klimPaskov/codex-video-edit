@@ -184,7 +184,7 @@
     {
       "name": "cut.restore_range",
       "mode": "mutation",
-      "description": "Restore source material where unambiguous.",
+      "description": "Restore one confirmed missing source-time range when exactly one baseline source clip matches, with overlap and range checks plus shared undo.",
       "undoable": true,
       "user_confirmation": "none",
       "allowed_scope": "active_draft",

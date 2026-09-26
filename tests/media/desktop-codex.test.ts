@@ -284,7 +284,7 @@ test("a new ChatGPT account defaults to runtime-listed Luna with high reasoning"
     model,
     {
       ...model,
-      id: "gpt-5.6-luna",
+      id: "gpt-6-luna",
       model: "runtime-luna-request-name",
       displayName: "Luna",
       reasoning: ["medium", "high"],
@@ -303,7 +303,7 @@ test("a new ChatGPT account defaults to runtime-listed Luna with high reasoning"
   try {
     const view = await controller.get();
     assert.deepEqual(view.selection, {
-      modelId: "gpt-5.6-luna",
+      modelId: "gpt-6-luna",
       reasoning: "high",
     });
     assert.equal(writes, 0);
@@ -326,7 +326,10 @@ test("an unavailable Luna/high default fails closed without replacing the live c
       [model.id],
     );
     assert.equal(view.selection, null);
-    assert.match(view.message ?? "", /Luna with high reasoning is unavailable/);
+    assert.match(
+      view.message ?? "",
+      /GPT-6-Luna with high reasoning is unavailable/,
+    );
     await assert.rejects(controller.openThread("project-1"));
     assert.equal(fake.openThreadCalls.length, 0);
   } finally {
@@ -341,7 +344,7 @@ test("a saved explicit Codex choice takes precedence over the Luna default", asy
     model,
     {
       ...model,
-      id: "gpt-5.6-luna",
+      id: "gpt-6-luna",
       model: "runtime-luna-request-name",
       reasoning: ["medium", "high"],
     },
@@ -487,8 +490,9 @@ test("failed metadata clears stale catalogs and successful refresh clears only t
       controller,
       (view) =>
         view.models.length === 1 &&
-        view.message?.startsWith("Luna with high reasoning is unavailable") ===
-          true,
+        view.message?.startsWith(
+          "GPT-6-Luna with high reasoning is unavailable",
+        ) === true,
     );
     assert.equal(recovered.account, "signed_in");
   } finally {
@@ -656,7 +660,7 @@ test("project conversation uses runtime model identity and exposes only compact 
         model: "runtime-model",
         effort: "medium",
         developerInstructions:
-          'You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user\'s requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. For cut.delete_ranges, provide 2–16 confirmed disjoint half-open ranges in descending start-time order. The app commits them as one undoable transaction, but does not verify speech meaning or the rendered joins. Never infer filler from timing alone. Describe an edit as applied only after its tool result confirms the commit. MCP-bound project threads do not support native children. Do not claim a child ran unless a completed server-owned spawn and child-owned summary reads are verified. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.\nRead-tool input for this main-owned active project: {"schema_version":"1.0","project_id":"project-1"}. Use this exact project_id; do not guess identifiers or ask the user to provide it. Obtain draft identifiers, sequence and hash from the read tools before editing.',
+          'You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user\'s requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. For cut.delete_ranges, provide 2–16 confirmed disjoint half-open ranges in descending start-time order. The app commits them as one undoable transaction, but does not verify speech meaning or the rendered joins. For cut.restore_range, restore only a confirmed missing source-time interval using its source_id and exact half-open source times; the main service rejects visible overlap and ambiguous source ordering. Never infer filler from timing alone. Describe an edit as applied only after its tool result confirms the commit. MCP-bound project threads do not support native children. Do not claim a child ran unless a completed server-owned spawn and child-owned summary reads are verified. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.\nRead-tool input for this main-owned active project: {"schema_version":"1.0","project_id":"project-1"}. Use this exact project_id; do not guess identifiers or ask the user to provide it. Obtain draft identifiers, sequence and hash from the read tools before editing.',
       },
     ]);
     const running = await controller.sendThread(

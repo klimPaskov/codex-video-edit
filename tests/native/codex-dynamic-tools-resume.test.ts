@@ -27,7 +27,7 @@ const key = await lstat(join(root, "account", "auth.json"));
 assert.ok(key.isFile() && !(key.mode & 0o077));
 const policy = {
   cwd: join(root, "context"),
-  model: "gpt-5.6-luna",
+  model: "gpt-6-luna",
   effort: "high",
   baseInstructions:
     "Use only the host-defined codex_video_edit.editor_probe tool. Do not access files, shell, network, apps or external tools.",

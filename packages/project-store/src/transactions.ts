@@ -485,6 +485,94 @@ function prepareApply(
       operationId = authority.operation_ids[index]!;
     if (!validId(operationId) || timeline.operation_ids.includes(operationId))
       fail("conflict");
+    if (intent.type === "restore_range") {
+      if (request.operations.length !== 1) fail("invalid");
+      const sourceClips = baseline.timeline.clips.filter(
+        (candidate) => candidate.source_id === intent.source_id,
+      );
+      if (sourceClips.length !== 1) fail("conflict");
+      const source = sourceClips[0]!;
+      if (
+        intent.source_start_us < source.source_start_us ||
+        intent.source_end_us > source.source_end_us
+      )
+        fail("invalid");
+      if (
+        timeline.clips.some(
+          (candidate) =>
+            candidate.source_id === intent.source_id &&
+            intent.source_start_us < candidate.source_end_us &&
+            candidate.source_start_us < intent.source_end_us,
+        )
+      )
+        fail("conflict");
+      if (timeline.clips.length >= 4096) fail("conflict");
+      const clipId = `clip-${canonicalSha256({
+        operation_id: operationId,
+        source_id: intent.source_id,
+        source_start_us: intent.source_start_us,
+        source_end_us: intent.source_end_us,
+      }).slice(0, 32)}`;
+      if (timeline.clips.some((candidate) => candidate.clip_id === clipId))
+        fail("conflict");
+      const sourceOrder = new Map(
+        baseline.timeline.clips.map((candidate, sourceIndex) => [
+          candidate.source_id,
+          sourceIndex,
+        ]),
+      );
+      const targetSourceOrder = sourceOrder.get(intent.source_id);
+      if (targetSourceOrder === undefined) fail("invalid");
+      const insertAt = timeline.clips.findIndex((candidate) => {
+        const candidateOrder = sourceOrder.get(candidate.source_id);
+        if (candidateOrder === undefined) fail("invalid");
+        return (
+          candidateOrder > targetSourceOrder ||
+          (candidateOrder === targetSourceOrder &&
+            candidate.source_start_us > intent.source_start_us)
+        );
+      });
+      const priorClips = structuredClone(timeline.clips);
+      timeline.clips.splice(
+        insertAt < 0 ? timeline.clips.length : insertAt,
+        0,
+        {
+          clip_id: clipId,
+          track_id: source.track_id,
+          source_id: source.source_id,
+          source_start_us: intent.source_start_us,
+          source_end_us: intent.source_end_us,
+          timeline_start_us: 0,
+          timeline_end_us: intent.source_end_us - intent.source_start_us,
+          enabled: true,
+        },
+      );
+      let position = 0;
+      for (const candidate of timeline.clips) {
+        candidate.timeline_start_us = position;
+        position += candidate.source_end_us - candidate.source_start_us;
+        candidate.timeline_end_us = position;
+      }
+      if (!Number.isSafeInteger(position) || position < 1) fail("conflict");
+      timeline.duration_us = position;
+      records.push({
+        schema_version: "1.0",
+        operation_id: operationId,
+        operation_type: "restore",
+        source_id: intent.source_id,
+        source_start_us: intent.source_start_us,
+        source_end_us: intent.source_end_us,
+        before: priorClips,
+        after: structuredClone(timeline.clips),
+        inverse: {
+          type: "restore_timeline_clips",
+          clips: priorClips,
+          expected_after_sha256: canonicalSha256(timeline.clips),
+        },
+      });
+      timeline.operation_ids.push(operationId);
+      continue;
+    }
     if (intent.type === "ripple_delete") {
       if (
         intent.end_us > timeline.duration_us ||
@@ -911,12 +999,19 @@ export class DraftTransactionStore {
                     start_us: operation.start_us,
                     end_us: operation.end_us,
                   }
-                : {
-                    type: "trim" as const,
-                    clip_id: operation.clip_id,
-                    edge: operation.edge,
-                    timeline_position_us: operation.timeline_position_us,
-                  },
+                : operation.operation_type === "restore"
+                  ? {
+                      type: "restore_range" as const,
+                      source_id: operation.source_id,
+                      source_start_us: operation.source_start_us,
+                      source_end_us: operation.source_end_us,
+                    }
+                  : {
+                      type: "trim" as const,
+                      clip_id: operation.clip_id,
+                      edge: operation.edge,
+                      timeline_position_us: operation.timeline_position_us,
+                    },
           ),
         };
         assertApplyDraftTransactionRequest(request);

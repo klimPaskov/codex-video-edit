@@ -116,6 +116,28 @@ function rippleDelete(
   };
 }
 
+function restoreRange(
+  draft: DraftState,
+  sourceId: string,
+  sourceStartUs: number,
+  sourceEndUs: number,
+  requestId = "request-restore-001",
+): ApplyDraftTransactionRequest {
+  return {
+    ...trim(draft),
+    request_id: requestId,
+    reason: "Restore the confirmed missing source interval.",
+    operations: [
+      {
+        type: "restore_range",
+        source_id: sourceId,
+        source_start_us: sourceStartUs,
+        source_end_us: sourceEndUs,
+      },
+    ],
+  };
+}
+
 async function twoSourceFixture() {
   const base = resolve("test-results/draft-transactions");
   await mkdir(base, { recursive: true });
@@ -987,6 +1009,164 @@ test("interior ripple delete retains the left ID and derives the right ID, then 
       )
     ).draft,
     removedLeft.draft,
+  );
+});
+
+test("restore range inserts missing source time after later edits and is undoable across reopen", async () => {
+  const { projects, projectStore, baseline, source } = await fixture();
+  const protectedBefore = await Promise.all([
+    readFile(source),
+    readFile(join(projects, baseline.project.project_id, "baseline.json")),
+    readFile(join(projects, baseline.project.project_id, "project.json")),
+  ]);
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const cut = await store.applyManual(rippleDelete(initial, 200_000, 400_000));
+  const trimRequest = trim(cut.draft, {
+    request_id: "request-trim-after-cut-001",
+    operations: [
+      {
+        type: "trim",
+        clip_id: cut.draft.timeline.clips[0]!.clip_id,
+        edge: "start",
+        timeline_position_us: 100_000,
+      },
+    ],
+  });
+  const trimmed = await store.applyCodex(trimRequest);
+  const invalidBounds = restoreRange(
+    trimmed.draft,
+    initial.timeline.clips[0]!.source_id,
+    1_000_000,
+    1_100_000,
+    "request-restore-outside-source-001",
+  );
+  await assert.rejects(store.applyCodex(invalidBounds), code("invalid"));
+  const mixed = restoreRange(
+    trimmed.draft,
+    initial.timeline.clips[0]!.source_id,
+    200_000,
+    400_000,
+    "request-restore-mixed-001",
+  );
+  mixed.operations.push({
+    type: "split",
+    clip_id: "clip-mixed-restore-001",
+    timeline_position_us: 100_000,
+  });
+  assert.throws(() => store.applyCodex(mixed), code("invalid"));
+  assert.equal(
+    (await store.snapshot(baseline.project.project_id)).draft.draft_sequence,
+    trimmed.draft.draft_sequence,
+  );
+  const restored = await store.applyMagicWand(
+    restoreRange(
+      trimmed.draft,
+      initial.timeline.clips[0]!.source_id,
+      200_000,
+      400_000,
+    ),
+  );
+  assert.equal(restored.draft.timeline.duration_us, 900_000);
+  assert.deepEqual(
+    restored.draft.timeline.clips.map((clip) => [
+      clip.source_start_us,
+      clip.source_end_us,
+      clip.timeline_start_us,
+      clip.timeline_end_us,
+    ]),
+    [
+      [100_000, 200_000, 0, 100_000],
+      [200_000, 400_000, 100_000, 300_000],
+      [400_000, 1_000_000, 300_000, 900_000],
+    ],
+  );
+  const operation = restored.transaction.operations[0]!;
+  assert.equal(operation.operation_type, "restore");
+  if (operation.operation_type !== "restore")
+    throw new Error("Expected a source-range restore");
+  assert.equal(operation.source_start_us, 200_000);
+  assert.equal(operation.source_end_us, 400_000);
+  assert.deepEqual(operation.before, trimmed.draft.timeline.clips);
+  assert.deepEqual(operation.after, restored.draft.timeline.clips);
+
+  const reopened = new DraftTransactionStore(projects, projectStore);
+  assert.deepEqual(
+    (await reopened.snapshot(baseline.project.project_id)).draft,
+    restored.draft,
+  );
+  const undone = await reopened.undoManual(
+    undo(restored.draft, restored.transaction.transaction_id),
+  );
+  assert.deepEqual(undone.draft.timeline.clips, trimmed.draft.timeline.clips);
+  const redone = await reopened.redoManual(
+    redo(
+      undone.draft,
+      undone.transaction.transaction_id,
+      "request-restore-redo-001",
+    ),
+  );
+  assert.deepEqual(redone.draft.timeline.clips, restored.draft.timeline.clips);
+  assert.deepEqual(
+    await Promise.all([
+      readFile(source),
+      readFile(join(projects, baseline.project.project_id, "baseline.json")),
+      readFile(join(projects, baseline.project.project_id, "project.json")),
+    ]),
+    protectedBefore,
+  );
+});
+
+test("restore range preserves baseline source order and rejects overlap or ambiguity", async () => {
+  const { projects, projectStore, baseline, ids } = await twoSourceFixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const withoutFirstSource = await store.applyManual(
+    rippleDelete(initial, 0, 1_000_000),
+  );
+  const restored = await store.applyManual(
+    restoreRange(withoutFirstSource.draft, ids[0]!, 0, 1_000_000),
+  );
+  assert.deepEqual(
+    restored.draft.timeline.clips.map((clip) => clip.source_id),
+    [ids[0], ids[1]],
+  );
+  const beforeInvalidCalls = restored.draft.draft_sequence;
+  await assert.rejects(
+    store.applyManual(
+      restoreRange(
+        restored.draft,
+        ids[0]!,
+        100_000,
+        200_000,
+        "restore-overlap-001",
+      ),
+    ),
+    code("conflict"),
+  );
+  await assert.rejects(
+    store.applyManual(
+      restoreRange(
+        restored.draft,
+        "missing-source",
+        100_000,
+        200_000,
+        "restore-unknown-001",
+      ),
+    ),
+    code("conflict"),
+  );
+  assert.equal(
+    (await store.snapshot(baseline.project.project_id)).draft.draft_sequence,
+    beforeInvalidCalls,
   );
 });
 

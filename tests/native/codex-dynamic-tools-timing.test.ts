@@ -49,7 +49,7 @@ assert.ok(
 
 const policy = {
   cwd,
-  model: "gpt-5.6-luna",
+  model: "gpt-6-luna",
   effort: "high",
   baseInstructions:
     "You are in a local video editor. Use only the application-owned codex_video_edit tools. Do not use files, shell, network, apps, or other tools.",
