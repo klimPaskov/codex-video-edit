@@ -96,4 +96,4 @@ The route-aware start/resume feature policy passed focused tests and a packaged 
 
 ## Latest partial P2-01 recovery evidence, 2026-09-26
 
-The packaged signed-in Luna/high native regression stopped only the pinned App Server child owned by the current Electron main, reconnected through Settings, and restored the same dynamic project thread and history with unchanged journal, source and baseline. All turns were settled at process loss; in-flight mutation recovery, this run's visual inspection, and all remaining P2 gates remain open. No task checkbox or phase result is recorded.
+The packaged signed-in Luna/high native regression stopped only the pinned App Server child owned by the current Electron main, both while idle and after a guarded end-trim committed during a running turn. Settings Reconnect restored the same dynamic thread; only one trim remained in the journal, and shared manual Undo returned the baseline. Loss during transaction persistence and visual inspection of this run remain unverified. P2-01 is now checked complete; no P2 phase result is written and P2-02 through P2-10 remain open.
