@@ -146,6 +146,47 @@ try {
       path: join(evidence, `settings-${launchNumber}.png`),
       fullPage: true,
     });
+    if (launchNumber === 1) {
+      step = "runtime-skill-refresh";
+      const userData = await electron.evaluate(({ app }) =>
+        app.getPath("userData"),
+      );
+      const changedSkill = join(
+        userData,
+        "codex/context/.agents/skills/runtime-refresh-fixture/SKILL.md",
+      );
+      await mkdir(dirname(changedSkill), { recursive: true, mode: 0o700 });
+      await writeFile(
+        changedSkill,
+        "---\nname: runtime-refresh-fixture\ndescription: Synthetic skill added while Codex is connected.\n---\nRead-only test fixture.\n",
+        { mode: 0o600 },
+      );
+      await expect
+        .poll(
+          async () => {
+            const current = await page.evaluate(() =>
+              window.desktop.getCodex(),
+            );
+            return (
+              current.ok &&
+              current.value.skills.some(
+                (skill) => skill.name === "runtime-refresh-fixture",
+              )
+            );
+          },
+          { timeout: 45000, intervals: [250, 500, 1000] },
+        )
+        .toBe(true);
+      await expect(
+        page
+          .locator("#codex-skills li")
+          .filter({ hasText: "runtime-refresh-fixture" }),
+      ).toBeVisible();
+    } else {
+      assert.ok(
+        state.skills.some((skill) => skill.name === "runtime-refresh-fixture"),
+      );
+    }
     if (launchNumber === 2 && process.argv.includes("--inspect")) {
       console.log(JSON.stringify({ inspectionReady: true, evidence }));
       const deadline = Date.now() + 600000;
@@ -291,6 +332,7 @@ try {
       signedInRuntime: true,
       planAndUsageMatchedRuntime: true,
       skillsMatchedRuntime: true,
+      skillChangeRefreshedWhileSettingsOpen: true,
       reopenPassed: true,
       explicitLogoutPassed: true,
       logoutPersistedAfterPackagedReopen: true,

@@ -382,6 +382,61 @@ test("a saved explicit Codex choice takes precedence over the Luna default", asy
   }
 });
 
+test("Settings reads refresh changed runtime metadata on a bounded interval", async () => {
+  const fake = new FakeClient();
+  fake.auth = signedIn();
+  let now = 1000;
+  let skillDescription = "Before refresh";
+  let skillReads = 0;
+  fake.onSkills = async () => {
+    skillReads++;
+    return [
+      { name: "Runtime skill", description: skillDescription, enabled: true },
+    ];
+  };
+  const { controller } = harness(fake, {
+    now: () => now,
+    metadataRefreshIntervalMs: 1000,
+  });
+  try {
+    const initial = await controller.get();
+    assert.equal(initial.skills[0]?.description, "Before refresh");
+    const readsAfterConnect = skillReads;
+
+    skillDescription = "Visible on the next bounded Settings refresh";
+    now += 999;
+    assert.equal(
+      (await controller.get()).skills[0]?.description,
+      "Before refresh",
+    );
+    assert.equal(skillReads, readsAfterConnect);
+
+    now++;
+    const refreshed = await controller.get();
+    assert.equal(
+      refreshed.skills[0]?.description,
+      "Visible on the next bounded Settings refresh",
+    );
+    assert.equal(skillReads, readsAfterConnect + 1);
+
+    skillDescription = "Visible immediately after skills changed";
+    fake.options.onSkillsChanged?.();
+    const notified = await eventually(
+      controller,
+      (view) =>
+        view.skills[0]?.description ===
+        "Visible immediately after skills changed",
+    );
+    assert.equal(
+      notified.skills[0]?.description,
+      "Visible immediately after skills changed",
+    );
+    assert.equal(skillReads, readsAfterConnect + 2);
+  } finally {
+    await controller.close();
+  }
+});
+
 test("unchanged account publications settle without a refresh feedback loop", async () => {
   const fake = new FakeClient(),
     { controller } = harness(fake);

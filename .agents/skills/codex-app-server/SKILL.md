@@ -18,6 +18,7 @@ Changing AI login, model selection, skills, threads, streaming, interruption, ap
 - Retain exact generation hashes and licensing; normalize imports/formatting reproducibly without changing type shapes. Check nullable/omitted wire fields against the pinned JSON schema rather than assuming TypeScript requiredness is a wire invariant.
 - ChatGPT-managed Codex login in the first release, distinct from optional API-provider keys and billing.
 - Runtime `model/list` and `skills/list` discovery.
+- Codex Settings polls main-owned model, skill, and usage metadata on a bounded cadence while open. Supported account/rate-limit/skill-change notifications trigger immediate refresh. Keep periodic refresh non-generative; it must not start model turns.
 - Verify account/logout state in packaged Electron: compare visible plan, model, skills, and usage to the live runtime; invoke Logout explicitly; require signed-out state with no model/usage catalog and confirm it persists after app reopen. This does not prove browser OAuth completion.
 - Durable project thread and turn streaming.
 - Safe restart, resume, interrupt, and rate-limit handling.

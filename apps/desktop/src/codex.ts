@@ -58,6 +58,8 @@ export interface DesktopCodexDependencies {
   createClient: (options: CodexClientOptions) => Client;
   resolveRuntime: typeof resolveCodexRuntime;
   directory: (path: string) => Promise<void>;
+  now?: () => number;
+  metadataRefreshIntervalMs?: number;
   settings: Pick<CodexSettingsStore, "read" | "write">;
   mcpRuntime?: CodexMcpRuntime;
   dynamicToolInvoker?: (
@@ -79,6 +81,7 @@ const initial = (): CodexView => ({
   limits: [],
   selection: null,
 });
+const SETTINGS_METADATA_REFRESH_INTERVAL_MS = 15_000;
 const initialThread = (): CodexThreadView => ({
   status: "closed",
   projectId: null,
@@ -137,6 +140,9 @@ export class DesktopCodex {
   private generation = 0;
   private refreshing: Promise<void> | undefined;
   private refreshAgain = false;
+  private metadataRefreshedAt = 0;
+  private readonly now: () => number;
+  private readonly metadataRefreshIntervalMs: number;
   private stopped = false;
   private startupFinished: Promise<void> | undefined;
   private actionFinished: Promise<void> | undefined;
@@ -183,6 +189,16 @@ export class DesktopCodex {
       ...dependencies,
     };
     this.settings = this.dependencies.settings;
+    this.now = this.dependencies.now ?? Date.now;
+    this.metadataRefreshIntervalMs =
+      this.dependencies.metadataRefreshIntervalMs ??
+      SETTINGS_METADATA_REFRESH_INTERVAL_MS;
+    if (
+      !Number.isSafeInteger(this.metadataRefreshIntervalMs) ||
+      this.metadataRefreshIntervalMs < 1_000 ||
+      this.metadataRefreshIntervalMs > 60_000
+    )
+      throw new Error("Invalid Codex metadata refresh interval.");
   }
   private current(generation: number, client?: Client): boolean {
     return (
@@ -365,6 +381,15 @@ export class DesktopCodex {
   }
   async get(): Promise<CodexView> {
     if (!this.attempted && !this.stopped) return this.reconnect();
+    // Settings polls this snapshot; revalidate live metadata on a bounded cadence
+    // in case a runtime skill change did not emit a notification.
+    if (
+      !this.stopped &&
+      !this.state.busy &&
+      this.state.connection === "connected" &&
+      this.now() - this.metadataRefreshedAt >= this.metadataRefreshIntervalMs
+    )
+      await this.refresh();
     return this.snapshot();
   }
   private async directory(path: string): Promise<void> {
@@ -513,6 +538,7 @@ export class DesktopCodex {
         this.state.connection === "connected"
       );
     })().finally(() => {
+      this.metadataRefreshedAt = this.now();
       this.refreshing = undefined;
     });
     return this.refreshing;

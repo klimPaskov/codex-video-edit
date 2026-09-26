@@ -34,6 +34,8 @@ For the optional device-code route, separately test start, transient Settings co
 
 For sign-out acceptance, run only with a copied mode-600 credential in the isolated guest. Compare Settings account/model/usage/skill labels to bounded live IPC, click the actual Logout control, require the connected signed-out view to hide model and usage data, close Electron, then reopen the same private profile and confirm it remains signed out. Do not copy host auth directories or expose account identifiers.
 
+For live skill refresh, open packaged Codex Settings in a signed-in guest profile, add one synthetic local skill under that app's owned Codex context, and require the bounded main-process refresh to expose the skill in both the safe IPC projection and visible list without restarting Electron. App Server `skills/changed` refresh remains immediate when supported; periodic Settings polling covers runtimes that do not emit that notification for local file changes. Keep the synthetic file and screenshots in ignored guest evidence.
+
 ## Prohibitions
 
 - Do not build or launch the product on the user's host, control the host PC, or capture host windows. The latest user instruction supersedes the earlier viewer exception. Historical viewer evidence remains historical; future host-viewer use requires a new explicit user request.

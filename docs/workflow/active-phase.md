@@ -101,3 +101,7 @@ The packaged signed-in Luna/high native regression stopped only the pinned App S
 ## Latest partial P2-02 logout evidence, 2026-09-26
 
 The signed-in packaged Settings test matched account/model/usage/skills to the live runtime, clicked Logout, verified hidden models/usage in signed-out Settings, and reopened the profile signed out. It used no model turn; browser OAuth completion remains unverified, so P2-02 and the phase stay open.
+
+## Latest P2-03 model and skill catalog acceptance, 2026-09-26
+
+The fresh-profile packaged Luna-default test confirmed live `gpt-6-luna`/high selection across two launches. Main now refreshes Settings metadata on a bounded cadence and immediately on supported events; a packaged authenticated Settings run displayed a synthetic skill added while the runtime remained connected. A direct runtime probe force-reloaded the changed skill, though it did not observe a `skills/changed` notification. P2-03 is checked complete; P2-02 and P2-04 through P2-10 remain open.
