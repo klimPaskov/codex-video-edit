@@ -12,6 +12,7 @@ import type {
 import type { Preferences } from "../../../packages/domain/src/preferences.ts";
 import type {
   ProjectDraftView,
+  ProjectDraftIntegrityView,
   ProjectFrameRequest,
   ProjectFrameResult,
   ProjectView,
@@ -21,6 +22,7 @@ import type {
   ManualTrimRequest,
   ManualSplitRequest,
   ManualRangeCutRequest,
+  ManualRestoreRangeRequest,
   ManualUndoRequest,
   ManualRedoRequest,
 } from "../../../packages/domain/src/project-view.ts";
@@ -88,6 +90,9 @@ export interface DesktopBridge {
   openProject(request: ProjectRequest): Promise<Reply<ProjectView>>;
   closeProject(request: ProjectRequest): Promise<Reply<null>>;
   navigateProject(request: ProjectNavigation): Promise<Reply<ProjectView>>;
+  verifyDraftIntegrity(
+    request: ProjectRequest,
+  ): Promise<Reply<ProjectDraftIntegrityView>>;
   readProjectFrame(
     request: ProjectFrameRequest,
   ): Promise<Reply<ProjectFrameResult>>;
@@ -97,6 +102,9 @@ export interface DesktopBridge {
   ): Promise<Reply<ProjectDraftView>>;
   applyManualRangeCut(
     request: ManualRangeCutRequest,
+  ): Promise<Reply<ProjectDraftView>>;
+  applyManualRestoreRange(
+    request: ManualRestoreRangeRequest,
   ): Promise<Reply<ProjectDraftView>>;
   undoManualEdit(request: ManualUndoRequest): Promise<Reply<ProjectDraftView>>;
   redoManualEdit(request: ManualRedoRequest): Promise<Reply<ProjectDraftView>>;
@@ -137,10 +145,12 @@ export const channels = Object.freeze({
   projectOpen: "projects:open",
   projectClose: "projects:close",
   projectNavigate: "projects:navigate",
+  projectIntegrityCheck: "projects:verify-draft-integrity",
   projectFrame: "projects:frame",
   projectManualTrim: "projects:manual-trim",
   projectManualSplit: "projects:manual-split",
   projectManualRangeCut: "projects:manual-range-cut",
+  projectManualRestoreRange: "projects:manual-restore-range",
   projectManualUndo: "projects:manual-undo",
   projectManualRedo: "projects:manual-redo",
   projectDraftChanged: "projects:draft-changed",

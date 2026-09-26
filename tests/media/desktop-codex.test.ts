@@ -51,6 +51,7 @@ const model: ModelSummary = {
   displayName: "Runtime model",
   description: "Runtime description",
   isDefault: true,
+  multiAgentVersion: "v1",
   reasoning: ["medium"],
   defaultReasoning: "medium",
 };
@@ -284,14 +285,27 @@ test("a new ChatGPT account defaults to runtime-listed Luna with high reasoning"
     model,
     {
       ...model,
-      id: "gpt-5.6-luna",
+      id: "gpt-6-luna",
+      multiAgentVersion: "v2",
       model: "runtime-luna-request-name",
       displayName: "Luna",
       reasoning: ["medium", "high"],
     },
   ];
   let writes = 0;
+  const clients: FakeClient[] = [];
   const { controller } = harness(fake, {
+    toolRouteForProject: async () => "dynamic",
+    createClient: (options) => {
+      const client = clients.length === 0 ? fake : new FakeClient();
+      if (client !== fake) {
+        client.auth = signedIn();
+        client.modelValues = structuredClone(fake.modelValues);
+      }
+      client.options = options;
+      clients.push(client);
+      return client;
+    },
     settings: {
       read: async () => null,
       write: async (value) => {
@@ -303,13 +317,17 @@ test("a new ChatGPT account defaults to runtime-listed Luna with high reasoning"
   try {
     const view = await controller.get();
     assert.deepEqual(view.selection, {
-      modelId: "gpt-5.6-luna",
+      modelId: "gpt-6-luna",
       reasoning: "high",
     });
     assert.equal(writes, 0);
     await controller.openThread("project-1");
-    assert.equal(fake.openThreadCalls[0]?.model, "runtime-luna-request-name");
-    assert.equal(fake.openThreadCalls[0]?.effort, "high");
+    const opened = clients.at(-1)?.openThreadCalls[0];
+    assert.equal(opened?.model, "runtime-luna-request-name");
+    assert.equal(opened?.effort, "high");
+    assert.equal(opened?.nativeSubagentProtocol, "v2");
+    assert.equal(opened?.nativeSubagentModel, "runtime-luna-request-name");
+    assert.equal(opened?.nativeSubagentReasoning, "high");
   } finally {
     await controller.close();
   }
@@ -326,7 +344,10 @@ test("an unavailable Luna/high default fails closed without replacing the live c
       [model.id],
     );
     assert.equal(view.selection, null);
-    assert.match(view.message ?? "", /Luna with high reasoning is unavailable/);
+    assert.match(
+      view.message ?? "",
+      /GPT-6-Luna with high reasoning is unavailable/,
+    );
     await assert.rejects(controller.openThread("project-1"));
     assert.equal(fake.openThreadCalls.length, 0);
   } finally {
@@ -341,7 +362,8 @@ test("a saved explicit Codex choice takes precedence over the Luna default", asy
     model,
     {
       ...model,
-      id: "gpt-5.6-luna",
+      id: "gpt-6-luna",
+      multiAgentVersion: "v2",
       model: "runtime-luna-request-name",
       reasoning: ["medium", "high"],
     },
@@ -355,6 +377,61 @@ test("a saved explicit Codex choice takes precedence over the Luna default", asy
   });
   try {
     assert.deepEqual((await controller.get()).selection, saved);
+  } finally {
+    await controller.close();
+  }
+});
+
+test("Settings reads refresh changed runtime metadata on a bounded interval", async () => {
+  const fake = new FakeClient();
+  fake.auth = signedIn();
+  let now = 1000;
+  let skillDescription = "Before refresh";
+  let skillReads = 0;
+  fake.onSkills = async () => {
+    skillReads++;
+    return [
+      { name: "Runtime skill", description: skillDescription, enabled: true },
+    ];
+  };
+  const { controller } = harness(fake, {
+    now: () => now,
+    metadataRefreshIntervalMs: 1000,
+  });
+  try {
+    const initial = await controller.get();
+    assert.equal(initial.skills[0]?.description, "Before refresh");
+    const readsAfterConnect = skillReads;
+
+    skillDescription = "Visible on the next bounded Settings refresh";
+    now += 999;
+    assert.equal(
+      (await controller.get()).skills[0]?.description,
+      "Before refresh",
+    );
+    assert.equal(skillReads, readsAfterConnect);
+
+    now++;
+    const refreshed = await controller.get();
+    assert.equal(
+      refreshed.skills[0]?.description,
+      "Visible on the next bounded Settings refresh",
+    );
+    assert.equal(skillReads, readsAfterConnect + 1);
+
+    skillDescription = "Visible immediately after skills changed";
+    fake.options.onSkillsChanged?.();
+    const notified = await eventually(
+      controller,
+      (view) =>
+        view.skills[0]?.description ===
+        "Visible immediately after skills changed",
+    );
+    assert.equal(
+      notified.skills[0]?.description,
+      "Visible immediately after skills changed",
+    );
+    assert.equal(skillReads, readsAfterConnect + 2);
   } finally {
     await controller.close();
   }
@@ -487,8 +564,9 @@ test("failed metadata clears stale catalogs and successful refresh clears only t
       controller,
       (view) =>
         view.models.length === 1 &&
-        view.message?.startsWith("Luna with high reasoning is unavailable") ===
-          true,
+        view.message?.startsWith(
+          "GPT-6-Luna with high reasoning is unavailable",
+        ) === true,
     );
     assert.equal(recovered.account, "signed_in");
   } finally {
@@ -656,7 +734,7 @@ test("project conversation uses runtime model identity and exposes only compact 
         model: "runtime-model",
         effort: "medium",
         developerInstructions:
-          'You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user\'s requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. For cut.delete_ranges, provide 2–16 confirmed disjoint half-open ranges in descending start-time order. The app commits them as one undoable transaction, but does not verify speech meaning or the rendered joins. Never infer filler from timing alone. Describe an edit as applied only after its tool result confirms the commit. Native child agents are disabled in this build; do not spawn one or claim one was spawned. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.\nRead-tool input for this main-owned active project: {"schema_version":"1.0","project_id":"project-1"}. Use this exact project_id; do not guess identifiers or ask the user to provide it. Obtain draft identifiers, sequence and hash from the read tools before editing.',
+          'You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user\'s requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. For cut.delete_ranges, provide 2–16 confirmed disjoint half-open ranges in descending start-time order. The app commits them as one undoable transaction, but does not verify speech meaning or the rendered joins. For cut.restore_range, restore only a confirmed missing source-time interval using its source_id and exact half-open source times; the main service rejects visible overlap and ambiguous source ordering. Never infer filler from timing alone. Describe an edit as applied only after its tool result confirms the commit. MCP-bound project threads do not support native children. Do not claim a child ran unless a completed server-owned spawn and child-owned summary reads are verified. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.\nRead-tool input for this main-owned active project: {"schema_version":"1.0","project_id":"project-1"}. Use this exact project_id; do not guess identifiers or ask the user to provide it. Obtain draft identifiers, sequence and hash from the read tools before editing.',
       },
     ]);
     const running = await controller.sendThread(
@@ -708,6 +786,54 @@ test("project conversation uses runtime model identity and exposes only compact 
   }
 });
 
+test("only a server-confirmed failed turn enables explicit request retry", async () => {
+  const fake = new FakeClient();
+  fake.auth = signedIn();
+  const { controller } = harness(fake);
+  const prompt = "Tighten the opening without changing its meaning.";
+  try {
+    await controller.get();
+    await controller.select({ modelId: model.id, reasoning: "medium" });
+    await controller.openThread("project-1");
+    const running = await controller.sendThread("project-1", prompt);
+    assert.equal(running.retryable, false);
+
+    fake.emitThread({
+      generation: 1,
+      threadId: "server-private-thread",
+      turnId: "server-private-turn",
+      type: "turn_terminal",
+      status: "failed",
+    });
+    const failed = controller.getThread("project-1");
+    assert.equal(failed.status, "ready");
+    assert.equal(failed.retryable, true);
+    assert.match(failed.message ?? "", /Review the committed draft/u);
+
+    const retry = await controller.sendThread(
+      "project-1",
+      [...failed.messages].reverse().find((message) => message.role === "user")!
+        .text,
+    );
+    assert.equal(fake.turnCalls.length, 2);
+    assert.equal(fake.turnCalls[1]?.text, prompt);
+    assert.equal(retry.status, "running");
+    assert.equal(retry.retryable, false);
+
+    fake.emitThread({
+      generation: 1,
+      threadId: "server-private-thread",
+      turnId: "server-private-retry",
+      type: "connection_uncertain",
+    });
+    const uncertain = controller.getThread("project-1");
+    assert.equal(uncertain.status, "uncertain");
+    assert.equal(uncertain.retryable, false);
+  } finally {
+    await controller.close();
+  }
+});
+
 test("resumed history replaces server identities before the drawer receives it", async () => {
   const fake = new FakeClient();
   fake.auth = signedIn();
@@ -744,6 +870,7 @@ test("resumed history replaces server identities before the drawer receives it",
     await controller.select({ modelId: model.id, reasoning: "medium" });
     const restored = await controller.openThread("project-1");
     assert.equal(restored.status, "running");
+    assert.equal(restored.retryable, false);
     assert.deepEqual(
       restored.messages.map(({ role, text, complete }) => ({
         role,
@@ -777,6 +904,7 @@ test("resumed history replaces server identities before the drawer receives it",
     });
     const completed = controller.getThread("project-1");
     assert.equal(completed.status, "ready");
+    assert.equal(completed.retryable, false);
     assert.equal(
       completed.messages.at(-1)?.text,
       "Applying the saved trim. Done.",
@@ -800,6 +928,7 @@ test("rejected turns are removable while interrupt completion remains stream-aut
     };
     const rejected = await controller.sendThread("project-1", "Bad request");
     assert.equal(rejected.status, "ready");
+    assert.equal(rejected.retryable, false);
     assert.deepEqual(rejected.messages, []);
     fake.onTurn = undefined;
     await controller.sendThread("project-1", "Run an edit");
@@ -815,6 +944,7 @@ test("rejected turns are removable while interrupt completion remains stream-aut
     });
     const interrupted = controller.getThread("project-1");
     assert.equal(interrupted.status, "ready");
+    assert.equal(interrupted.retryable, false);
     assert.match(interrupted.message ?? "", /interrupted/u);
   } finally {
     await controller.close();

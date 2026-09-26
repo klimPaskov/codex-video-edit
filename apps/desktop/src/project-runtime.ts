@@ -3,13 +3,16 @@ import path from "node:path";
 import type {
   DraftProjectReadResult,
   DraftReadResult,
+  PassCheckpointCommitResult,
 } from "../../../packages/project-store/src/transactions.ts";
 import {
+  assertProjectDraftIntegrityView,
   assertProjectDraftView,
   assertProjectFrameRequest,
   assertProjectFrameResult,
   assertProjectView,
   type ProjectDraftView,
+  type ProjectDraftIntegrityView,
   type ProjectFrameRequest,
   type ProjectFrameResult,
   type ProjectView,
@@ -19,6 +22,9 @@ import { mediaMeasurements } from "../../../packages/media-engine/src/library.ts
 
 type DraftReader = {
   snapshotWithProject(projectId: string): Promise<DraftProjectReadResult>;
+  recordLatestManualStructureCheckpoint(
+    projectId: string,
+  ): Promise<PassCheckpointCommitResult | null>;
 };
 type FrameReader = {
   frame(id: string, timeUs: number, signal?: AbortSignal): Promise<MediaFrame>;
@@ -86,6 +92,7 @@ export async function invokeWithProjectDraftRefresh<T>(options: {
     options.toolName === "cut.split" ||
     options.toolName === "cut.delete_range" ||
     options.toolName === "cut.delete_ranges" ||
+    options.toolName === "cut.restore_range" ||
     options.toolName === "timeline.split" ||
     options.toolName === "timeline.ripple_delete" ||
     options.toolName === "timeline.undo" ||
@@ -160,6 +167,40 @@ export class DesktopProjectRuntime {
       clips: draft.clips!,
     };
     assertProjectView(value);
+    return value;
+  }
+
+  async verifyDraftIntegrity(
+    projectId: string,
+  ): Promise<ProjectDraftIntegrityView> {
+    const current = await this.drafts.snapshotWithProject(projectId);
+    if (
+      current.project.project.project_id !== projectId ||
+      current.project.project.workflow_step !== "review"
+    )
+      invalid();
+    const checkpoint =
+        await this.drafts.recordLatestManualStructureCheckpoint(projectId),
+      latest = await this.drafts.snapshotWithProject(projectId);
+    if (
+      latest.project.project.project_id !== projectId ||
+      latest.project.project.workflow_step !== "review"
+    )
+      invalid();
+    const draft = committedDraftView(latest),
+      value: ProjectDraftIntegrityView = {
+        draft,
+        structuralCheckpointRecorded: Boolean(
+          checkpoint &&
+          checkpoint.checkpoint.project_id === draft.projectId &&
+          checkpoint.checkpoint.draft_id === draft.draft.id &&
+          checkpoint.checkpoint.base_revision_id ===
+            draft.draft.baseRevisionId &&
+          checkpoint.checkpoint.draft_sequence === draft.draft.sequence &&
+          checkpoint.checkpoint.timeline_sha256 === draft.draft.timelineSha256,
+        ),
+      };
+    assertProjectDraftIntegrityView(value);
     return value;
   }
 

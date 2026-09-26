@@ -33,7 +33,12 @@ import {
 import {
   CodexVideoEditToolError,
   CodexVideoEditToolService,
+  type CodexVideoEditToolName,
 } from "../../../packages/codex-tools/src/service.ts";
+import {
+  nativeChildReadOnlyToolNames,
+  type DynamicToolAccess,
+} from "../../../packages/codex-bridge/src/dynamic-tools.ts";
 import {
   assertProjectFrameRequest,
   assertProjectRequest,
@@ -43,8 +48,10 @@ import {
   assertManualTrimRequest,
   assertManualSplitRequest,
   assertManualRangeCutRequest,
+  assertManualRestoreRangeRequest,
   assertManualUndoRequest,
   assertManualRedoRequest,
+  type ProjectView,
 } from "../../../packages/domain/src/project-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
@@ -209,8 +216,18 @@ async function start(): Promise<void> {
     if (!window || window.isDestroyed()) return;
     window.webContents.send(channels.projectDraftChanged, notice);
   };
-  const invokeCodexTool = async (name: unknown, input: unknown) => {
+  const invokeCodexTool = async (
+    name: unknown,
+    input: unknown,
+    access: DynamicToolAccess = "project_editor",
+  ) => {
     if (!activeProjectId) throw new CodexVideoEditToolError("inactive_project");
+    if (
+      access === "native_child_read_only" &&
+      !nativeChildReadOnlyToolNames.has(name as CodexVideoEditToolName)
+    ) {
+      throw new CodexVideoEditToolError("tool_not_available");
+    }
     const projectId = activeProjectId;
     return invokeWithProjectDraftRefresh({
       toolName: name,
@@ -390,6 +407,26 @@ async function start(): Promise<void> {
     if (activeProjectId !== request.id) throw new Error("Inactive project");
     await projects.navigate(request.id, request.stage);
     return projectRuntime.view(request.id);
+  });
+  register(channels.projectIntegrityCheck, async (request) => {
+    assertProjectRequest(request);
+    if (activeProjectId !== request.id)
+      throw new UserFacingError(
+        "Open the active project in Review to check draft integrity.",
+      );
+    try {
+      const value = await projectRuntime.verifyDraftIntegrity(request.id);
+      if (activeProjectId !== request.id)
+        throw new UserFacingError(
+          "The active project changed. Run the check again.",
+        );
+      return value;
+    } catch (error) {
+      if (error instanceof UserFacingError) throw error;
+      throw new UserFacingError(
+        "Draft integrity could not be checked. Reopen the project and try again.",
+      );
+    }
   });
   const activeCodexProject = async (projectId: string) => {
     if (activeProjectId !== projectId) throw new Error("Inactive project");
@@ -646,6 +683,55 @@ async function start(): Promise<void> {
                 type: "ripple_delete",
                 start_us: request.startUs,
                 end_us: request.endUs,
+              },
+            ],
+          }),
+      });
+      return committedDraftView(committed);
+    } catch (error) {
+      if (error instanceof DraftTransactionError)
+        throw new UserFacingError(error.message);
+      throw error;
+    }
+  });
+  register(channels.projectManualRestoreRange, async (request) => {
+    assertManualRestoreRangeRequest(request);
+    if (activeProjectId !== request.projectId)
+      throw new UserFacingError("Open this project before editing it.");
+    let project: ProjectView;
+    try {
+      project = await projectRuntime.view(request.projectId);
+    } catch {
+      throw new UserFacingError("Reopen the project before restoring footage.");
+    }
+    if (project.stage !== "edit")
+      throw new UserFacingError("Switch to Edit to restore a source range.");
+    if (activeProjectId !== request.projectId)
+      throw new UserFacingError("The active project changed. Try again.");
+    try {
+      const committed = await invokeWithProjectDraftRefresh({
+        toolName: "cut.restore_range",
+        projectId: request.projectId,
+        activeProjectId: () => activeProjectId,
+        drafts,
+        notify: publishDraftNotice,
+        work: () =>
+          drafts.applyManual({
+            schema_version: "1.0",
+            request_id: randomUUID(),
+            project_id: request.projectId,
+            draft_id: request.draftId,
+            base_revision_id: request.baseRevisionId,
+            expected_sequence: request.expectedSequence,
+            expected_timeline_sha256: request.expectedTimelineSha256,
+            pass_group: { pass_group_id: randomUUID(), kind: "manual" },
+            reason: "Manual source-range restore.",
+            operations: [
+              {
+                type: "restore_range",
+                source_id: request.sourceId,
+                source_start_us: request.sourceStartUs,
+                source_end_us: request.sourceEndUs,
               },
             ],
           }),

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assertProjectDraftIntegrityView,
   assertProjectList,
   assertProjectDraftView,
   assertProjectFrameRequest,
@@ -8,6 +9,7 @@ import {
   assertManualTrimRequest,
   assertManualSplitRequest,
   assertManualRangeCutRequest,
+  assertManualRestoreRangeRequest,
   assertManualUndoRequest,
   assertManualRedoRequest,
   assertProjectNavigation,
@@ -59,6 +61,31 @@ test("project IPC runtime accepts path-free views and exact requests for all fiv
     assertProjectView(value);
     assertProjectList([value]);
   }
+});
+
+test("draft integrity IPC accepts only a path-free committed head and checkpoint flag", () => {
+  const project = view(),
+    draft = {
+      projectId: project.id,
+      draft: project.draft,
+      timeline: project.timeline,
+    };
+  assertProjectDraftIntegrityView({
+    draft,
+    structuralCheckpointRecorded: true,
+  });
+  assert.throws(() =>
+    assertProjectDraftIntegrityView({
+      draft,
+      structuralCheckpointRecorded: "recorded",
+    }),
+  );
+  assert.throws(() =>
+    assertProjectDraftIntegrityView({
+      draft: { ...draft, sourcePath: "C:/private/source.mkv" },
+      structuralCheckpointRecorded: false,
+    }),
+  );
 });
 test("project requests reject paths, malformed IDs, unknown stages and excess fields", () => {
   for (const value of [
@@ -187,9 +214,16 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
     timelinePositionUs: 500_000,
   };
   const rangeCut = { ...head, startUs: 0, endUs: 500_000 };
+  const rangeRestore = {
+    ...head,
+    sourceId: project.source.id,
+    sourceStartUs: 500_000,
+    sourceEndUs: 1_000_000,
+  };
   assertManualTrimRequest(trim);
   assertManualSplitRequest(split);
   assertManualRangeCutRequest(rangeCut);
+  assertManualRestoreRangeRequest(rangeRestore);
   assertManualUndoRequest(undo);
   assertManualRedoRequest(redo);
   for (const bad of [
@@ -225,6 +259,15 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
     { ...rangeCut, request_id: "renderer-owned" },
   ])
     assert.throws(() => assertManualRangeCutRequest(bad));
+  for (const bad of [
+    { ...rangeRestore, path: "/private/source.mp4" },
+    { ...rangeRestore, sourceId: "../private" },
+    { ...rangeRestore, sourceStartUs: -1 },
+    { ...rangeRestore, sourceEndUs: rangeRestore.sourceStartUs },
+    { ...rangeRestore, sourceStartUs: 0.5 },
+    { ...rangeRestore, expectedTimelineSha256: "bad" },
+  ])
+    assert.throws(() => assertManualRestoreRangeRequest(bad));
   for (const bad of [
     { ...undo, targetTransactionId: "" },
     { ...undo, expectedSequence: -1 },

@@ -17,11 +17,13 @@ import {
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
   assertProjectDraftView,
+  assertProjectDraftIntegrityView,
   assertProjectFrameRequest,
   assertProjectFrameResult,
   assertManualTrimRequest,
   assertManualSplitRequest,
   assertManualRangeCutRequest,
+  assertManualRestoreRangeRequest,
   assertManualUndoRequest,
   assertManualRedoRequest,
   assertProjectRequest,
@@ -179,6 +181,14 @@ const bridge: DesktopBridge = {
     assertProjectNavigation(request);
     return invoke(channels.projectNavigate, request, assertProjectView);
   },
+  verifyDraftIntegrity: (request) => {
+    assertProjectRequest(request);
+    return invoke(
+      channels.projectIntegrityCheck,
+      request,
+      assertProjectDraftIntegrityView,
+    );
+  },
   readProjectFrame: (request) => {
     assertProjectFrameRequest(request);
     return invoke(channels.projectFrame, request, assertProjectFrameResult);
@@ -195,6 +205,14 @@ const bridge: DesktopBridge = {
     assertManualRangeCutRequest(request);
     return invoke(
       channels.projectManualRangeCut,
+      request,
+      assertProjectDraftView,
+    );
+  },
+  applyManualRestoreRange: (request) => {
+    assertManualRestoreRangeRequest(request);
+    return invoke(
+      channels.projectManualRestoreRange,
       request,
       assertProjectDraftView,
     );

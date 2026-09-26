@@ -105,6 +105,21 @@
         "delete project",
         "approve export"
       ]
+    },
+    {
+      "name": "cut.restore_range",
+      "mode": "mutation",
+      "description": "Restore one exact missing source-time interval in original source order without changing source files.",
+      "undoable": true,
+      "user_confirmation": "none",
+      "allowed_scope": "active_draft",
+      "input_schema": "generated from implementation types",
+      "output_schema": "generated from implementation types",
+      "forbidden_effects": [
+        "overwrite source",
+        "delete project",
+        "approve export"
+      ]
     }
   ]
 }

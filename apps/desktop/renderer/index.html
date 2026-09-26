@@ -99,6 +99,9 @@
                 <button type="button" id="interrupt-codex-thread" hidden>
                   Stop
                 </button>
+                <button type="button" id="retry-codex-thread" hidden>
+                  Retry request
+                </button>
                 <button type="submit" id="send-codex-thread" class="primary">
                   Send
                 </button>
@@ -138,6 +141,50 @@
               <button id="cut-range">Cut range</button>
               <button id="clear-marks">Clear</button>
             </div>
+            <div id="restore-actions" class="restore-actions">
+              <button id="restore-toggle" type="button" aria-expanded="false">
+                Restore source range
+              </button>
+              <div id="restore-form" class="restore-form" hidden>
+                <label class="restore-field" for="restore-source">
+                  Source
+                  <select id="restore-source"></select>
+                </label>
+                <label class="restore-field" for="restore-source-start">
+                  Source start (seconds)
+                  <input
+                    id="restore-source-start"
+                    type="text"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    placeholder="0.000000"
+                    maxlength="24"
+                  />
+                </label>
+                <label class="restore-field" for="restore-source-end">
+                  Source end (seconds)
+                  <input
+                    id="restore-source-end"
+                    type="text"
+                    inputmode="decimal"
+                    autocomplete="off"
+                    placeholder="0.000000"
+                    maxlength="24"
+                  />
+                </label>
+                <button id="restore-submit" type="button" disabled>
+                  Restore range
+                </button>
+                <p id="restore-error" role="alert" hidden></p>
+              </div>
+            </div>
+          </div>
+          <div id="review-actions" class="review-actions" hidden>
+            <button id="check-draft-integrity" class="primary">
+              Check draft integrity
+            </button>
+            <p id="draft-integrity-result" role="status" hidden></p>
+            <p id="draft-integrity-error" role="alert" hidden></p>
           </div>
         </div>
       </section>

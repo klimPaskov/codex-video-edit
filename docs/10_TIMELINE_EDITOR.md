@@ -47,6 +47,8 @@ P2's shared foundation implements strict start/end trimming, interior splitting 
 
 The guarded `cut.delete_ranges` tool now submits 2–16 confirmed disjoint ranges measured on one current output timeline. It requires descending start-time order, applies them in one atomic transaction and presents one newest Undo. A later invalid operation leaves no partial journal entry. Codex/API providers can honor exact requested time ranges; their present read tools still cannot identify filler or certify that speech and A/V joins are coherent.
 
+The guarded `cut.restore_range` operation restores one exact, confirmed half-open source-time interval from one immutable baseline source clip. The Edit stage exposes the same operation through a small source and time form for a user-confirmed missing interval. Main rejects ambiguous or unknown sources, invalid bounds, overlap with visible material and mixed operations. The clip returns in baseline source order at its source-time position; output timing is then reflowed. The complete before/after maps and inverse share the existing journal, freshness rules, reopen replay and newest Undo/Redo. This is explicit structural restoration and does not infer missing speech. Generalized transcript-linked restoration remains future work.
+
 ## Preview
 
 Preview must match the timeline within declared tolerances. Proxy playback may use lower quality, but timing, crop, layout, and text placement must remain representative.

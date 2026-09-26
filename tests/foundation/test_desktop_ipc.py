@@ -277,6 +277,27 @@ class DesktopIpcContractTests(unittest.TestCase):
                 'payload': request,
                 'response': {'ok': True, 'value': thread},
             })
+        retryable_thread = deepcopy(thread)
+        retryable_thread['retryable'] = True
+        self.valid({
+            'channel': 'codex-thread:get',
+            'payload': request,
+            'response': {'ok': True, 'value': retryable_thread},
+        })
+        running_retry = deepcopy(retryable_thread)
+        running_retry['status'] = 'running'
+        self.invalid({
+            'channel': 'codex-thread:get',
+            'payload': request,
+            'response': {'ok': True, 'value': running_retry},
+        })
+        no_prompt_retry = deepcopy(retryable_thread)
+        no_prompt_retry['messages'] = []
+        self.invalid({
+            'channel': 'codex-thread:get',
+            'payload': request,
+            'response': {'ok': True, 'value': no_prompt_retry},
+        })
         self.valid({
             'channel': 'codex-thread:send',
             'payload': dict(request, text='Trim the false start.'),
@@ -297,6 +318,35 @@ class DesktopIpcContractTests(unittest.TestCase):
             'response': {'ok': True, 'value': leaked},
         })
 
+    def test_manual_restore_range_uses_one_exact_path_free_source_interval(self):
+        restore = json.loads(
+            (ROOT / 'docs/examples/desktop_ipc_manual_restore_range.example.json').read_text(encoding='utf-8')
+        )
+        self.valid(restore)
+        for key, value in [
+            ('path', 'C:/private/source.mkv'),
+            ('sourceId', '../private'),
+            ('sourceStartUs', -1),
+            ('sourceEndUs', 1.5),
+        ]:
+            bad = deepcopy(restore)
+            bad['payload'][key] = value
+            self.invalid(bad)
+
+    def test_review_integrity_channel_returns_only_a_path_free_draft_head(self):
+        integrity = json.loads(
+            (ROOT / 'docs/examples/desktop_ipc_integrity_check.example.json').read_text(encoding='utf-8')
+        )
+        self.valid(integrity)
+        leaked = deepcopy(integrity)
+        leaked['response']['value']['draft']['sourcePath'] = 'C:/private/source.mkv'
+        self.invalid(leaked)
+        bad_payload = deepcopy(integrity)
+        bad_payload['payload']['path'] = 'C:/private/source.mkv'
+        self.invalid(bad_payload)
+        bad_checkpoint = deepcopy(integrity)
+        bad_checkpoint['response']['value']['structuralCheckpointRecorded'] = 'yes'
+        self.invalid(bad_checkpoint)
 
 if __name__ == '__main__':
     unittest.main()

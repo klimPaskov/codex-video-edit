@@ -1,4 +1,5 @@
 import { setupCodexSettings } from "./codex-settings.ts";
+import { draftIntegrityFreshness } from "./draft-integrity.ts";
 import { reconcileProjectDraft } from "./project-draft.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import type { DesktopBridge, Reply } from "../src/bridge.ts";
@@ -47,7 +48,20 @@ const editActions = element("edit-actions"),
   markOutButton = element<HTMLButtonElement>("mark-out"),
   cutSelection = element("cut-selection"),
   cutRangeButton = element<HTMLButtonElement>("cut-range"),
-  clearMarksButton = element<HTMLButtonElement>("clear-marks");
+  clearMarksButton = element<HTMLButtonElement>("clear-marks"),
+  restoreToggleButton = element<HTMLButtonElement>("restore-toggle"),
+  restoreForm = element("restore-form"),
+  restoreSource = element<HTMLSelectElement>("restore-source"),
+  restoreSourceStart = element<HTMLInputElement>("restore-source-start"),
+  restoreSourceEnd = element<HTMLInputElement>("restore-source-end"),
+  restoreSubmit = element<HTMLButtonElement>("restore-submit"),
+  restoreError = element("restore-error");
+const reviewActions = element("review-actions"),
+  checkDraftIntegrityButton = element<HTMLButtonElement>(
+    "check-draft-integrity",
+  ),
+  draftIntegrityResult = element("draft-integrity-result"),
+  draftIntegrityError = element("draft-integrity-error");
 let selected: MediaSummary | undefined;
 let selectedButton: HTMLButtonElement | undefined;
 let requestedTime: number | undefined;
@@ -60,9 +74,17 @@ let loadingHome = 0;
 let navigating = false;
 let addingFootage = false;
 let manualEditPending = false;
+let draftIntegrityPending = false;
+let draftIntegrityHeadKey: string | undefined;
+let draftIntegrityMessage: string | null = null;
+let draftIntegrityIssue: string | null = null;
 let markHead: string | undefined;
 let markInUs: number | undefined;
 let markOutUs: number | undefined;
+let restoreSourceProjectId: string | undefined;
+let restoreHead: string | undefined;
+let restoreRangeOpen = false;
+let restoreRangeIssue: string | null = null;
 const stageLabels: Record<ProjectStage, string> = {
   record_import: "Record or Import",
   auto_edit: "Auto Edit",
@@ -107,6 +129,7 @@ function renderStage(): void {
     else button.removeAttribute("aria-current");
   }
   renderEditTools();
+  renderDraftIntegrityAction();
 }
 function currentClip(): NonNullable<ProjectView["clips"]>[number] | undefined {
   if (!activeProject?.clips) return undefined;
@@ -118,12 +141,74 @@ function currentClip(): NonNullable<ProjectView["clips"]>[number] | undefined {
 function currentHeadKey(project: ProjectView): string {
   return `${project.id}:${project.draft.id}:${project.draft.sequence}:${project.draft.timelineSha256}`;
 }
+function secondsTextToMicroseconds(value: string): number | undefined {
+  const match = /^(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/u.exec(value.trim());
+  if (!match) return undefined;
+  const whole = BigInt(match[1] ?? "0"),
+    fraction = BigInt((match[2] ?? match[3] ?? "").padEnd(6, "0") || "0"),
+    total = whole * 1_000_000n + fraction;
+  return total <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(total) : undefined;
+}
+function restoreSources(project: ProjectView): MediaSummary[] {
+  return project.sources ?? [project.source];
+}
+function populateRestoreSources(project: ProjectView): void {
+  if (restoreSourceProjectId === project.id) return;
+  restoreSource.replaceChildren();
+  for (const source of restoreSources(project)) {
+    const option = document.createElement("option");
+    option.value = source.id;
+    option.textContent = source.name;
+    restoreSource.append(option);
+  }
+  restoreSourceProjectId = project.id;
+}
+function clearDraftIntegrityResult(): void {
+  draftIntegrityHeadKey = undefined;
+  draftIntegrityMessage = null;
+  draftIntegrityIssue = null;
+}
+function renderDraftIntegrityAction(): void {
+  const project = activeProject,
+    visible =
+      project?.stage === "review" &&
+      element("inspector").hidden &&
+      element("codex-drawer").hidden;
+  if (
+    !visible ||
+    (draftIntegrityHeadKey &&
+      project &&
+      draftIntegrityHeadKey !== currentHeadKey(project))
+  )
+    clearDraftIntegrityResult();
+  reviewActions.hidden = !visible;
+  reviewActions.setAttribute("aria-busy", String(draftIntegrityPending));
+  checkDraftIntegrityButton.disabled =
+    !visible || navigating || draftIntegrityPending;
+  checkDraftIntegrityButton.textContent = draftIntegrityPending
+    ? "Checking…"
+    : "Check draft integrity";
+  draftIntegrityResult.textContent = draftIntegrityMessage ?? "";
+  draftIntegrityResult.hidden = !visible || !draftIntegrityMessage;
+  draftIntegrityError.textContent = draftIntegrityIssue ?? "";
+  draftIntegrityError.hidden = !visible || !draftIntegrityIssue;
+}
 function renderEditTools(): void {
   const project = activeProject;
+  if (project && restoreHead && restoreHead !== currentHeadKey(project)) {
+    restoreHead = undefined;
+    restoreRangeOpen = false;
+    restoreRangeIssue = null;
+    restoreSourceStart.value = "";
+    restoreSourceEnd.value = "";
+  }
   if (!project || project.stage !== "edit" || !project.clips) {
     editActions.hidden = true;
+    restoreRangeOpen = false;
+    restoreHead = undefined;
     return;
   }
+  populateRestoreSources(project);
   editActions.hidden = false;
   editActions.setAttribute("aria-busy", String(manualEditPending));
   const clip = currentClip(),
@@ -172,6 +257,66 @@ function renderEditTools(): void {
   ]
     .filter(Boolean)
     .join(" · ");
+  restoreToggleButton.disabled = manualEditPending || navigating;
+  restoreToggleButton.textContent = restoreRangeOpen
+    ? "Cancel restore"
+    : "Restore source range";
+  restoreToggleButton.setAttribute("aria-expanded", String(restoreRangeOpen));
+  restoreForm.hidden = !restoreRangeOpen;
+  restoreForm.setAttribute("aria-busy", String(manualEditPending));
+  restoreSource.disabled = manualEditPending || navigating;
+  restoreSourceStart.disabled = manualEditPending || navigating;
+  restoreSourceEnd.disabled = manualEditPending || navigating;
+  const source = restoreSources(project).find(
+      (candidate) => candidate.id === restoreSource.value,
+    ),
+    sourceStartUs = secondsTextToMicroseconds(restoreSourceStart.value),
+    sourceEndUs = secondsTextToMicroseconds(restoreSourceEnd.value),
+    overlapsVisible =
+      source !== undefined &&
+      sourceStartUs !== undefined &&
+      sourceEndUs !== undefined &&
+      project.clips.some(
+        (candidate) =>
+          candidate.sourceId === source.id &&
+          sourceStartUs < candidate.sourceEndUs &&
+          sourceEndUs > candidate.sourceStartUs,
+      );
+  let validationIssue: string | null = null;
+  if (
+    (restoreSourceStart.value.trim() && sourceStartUs === undefined) ||
+    (restoreSourceEnd.value.trim() && sourceEndUs === undefined)
+  )
+    validationIssue = "Use seconds with up to six decimal places.";
+  else if (
+    (restoreSourceStart.value.trim() || restoreSourceEnd.value.trim()) &&
+    (sourceStartUs === undefined || sourceEndUs === undefined)
+  )
+    validationIssue = "Enter both source times to restore the interval.";
+  else if (
+    sourceStartUs !== undefined &&
+    sourceEndUs !== undefined &&
+    sourceStartUs >= sourceEndUs
+  )
+    validationIssue = "Source end must be after source start.";
+  else if (
+    source &&
+    sourceEndUs !== undefined &&
+    sourceEndUs > source.durationUs
+  )
+    validationIssue = "Source end exceeds the selected source duration.";
+  else if (overlapsVisible)
+    validationIssue = "That source interval is already visible in the draft.";
+  restoreSubmit.disabled =
+    !restoreRangeOpen ||
+    !source ||
+    sourceStartUs === undefined ||
+    sourceEndUs === undefined ||
+    validationIssue !== null ||
+    manualEditPending ||
+    navigating;
+  restoreError.textContent = restoreRangeIssue ?? validationIssue ?? "";
+  restoreError.hidden = !restoreRangeOpen || !restoreError.textContent;
 }
 async function navigate(stage: ProjectStage): Promise<void> {
   if (
@@ -235,6 +380,11 @@ async function openProject(
 }
 function selectProject(project: ProjectView, origin?: HTMLButtonElement): void {
   activeProject = project;
+  clearDraftIntegrityResult();
+  restoreSourceProjectId = undefined;
+  restoreHead = undefined;
+  restoreRangeOpen = false;
+  restoreRangeIssue = null;
   codexThreadView = undefined;
   apiThreadView = undefined;
   codexThreadIssue = null;
@@ -656,7 +806,10 @@ function frameInterval(): number {
         activeProject.timeline.frameRate.numerator
     : 1_000_000 / (selected?.frameRate ?? 1);
 }
-function applyProjectDraft(reply: Reply<ProjectDraftView>): void {
+function applyProjectDraft(
+  reply: Reply<ProjectDraftView>,
+  preferredPositionUs = Number(seek.value),
+): void {
   if (!activeProject) return;
   if (!reply.ok) {
     showError(reply.message);
@@ -675,7 +828,7 @@ function applyProjectDraft(reply: Reply<ProjectDraftView>): void {
   selectionGeneration++;
   requestedTime = undefined;
   const position = Math.min(
-    Number(seek.value),
+    preferredPositionUs,
     Math.max(0, changed.timeline.durationUs - Math.ceil(frameInterval())),
   );
   seek.max = String(
@@ -684,7 +837,66 @@ function applyProjectDraft(reply: Reply<ProjectDraftView>): void {
   clearError();
   requestFrame(position);
   renderEditTools();
+  renderDraftIntegrityAction();
 }
+checkDraftIntegrityButton.addEventListener("click", async () => {
+  const project = activeProject;
+  if (!project || project.stage !== "review" || draftIntegrityPending) return;
+  const generation = routeGeneration,
+    requestedHead = currentHeadKey(project);
+  draftIntegrityPending = true;
+  draftIntegrityHeadKey = requestedHead;
+  draftIntegrityMessage = null;
+  draftIntegrityIssue = null;
+  renderDraftIntegrityAction();
+  try {
+    const reply = await window.desktop.verifyDraftIntegrity({ id: project.id });
+    if (
+      generation !== routeGeneration ||
+      activeProject?.id !== project.id ||
+      activeProject.stage !== "review"
+    )
+      return;
+    if (!reply.ok) {
+      draftIntegrityIssue = reply.message;
+      return;
+    }
+    const checkedHead = `${reply.value.draft.projectId}:${reply.value.draft.draft.id}:${reply.value.draft.draft.sequence}:${reply.value.draft.draft.timelineSha256}`;
+    const freshness = draftIntegrityFreshness(
+      requestedHead,
+      currentHeadKey(activeProject),
+      checkedHead,
+    );
+    if (freshness === "active-head-changed") {
+      draftIntegrityHeadKey = currentHeadKey(activeProject);
+      draftIntegrityIssue =
+        "Draft changed while the check was running. Run it again.";
+      return;
+    }
+    applyProjectDraft({ ok: true, value: reply.value.draft });
+    if (
+      generation !== routeGeneration ||
+      activeProject?.id !== project.id ||
+      activeProject.stage !== "review"
+    )
+      return;
+    draftIntegrityHeadKey = currentHeadKey(activeProject);
+    if (freshness !== "current" || checkedHead !== draftIntegrityHeadKey) {
+      draftIntegrityIssue = "Draft changed during the check. Run it again.";
+      return;
+    }
+    draftIntegrityMessage = reply.value.structuralCheckpointRecorded
+      ? "Structure and managed sources verified. Manual checkpoint recorded; meaning and A/V not reviewed."
+      : "Structure and managed sources verified. No manual checkpoint; meaning and A/V not reviewed.";
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      draftIntegrityIssue =
+        "Draft integrity could not be checked. Reopen the project and try again.";
+  } finally {
+    draftIntegrityPending = false;
+    renderDraftIntegrityAction();
+  }
+});
 async function submitManualTrim(edge: "start" | "end"): Promise<void> {
   const project = activeProject,
     clip = currentClip(),
@@ -826,6 +1038,117 @@ async function submitManualRangeCut(): Promise<void> {
     renderEditTools();
   }
 }
+async function submitManualRestoreRange(): Promise<void> {
+  const project = activeProject,
+    sourceId = restoreSource.value,
+    sourceStartUs = secondsTextToMicroseconds(restoreSourceStart.value),
+    sourceEndUs = secondsTextToMicroseconds(restoreSourceEnd.value),
+    source =
+      project &&
+      restoreSources(project).find((candidate) => candidate.id === sourceId),
+    generation = routeGeneration;
+  const overlapsVisible =
+    project !== undefined &&
+    sourceStartUs !== undefined &&
+    sourceEndUs !== undefined &&
+    project.clips?.some(
+      (clip) =>
+        clip.sourceId === sourceId &&
+        sourceStartUs < clip.sourceEndUs &&
+        sourceEndUs > clip.sourceStartUs,
+    );
+  if (
+    !project ||
+    project.stage !== "edit" ||
+    !source ||
+    sourceStartUs === undefined ||
+    sourceEndUs === undefined ||
+    sourceStartUs >= sourceEndUs ||
+    sourceEndUs > source.durationUs ||
+    overlapsVisible ||
+    !restoreRangeOpen ||
+    restoreHead !== currentHeadKey(project) ||
+    manualEditPending
+  )
+    return;
+  const requestedHead = currentHeadKey(project);
+  manualEditPending = true;
+  back.disabled = true;
+  restoreRangeIssue = null;
+  renderEditTools();
+  clearError();
+  try {
+    const reply = await window.desktop.applyManualRestoreRange({
+      schema_version: "1.0",
+      projectId: project.id,
+      draftId: project.draft.id,
+      baseRevisionId: project.draft.baseRevisionId,
+      expectedSequence: project.draft.sequence,
+      expectedTimelineSha256: project.draft.timelineSha256,
+      sourceId,
+      sourceStartUs,
+      sourceEndUs,
+    });
+    if (
+      generation !== routeGeneration ||
+      activeProject?.id !== project.id ||
+      activeProject.stage !== "edit"
+    )
+      return;
+    if (!reply.ok) {
+      if (currentHeadKey(activeProject) !== requestedHead) {
+        restoreRangeOpen = false;
+        restoreHead = undefined;
+        showError(
+          "Draft changed during restore. Check the source range again.",
+        );
+      } else restoreRangeIssue = reply.message;
+      return;
+    }
+    const returnedHead = `${reply.value.projectId}:${reply.value.draft.id}:${reply.value.draft.sequence}:${reply.value.draft.timelineSha256}`,
+      activeHead = currentHeadKey(activeProject);
+    if (activeHead !== requestedHead && activeHead !== returnedHead) {
+      restoreRangeOpen = false;
+      restoreHead = undefined;
+      showError("Draft changed during restore. Check the source range again.");
+      return;
+    }
+    const restoredClip = reply.value.clips?.find(
+      (clip) =>
+        clip.sourceId === sourceId &&
+        clip.sourceStartUs <= sourceStartUs &&
+        clip.sourceEndUs >= sourceEndUs,
+    );
+    restoreRangeOpen = false;
+    restoreHead = undefined;
+    restoreSourceStart.value = "";
+    restoreSourceEnd.value = "";
+    const restorePosition = restoredClip
+      ? restoredClip.timelineStartUs +
+        (sourceStartUs - restoredClip.sourceStartUs)
+      : Number(seek.value);
+    if (activeHead === returnedHead) {
+      applyProjectDraft(reply);
+      requestFrame(restorePosition);
+    } else applyProjectDraft(reply, restorePosition);
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id) {
+      if (currentHeadKey(activeProject) !== requestedHead) {
+        restoreRangeOpen = false;
+        restoreHead = undefined;
+        showError(
+          "Draft changed during restore. Check the source range again.",
+        );
+      } else
+        restoreRangeIssue =
+          "The source range could not be restored. Check the missing interval and try again.";
+    }
+  } finally {
+    manualEditPending = false;
+    back.disabled = false;
+    renderEditTools();
+  }
+}
 async function submitManualUndo(): Promise<void> {
   const project = activeProject,
     target = project?.draft.undoTransactionId,
@@ -894,6 +1217,34 @@ splitClip.addEventListener("click", () => void submitManualSplit());
 markInButton.addEventListener("click", () => markBoundary("in"));
 markOutButton.addEventListener("click", () => markBoundary("out"));
 cutRangeButton.addEventListener("click", () => void submitManualRangeCut());
+restoreToggleButton.addEventListener("click", () => {
+  const project = activeProject;
+  if (!project || project.stage !== "edit" || manualEditPending || navigating)
+    return;
+  restoreRangeOpen = !restoreRangeOpen;
+  restoreHead = restoreRangeOpen ? currentHeadKey(project) : undefined;
+  restoreRangeIssue = null;
+  if (restoreRangeOpen) {
+    restoreSourceStart.value = "";
+    restoreSourceEnd.value = "";
+  }
+  renderEditTools();
+  if (restoreRangeOpen)
+    requestAnimationFrame(() =>
+      restoreForm.scrollIntoView({ block: "nearest" }),
+    );
+});
+for (const input of [restoreSource, restoreSourceStart, restoreSourceEnd]) {
+  input.addEventListener("input", () => {
+    restoreRangeIssue = null;
+    renderEditTools();
+  });
+  input.addEventListener("change", () => {
+    restoreRangeIssue = null;
+    renderEditTools();
+  });
+}
+restoreSubmit.addEventListener("click", () => void submitManualRestoreRange());
 clearMarksButton.addEventListener("click", () => {
   markHead = undefined;
   markInUs = undefined;
@@ -948,6 +1299,7 @@ function setInspector(open: boolean): void {
       list.append(term, definition);
     }
   }
+  renderDraftIntegrityAction();
 }
 
 let codexThreadView: CodexThreadView | undefined;
@@ -1019,6 +1371,9 @@ function renderCodexThread(view: CodexThreadView): void {
   const stop = element<HTMLButtonElement>("interrupt-codex-thread");
   stop.hidden = !["running", "interrupting"].includes(view.status);
   stop.disabled = view.status !== "running";
+  const retry = element<HTMLButtonElement>("retry-codex-thread");
+  retry.hidden = !view.retryable || view.status !== "ready";
+  retry.disabled = retry.hidden;
   const issue = element("codex-thread-error");
   const nextIssue = view.message ?? codexThreadIssue ?? "";
   const revealIssue = issue.hidden || issue.textContent !== nextIssue;
@@ -1063,6 +1418,9 @@ function renderApiThread(view: ApiThreadView): void {
   const stop = element<HTMLButtonElement>("interrupt-codex-thread");
   stop.hidden = view.status !== "running" && view.status !== "interrupting";
   stop.disabled = view.status !== "running";
+  const retry = element<HTMLButtonElement>("retry-codex-thread");
+  retry.hidden = true;
+  retry.disabled = true;
   const issue = element("codex-thread-error");
   const nextIssue = view.message ?? codexThreadIssue ?? "";
   const revealIssue = issue.hidden || issue.textContent !== nextIssue;
@@ -1078,6 +1436,7 @@ function clearAssistantDisplay(): void {
   element("codex-thread-activity").hidden = true;
   element<HTMLFormElement>("codex-thread-form").hidden = true;
   element<HTMLButtonElement>("open-codex-thread").hidden = true;
+  element<HTMLButtonElement>("retry-codex-thread").hidden = true;
   element("codex-thread-error").hidden = true;
 }
 assistantProvider.addEventListener("change", () => {
@@ -1102,6 +1461,7 @@ function setCodexDrawer(open: boolean): void {
   } else {
     codexPollGeneration++;
   }
+  renderDraftIntegrityAction();
 }
 async function pollCodex(generation: number): Promise<void> {
   while (
@@ -1192,6 +1552,7 @@ element("open-codex-thread").addEventListener("click", async () => {
         messages: [],
         activities: [],
         message: null,
+        retryable: false,
       });
   }
 });
@@ -1244,6 +1605,51 @@ element<HTMLFormElement>("codex-thread-form").addEventListener(
       const issue = element("codex-thread-error");
       issue.textContent = reply.message;
       issue.hidden = false;
+    }
+  },
+);
+element<HTMLButtonElement>("retry-codex-thread").addEventListener(
+  "click",
+  async () => {
+    const project = activeProject;
+    const view = codexThreadView;
+    if (
+      !project ||
+      selectedApiProvider() !== null ||
+      view?.projectId !== project.id ||
+      view.status !== "ready" ||
+      !view.retryable
+    )
+      return;
+    const text = [...view.messages]
+      .reverse()
+      .find((item) => item.role === "user")?.text;
+    if (!text?.trim()) return;
+    const button = element<HTMLButtonElement>("retry-codex-thread");
+    button.disabled = true;
+    try {
+      const reply = await window.desktop.sendCodexThread({
+        schema_version: "1.0",
+        project_id: project.id,
+        text,
+      });
+      if (activeProject?.id !== project.id || selectedApiProvider() !== null)
+        return;
+      if (reply.ok) renderCodexThread(reply.value);
+      else {
+        codexThreadIssue = reply.message;
+        const issue = element("codex-thread-error");
+        issue.textContent = reply.message;
+        issue.hidden = false;
+        void pollCodex(++codexPollGeneration);
+      }
+    } catch {
+      codexThreadIssue =
+        "The request could not be retried. Check the conversation and try again.";
+      const issue = element("codex-thread-error");
+      issue.textContent = codexThreadIssue;
+      issue.hidden = false;
+      void pollCodex(++codexPollGeneration);
     }
   },
 );

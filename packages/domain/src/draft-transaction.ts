@@ -46,8 +46,15 @@ export interface RippleDeleteIntent {
   end_us: number;
 }
 
+export interface RestoreRangeIntent {
+  type: "restore_range";
+  source_id: string;
+  source_start_us: number;
+  source_end_us: number;
+}
+
 export type DraftEditIntent =
-  TrimEdgeIntent | SplitClipIntent | RippleDeleteIntent;
+  TrimEdgeIntent | SplitClipIntent | RippleDeleteIntent | RestoreRangeIntent;
 
 /** Untrusted callers provide intent and freshness only. Authority is injected by the adapter. */
 export interface ApplyDraftTransactionRequest {
@@ -159,8 +166,27 @@ export interface RippleDeleteOperationRecord {
   };
 }
 
+export interface RestoreRangeOperationRecord {
+  schema_version: "1.0";
+  operation_id: string;
+  operation_type: "restore";
+  source_id: string;
+  source_start_us: number;
+  source_end_us: number;
+  before: DraftTimeline["clips"];
+  after: DraftTimeline["clips"];
+  inverse: {
+    type: "restore_timeline_clips";
+    clips: DraftTimeline["clips"];
+    expected_after_sha256: string;
+  };
+}
+
 export type DraftOperationRecord =
-  TrimOperationRecord | SplitOperationRecord | RippleDeleteOperationRecord;
+  | TrimOperationRecord
+  | SplitOperationRecord
+  | RippleDeleteOperationRecord
+  | RestoreRangeOperationRecord;
 
 export interface DraftTransactionRecord {
   schema_version: "1.0";
@@ -287,7 +313,11 @@ function verificationCheck(
   id(value.check_id);
   if (value.status !== "pass") invalid();
   prose(value.method);
-  if (!Array.isArray(value.evidence_ids) || value.evidence_ids.length > 64)
+  if (
+    !Array.isArray(value.evidence_ids) ||
+    value.evidence_ids.length < 1 ||
+    value.evidence_ids.length > 64
+  )
     invalid();
   for (const evidenceId of value.evidence_ids) id(evidenceId);
   if (new Set(value.evidence_ids).size !== value.evidence_ids.length) invalid();
@@ -472,6 +502,20 @@ export function assertApplyDraftTransactionRequest(
   const clips = new Set<string>();
   let previousRangeStart: number | null = null;
   for (const operation of value.operations) {
+    if (operation?.type === "restore_range") {
+      if (value.operations.length !== 1) invalid();
+      exact(operation, [
+        "type",
+        "source_id",
+        "source_start_us",
+        "source_end_us",
+      ]);
+      id(operation.source_id);
+      integer(operation.source_start_us);
+      integer(operation.source_end_us, 1);
+      if (operation.source_start_us >= operation.source_end_us) invalid();
+      continue;
+    }
     if (operation?.type === "ripple_delete") {
       exact(operation, ["type", "start_us", "end_us"]);
       integer(operation.start_us);
@@ -486,7 +530,10 @@ export function assertApplyDraftTransactionRequest(
     }
     if (
       previousRangeStart !== null ||
-      value.operations.some((item) => item?.type === "ripple_delete")
+      value.operations.some(
+        (item) =>
+          item?.type === "ripple_delete" || item?.type === "restore_range",
+      )
     )
       invalid();
     exact(

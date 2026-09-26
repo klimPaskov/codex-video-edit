@@ -62,6 +62,11 @@ export interface ProjectDraftView {
   /** Current committed, half-open fragment map. Older exchange fixtures may omit it. */
   clips?: ProjectClipView[];
 }
+export interface ProjectDraftIntegrityView {
+  draft: ProjectDraftView;
+  /** True only when main recorded an evidence-backed checkpoint for the current manual group. */
+  structuralCheckpointRecorded: boolean;
+}
 export interface ProjectClipView {
   id: string;
   sourceId: string;
@@ -111,6 +116,18 @@ export interface ManualRangeCutRequest {
   expectedTimelineSha256: string;
   startUs: number;
   endUs: number;
+}
+/** Exact source-time interval confirmed missing from the active draft. */
+export interface ManualRestoreRangeRequest {
+  schema_version: "1.0";
+  projectId: string;
+  draftId: string;
+  baseRevisionId: string;
+  expectedSequence: number;
+  expectedTimelineSha256: string;
+  sourceId: string;
+  sourceStartUs: number;
+  sourceEndUs: number;
 }
 export interface ManualUndoRequest {
   schema_version: "1.0";
@@ -267,6 +284,26 @@ export function assertManualRangeCutRequest(
   integer(value.startUs);
   positive(value.endUs);
   if (value.startUs >= value.endUs) invalid();
+}
+export function assertManualRestoreRangeRequest(
+  value: unknown,
+): asserts value is ManualRestoreRangeRequest {
+  exact(value, [
+    "schema_version",
+    "projectId",
+    "draftId",
+    "baseRevisionId",
+    "expectedSequence",
+    "expectedTimelineSha256",
+    "sourceId",
+    "sourceStartUs",
+    "sourceEndUs",
+  ]);
+  assertManualHead(value);
+  id(value.sourceId);
+  integer(value.sourceStartUs);
+  positive(value.sourceEndUs);
+  if (value.sourceStartUs >= value.sourceEndUs) invalid();
 }
 export function assertManualUndoRequest(
   value: unknown,
@@ -426,6 +463,13 @@ export function assertProjectDraftView(
       invalid();
     if (position !== value.timeline.durationUs) invalid();
   }
+}
+export function assertProjectDraftIntegrityView(
+  value: unknown,
+): asserts value is ProjectDraftIntegrityView {
+  exact(value, ["draft", "structuralCheckpointRecorded"]);
+  assertProjectDraftView(value.draft);
+  if (typeof value.structuralCheckpointRecorded !== "boolean") invalid();
 }
 export function assertProjectView(
   value: unknown,

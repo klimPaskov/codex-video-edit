@@ -126,6 +126,7 @@ test("packaged MCP protocol lists only reviewed tools and forwards a bounded cal
         "cut.delete_range",
         "timeline.undo",
         "cut.delete_ranges",
+        "cut.restore_range",
       ],
     );
     assert.ok(!JSON.stringify(tools).includes(state.runtime.endpoint));
@@ -140,6 +141,17 @@ test("packaged MCP protocol lists only reviewed tools and forwards a bounded cal
     assert.ok(batch);
     assert.ok(batch.inputSchema.required.includes("ranges"));
     assert.ok(!Object.hasOwn(batch.inputSchema.properties, "origin"));
+    const restore = tools.find((tool) => tool.name === "cut.restore_range");
+    assert.ok(restore);
+    assert.equal(restore.inputSchema.additionalProperties, false);
+    for (const field of ["source_id", "source_start_us", "source_end_us"])
+      assert.ok(restore.inputSchema.required.includes(field));
+    assert.ok(restore.inputSchema.required.includes("expected_sequence"));
+    assert.ok(
+      restore.inputSchema.required.includes("expected_timeline_sha256"),
+    );
+    assert.ok(!Object.hasOwn(restore.inputSchema.properties, "source_path"));
+    assert.ok(!Object.hasOwn(restore.inputSchema.properties, "origin"));
     const split = tools.find((tool) => tool.name === "cut.split");
     assert.ok(split);
     assert.equal(split.inputSchema.additionalProperties, false);
@@ -305,6 +317,30 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
   assert.match(serialized, /enabled_tools/u);
   assert.match(serialized, /default_tools_approval_mode/u);
   assert.ok(args.includes("features.multi_agent=false"));
+  for (const feature of [
+    "api_key_model_discovery",
+    "auth_elicitation",
+    "chronicle",
+    "default_mode_request_user_input",
+    "exec_permission_approvals",
+    "external_agent_memory_import",
+    "goals",
+    "request_permissions_tool",
+    "request_rule",
+    "skill_mcp_dependency_install",
+    "tool_call_mcp_elicitation",
+    "mcp_oauth_refresh_coordination",
+    "standalone_web_search",
+    "web_search_cached",
+    "web_search_request",
+    "sleep_tool",
+    "view_image",
+    "plugin_sharing",
+    "recommended_plugins",
+    "tool_suggest",
+  ]) {
+    assert.ok(args.includes(`features.${feature}=false`));
+  }
   assert.ok(args.includes("apps._default.enabled=false"));
   assert.ok(args.includes("apps._default.destructive_enabled=false"));
   assert.ok(args.includes("apps._default.open_world_enabled=false"));
@@ -325,6 +361,224 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
   assert.ok(!serialized.includes(runtime.endpoint));
   assert.ok(!serialized.includes(runtime.token));
   assert.ok(!serialized.includes("filesystem.read"));
+
+  const dynamicArgs = buildCodexAppServerArguments();
+  assert.ok(dynamicArgs.includes("mcp_servers={}"));
+  assert.ok(
+    !dynamicArgs.some((arg) => arg.startsWith("mcp_servers.codex-video-edit.")),
+  );
+  assert.ok(dynamicArgs.includes("features.multi_agent=true"));
+  assert.ok(dynamicArgs.includes("features.multi_agent_v2=true"));
+  for (const feature of [
+    "api_key_model_discovery",
+    "auth_elicitation",
+    "chronicle",
+    "default_mode_request_user_input",
+    "exec_permission_approvals",
+    "external_agent_memory_import",
+    "goals",
+    "request_permissions_tool",
+    "request_rule",
+    "skill_mcp_dependency_install",
+    "tool_call_mcp_elicitation",
+    "mcp_oauth_refresh_coordination",
+    "standalone_web_search",
+    "web_search_cached",
+    "web_search_request",
+    "sleep_tool",
+    "view_image",
+    "plugin_sharing",
+    "recommended_plugins",
+    "tool_suggest",
+  ]) {
+    assert.ok(dynamicArgs.includes(`features.${feature}=false`));
+  }
+  assert.ok(dynamicArgs.includes("agents.enabled=true"));
+  assert.ok(!dynamicArgs.includes("features.multi_agent=false"));
+  assert.ok(!dynamicArgs.includes("agents.enabled=false"));
+  assert.ok(
+    dynamicArgs.includes(
+      'features.code_mode.excluded_tool_namespaces=["mcp__codex_apps","skills","functions","image_gen"]',
+    ),
+  );
+  assert.ok(dynamicArgs.includes("agents.max_depth=1"));
+
+  const isolatedArgs = buildCodexAppServerArguments(undefined, [
+    "untrusted_test",
+  ]);
+  assert.ok(isolatedArgs.includes("mcp_servers.untrusted_test.enabled=false"));
+});
+
+test("Codex MCP inventory accepts only explicitly disabled configured servers", () => {
+  codexClientInternals.validateDisabledMcpStatus(
+    { data: [], nextCursor: null },
+    [],
+  );
+  const disabled = {
+    name: "external-server",
+    runtimeStatus: null,
+    tools: {},
+    resources: [],
+    resourceTemplates: [],
+  };
+  codexClientInternals.validateAppServerMcpStatus(
+    { data: [disabled], nextCursor: null },
+    ["external-server"],
+    false,
+  );
+  codexClientInternals.validateAppServerMcpStatus(
+    { data: [{ ...disabled, runtimeStatus: "disabled" }], nextCursor: null },
+    ["external-server"],
+    false,
+    true,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.validateAppServerMcpStatus(
+        {
+          data: [{ ...disabled, runtimeStatus: "connected" }],
+          nextCursor: null,
+        },
+        ["external-server"],
+        false,
+      ),
+    CodexTransportError,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.validateAppServerMcpStatus(
+        {
+          data: [{ ...disabled, tools: { filesystem: {} } }],
+          nextCursor: null,
+        },
+        ["external-server"],
+        false,
+      ),
+    CodexTransportError,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.validateAppServerMcpStatus(
+        { data: [disabled], nextCursor: null },
+        [],
+        false,
+      ),
+    CodexTransportError,
+  );
+  assert.deepEqual(
+    codexClientInternals.decodeConfiguredMcpServers([
+      { name: "external-server", enabled: true },
+    ]),
+    [{ name: "external-server", enabled: true }],
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.decodeConfiguredMcpServers([
+        { name: "external-server", enabled: "yes" },
+      ]),
+    CodexTransportError,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.decodeConfiguredMcpServers([
+        { name: "server.name", enabled: true },
+      ]),
+    CodexTransportError,
+  );
+});
+
+test("configured MCP discovery disables every listed server and verifies the inventory", async () => {
+  const calls: string[][] = [];
+  const replies: unknown[] = [
+    [
+      { name: "untrusted_test", enabled: true },
+      { name: "already_disabled", enabled: false },
+    ],
+    [
+      { name: "untrusted_test", enabled: false },
+      { name: "already_disabled", enabled: false },
+    ],
+  ];
+  const runCodex: Parameters<
+    typeof codexClientInternals.disableConfiguredMcpServers
+  >[4] = async (_executable, args) => {
+    calls.push(args);
+    const reply = replies.shift();
+    assert.notEqual(reply, undefined);
+    return reply;
+  };
+
+  const names = await codexClientInternals.disableConfiguredMcpServers(
+    "codex",
+    "/isolated/context",
+    {},
+    new AbortController().signal,
+    runCodex,
+  );
+
+  assert.deepEqual(names, ["untrusted_test", "already_disabled"]);
+  assert.deepEqual(calls, [
+    ["mcp", "list", "--json"],
+    [
+      "mcp",
+      "list",
+      "--json",
+      "-c",
+      "mcp_servers.untrusted_test.enabled=false",
+      "-c",
+      "mcp_servers.already_disabled.enabled=false",
+    ],
+  ]);
+});
+
+test("configured MCP verification rejects a retained enabled server or changed inventory", async () => {
+  for (const verification of [
+    [{ name: "untrusted_test", enabled: true }],
+    [
+      { name: "untrusted_test", enabled: false },
+      { name: "new_server", enabled: false },
+    ],
+    [],
+  ]) {
+    const replies: unknown[] = [
+      [{ name: "untrusted_test", enabled: true }],
+      verification,
+    ];
+    await assert.rejects(
+      codexClientInternals.disableConfiguredMcpServers(
+        "codex",
+        "/isolated/context",
+        {},
+        new AbortController().signal,
+        async () => {
+          const reply = replies.shift();
+          assert.notEqual(reply, undefined);
+          return reply;
+        },
+      ),
+      (error: unknown) =>
+        error instanceof CodexTransportError && error.code === "configuration",
+    );
+  }
+});
+
+test("App Server argument builder rejects malformed, duplicate, and excess MCP names", () => {
+  assert.throws(
+    () => buildCodexAppServerArguments(undefined, ["untrusted.server"]),
+    CodexTransportError,
+  );
+  assert.throws(
+    () => buildCodexAppServerArguments(undefined, ["same", "same"]),
+    CodexTransportError,
+  );
+  assert.throws(
+    () =>
+      buildCodexAppServerArguments(
+        undefined,
+        Array.from({ length: 65 }, (_, index) => `server_${index}`),
+      ),
+    CodexTransportError,
+  );
 });
 
 test("App Server startup accepts only the reviewed owned MCP schemas", () => {
@@ -344,6 +598,38 @@ test("App Server startup accepts only the reviewed owned MCP schemas", () => {
     nextCursor: null,
   };
   codexClientInternals.validateOwnedMcpStatus(structuredClone(status));
+  const configuredServer = {
+    name: "untrusted_test",
+    runtimeStatus: null,
+    serverInfo: null,
+    tools: {},
+    resources: [],
+    resourceTemplates: [],
+  };
+  codexClientInternals.validateAppServerMcpStatus(
+    {
+      data: [...structuredClone(status.data), configuredServer],
+      nextCursor: null,
+    },
+    ["untrusted_test"],
+    true,
+  );
+  assert.throws(
+    () =>
+      codexClientInternals.validateAppServerMcpStatus(
+        {
+          data: [
+            ...structuredClone(status.data),
+            { ...configuredServer, runtimeStatus: "connected" },
+          ],
+          nextCursor: null,
+        },
+        ["untrusted_test"],
+        true,
+        true,
+      ),
+    CodexTransportError,
+  );
   const changed = structuredClone(status) as unknown as {
     data: Array<{
       tools: Record<string, { inputSchema: unknown }>;
