@@ -313,7 +313,11 @@ function verificationCheck(
   id(value.check_id);
   if (value.status !== "pass") invalid();
   prose(value.method);
-  if (!Array.isArray(value.evidence_ids) || value.evidence_ids.length > 64)
+  if (
+    !Array.isArray(value.evidence_ids) ||
+    value.evidence_ids.length < 1 ||
+    value.evidence_ids.length > 64
+  )
     invalid();
   for (const evidenceId of value.evidence_ids) id(evidenceId);
   if (new Set(value.evidence_ids).size !== value.evidence_ids.length) invalid();

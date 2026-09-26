@@ -29,7 +29,8 @@ inverse, origin injected by the trusted entrypoint, and a self/prior hash chain.
 draft from the immutable baseline and committed journal on reopen. Stable request IDs are
 idempotent only when their canonical requests match exactly; a reused ID with different
 content is a conflict. A verification checkpoint is a separate hash-bound record for the
-current pass and does not commit a revision or clear undo history.
+current pass and does not commit a revision or clear undo history. Every passing check must
+cite at least one concrete evidence ID; never record verified status with an empty evidence list.
 
 Keep transaction and navigation writes on the same project-root serialization boundary.
 Pending same-directory files may be ignored during recovery, while a corrupt committed

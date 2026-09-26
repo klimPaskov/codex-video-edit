@@ -27,5 +27,6 @@ Acceptance:
 - authenticated API-provider fixture turns commit only guarded reversible draft operations after explicit user initiation and pass packaged isolated native tests
 - one real turn applies a reversible draft edit through a guarded tool
 - the edit survives reopen, rejects stale sequence requests, and can be undone through the shared engine; interrupted/incomplete transactions do not corrupt the committed draft
+- verified pass checkpoints bind to the exact current pass/head and reject passed checks without concrete evidence IDs; checkpoint records do not claim editorial or A/V review that was not performed
 - raw protocol text stays out of normal UI
 - `docs/workflow/results/P2.json` validates

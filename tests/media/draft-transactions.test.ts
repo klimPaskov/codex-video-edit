@@ -1253,6 +1253,23 @@ test("checkpoints bind passed verification to the exact current pass and reject 
   );
   assert.throws(
     () =>
+      store.recordPassCheckpoint(
+        checkpoint(applied.draft, applied.transaction.transaction_id, {
+          request_id: "request-checkpoint-no-evidence",
+          checks: [
+            {
+              check_id: "check-empty-evidence",
+              status: "pass",
+              method: "A passed check requires evidence.",
+              evidence_ids: [],
+            },
+          ],
+        }),
+      ),
+    code("invalid"),
+  );
+  assert.throws(
+    () =>
       store.recordPassCheckpoint({
         ...checkpoint(applied.draft, applied.transaction.transaction_id),
         checks: [
