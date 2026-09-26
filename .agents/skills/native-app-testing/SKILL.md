@@ -32,6 +32,8 @@ For OAuth callback failure coverage, `tests/native/codex-browser-callback.test.t
 
 For the optional device-code route, separately test start, transient Settings code, fixed-page opening in the guest browser, cancellation and test-owned process cleanup. To verify managed completion, use the official App Server attempt and observe its completion in the same native app after the user verifies externally; require reconciled signed-in account and cleared code. Reopen packaged Electron with that private app-owned account and compare authoritative account/plan, runtime models and skills. A completion that arrives during a test written to cancel is a failed cancel assertion for that run, not evidence to erase; retain it alongside the separate completed-login and cancellation outcomes. Never publish the one-time code, account identifiers or private screenshots.
 
+For sign-out acceptance, run only with a copied mode-600 credential in the isolated guest. Compare Settings account/model/usage/skill labels to bounded live IPC, click the actual Logout control, require the connected signed-out view to hide model and usage data, close Electron, then reopen the same private profile and confirm it remains signed out. Do not copy host auth directories or expose account identifiers.
+
 ## Prohibitions
 
 - Do not build or launch the product on the user's host, control the host PC, or capture host windows. The latest user instruction supersedes the earlier viewer exception. Historical viewer evidence remains historical; future host-viewer use requires a new explicit user request.

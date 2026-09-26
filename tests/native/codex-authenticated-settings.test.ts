@@ -168,6 +168,120 @@ try {
     await electron.close();
     electron = undefined;
   }
+  step = "explicit-logout-launch";
+  electron = await _electron.launch({
+    executablePath,
+    chromiumSandbox: true,
+    env,
+    timeout: 30000,
+  });
+  const logoutPage = await electron.firstWindow();
+  assert.equal(await electron.evaluate(({ app }) => app.isPackaged), true);
+  await electron.evaluate(({ shell }) => {
+    shell.openExternal = async () => {
+      throw new Error("External browser disabled in isolated test");
+    };
+  });
+  await expect
+    .poll(
+      async () => {
+        const reply = await logoutPage.evaluate(() =>
+          window.desktop.getCodex(),
+        );
+        return (
+          reply.ok &&
+          !reply.value.busy &&
+          reply.value.connection === "connected" &&
+          reply.value.account === "signed_in" &&
+          reply.value.models.length > 0
+        );
+      },
+      { timeout: 60000 },
+    )
+    .toBe(true);
+  await logoutPage
+    .getByRole("button", { name: "Settings", exact: true })
+    .click();
+  await logoutPage.locator("#settings-codex").click();
+  await expect(logoutPage.locator("#codex-logout")).toBeVisible();
+  step = "explicit-logout-action";
+  await logoutPage.locator("#codex-logout").click();
+  await expect
+    .poll(
+      async () => {
+        const reply = await logoutPage.evaluate(() =>
+          window.desktop.getCodex(),
+        );
+        return (
+          reply.ok &&
+          !reply.value.busy &&
+          reply.value.connection === "connected" &&
+          reply.value.account === "signed_out" &&
+          reply.value.plan === null &&
+          reply.value.models.length === 0 &&
+          reply.value.limits.length === 0
+        );
+      },
+      { timeout: 60000 },
+    )
+    .toBe(true);
+  await expect(logoutPage.locator("#codex-login")).toBeVisible();
+  await expect(logoutPage.locator("#codex-device-login")).toBeVisible();
+  await expect(logoutPage.locator("#codex-logout")).toBeHidden();
+  await expect(logoutPage.locator("#codex-model-settings")).toBeHidden();
+  await expect(logoutPage.locator("#codex-limits")).toBeHidden();
+  await expect(logoutPage.locator("#codex-account")).toHaveText(
+    "Sign in to use Codex",
+  );
+  await logoutPage.keyboard.press("Escape");
+  await electron.close();
+  electron = undefined;
+
+  step = "logout-persisted-reopen";
+  electron = await _electron.launch({
+    executablePath,
+    chromiumSandbox: true,
+    env,
+    timeout: 30000,
+  });
+  const signedOutPage = await electron.firstWindow();
+  await electron.evaluate(({ shell }) => {
+    shell.openExternal = async () => {
+      throw new Error("External browser disabled in isolated test");
+    };
+  });
+  await expect
+    .poll(
+      async () => {
+        const reply = await signedOutPage.evaluate(() =>
+          window.desktop.getCodex(),
+        );
+        return (
+          reply.ok &&
+          !reply.value.busy &&
+          reply.value.connection === "connected" &&
+          reply.value.account === "signed_out" &&
+          reply.value.models.length === 0 &&
+          reply.value.limits.length === 0
+        );
+      },
+      { timeout: 60000 },
+    )
+    .toBe(true);
+  await signedOutPage
+    .getByRole("button", { name: "Settings", exact: true })
+    .click();
+  await signedOutPage.locator("#settings-codex").click();
+  await expect(signedOutPage.locator("#codex-login")).toBeVisible();
+  await expect(signedOutPage.locator("#codex-logout")).toBeHidden();
+  await expect(signedOutPage.locator("#codex-model-settings")).toBeHidden();
+  await expect(signedOutPage.locator("#codex-limits")).toBeHidden();
+  await signedOutPage.screenshot({
+    path: join(evidence, "signed-out-after-logout.png"),
+    fullPage: true,
+  });
+  await electron.close();
+  electron = undefined;
   await writeFile(
     join(evidence, "result.json"),
     JSON.stringify({
@@ -178,6 +292,9 @@ try {
       planAndUsageMatchedRuntime: true,
       skillsMatchedRuntime: true,
       reopenPassed: true,
+      explicitLogoutPassed: true,
+      logoutPersistedAfterPackagedReopen: true,
+      signedOutModelsAndUsageHidden: true,
       managedBrowserLoginCompleted: false,
       modelTurnStarted: false,
     }),

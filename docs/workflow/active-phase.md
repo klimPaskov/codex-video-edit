@@ -97,3 +97,7 @@ The route-aware start/resume feature policy passed focused tests and a packaged 
 ## Latest partial P2-01 recovery evidence, 2026-09-26
 
 The packaged signed-in Luna/high native regression stopped only the pinned App Server child owned by the current Electron main, both while idle and after a guarded end-trim committed during a running turn. Settings Reconnect restored the same dynamic thread; only one trim remained in the journal, and shared manual Undo returned the baseline. Loss during transaction persistence and visual inspection of this run remain unverified. P2-01 is now checked complete; no P2 phase result is written and P2-02 through P2-10 remain open.
+
+## Latest partial P2-02 logout evidence, 2026-09-26
+
+The signed-in packaged Settings test matched account/model/usage/skills to the live runtime, clicked Logout, verified hidden models/usage in signed-out Settings, and reopened the profile signed out. It used no model turn; browser OAuth completion remains unverified, so P2-02 and the phase stay open.
