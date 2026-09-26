@@ -93,3 +93,7 @@ The latest P2-02 callback check ran the packaged Electron window and real pinned
 ## Latest partial P2-07 evidence, 2026-09-25
 
 The route-aware start/resume feature policy passed focused tests and a packaged synthetic Luna/high dynamic split run. The run verified the bounded dynamic nested surface and reversible edit, and the actual Electron window was inspected inside the isolated Docker guest. One earlier attempt timed out only at the guest inspection hold; the completed rerun passed. MCP-bound threads preserve their direct MCP route and do not receive dynamic-only code-mode flags or native agents. P2-07 and the P2 phase remain incomplete; the complete effective upstream tool catalog is still open.
+
+## Latest partial P2-01 recovery evidence, 2026-09-26
+
+The packaged signed-in Luna/high native regression stopped only the pinned App Server child owned by the current Electron main, reconnected through Settings, and restored the same dynamic project thread and history with unchanged journal, source and baseline. All turns were settled at process loss; in-flight mutation recovery, this run's visual inspection, and all remaining P2 gates remain open. No task checkbox or phase result is recorded.

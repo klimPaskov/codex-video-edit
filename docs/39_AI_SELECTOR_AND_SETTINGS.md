@@ -14,6 +14,8 @@ For Codex show:
 - connection state
 - Sign in, Sign out, or Reconnect
 
+Reconnect is shown when the Codex connection is unavailable or has an actionable connection error. It starts a new main-owned app-server session and preserves the selected account/model preference; opening the project conversation afterward resumes its main-owned thread binding. The packaged authenticated recovery fixture verified the idle child-process restart path. It did not stop a process during an in-flight mutation.
+
 For each supported API provider, show only a main-owned key connect/replace/remove action, connection state, live-validated model choice and clear separate API-billing label. Do not imply a ChatGPT subscription covers API usage or display guessed prices/credit. The key must never return to renderer state; persist it only with OS-backed protection, or use a clearly session-only fallback. A model choice saved with a remembered key must be revalidated against that provider's live catalog after restart; replacing or removing the key clears the choice.
 
 ## Model selector

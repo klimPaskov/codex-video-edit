@@ -28,6 +28,49 @@ assert.equal(process.platform, "linux", "Requires isolated Linux guest");
 assert.equal(process.getuid?.(), 1000);
 assert.equal(process.env.DISPLAY, ":99");
 await access("/.dockerenv");
+
+async function appServerChildren(parentPid: number, appExecutable: string) {
+  const runtimeExecutable = await realpath(
+    join(dirname(appExecutable), "resources/codex/codex"),
+  );
+  const children: number[] = [];
+  for (const entry of await readdir("/proc")) {
+    if (!/^\d+$/u.test(entry)) continue;
+    const pid = Number(entry);
+    const proc = join("/proc", entry);
+    let statLine: string;
+    try {
+      statLine = await readFile(join(proc, "stat"), "utf8");
+    } catch {
+      continue;
+    }
+    const close = statLine.lastIndexOf(")");
+    const fields = statLine
+      .slice(close + 1)
+      .trim()
+      .split(/\s+/u);
+    if (Number(fields[1]) !== parentPid) continue;
+    let args: string[];
+    try {
+      args = (await readFile(join(proc, "cmdline")))
+        .toString("utf8")
+        .split("\0")
+        .filter(Boolean);
+    } catch {
+      continue;
+    }
+    if (
+      !args.includes("app-server") ||
+      !args.includes("--listen") ||
+      !args.includes("stdio://")
+    )
+      continue;
+    const executable = await realpath(join(proc, "exe")).catch(() => "");
+    if (executable === runtimeExecutable) children.push(pid);
+  }
+  return children.sort((left, right) => left - right);
+}
+
 const executablePath = process.argv[2],
   configArgument = process.argv[3];
 assert.ok(executablePath && isAbsolute(executablePath));
@@ -679,6 +722,89 @@ try {
   );
   await expect(page.locator("#seek")).toHaveAttribute("max", "1000000");
   await assertCanvasFrame(page, 0);
+  mark("app-server-process-recovery");
+  const historyBeforeServerRestart = (await thread()).messages.map(
+    ({ role, text, complete }) => ({ role, text, complete }),
+  );
+  const journalBeforeServerRestart = await records();
+  assert.equal(await threadIdentity(), originalThreadId);
+  const mainPid = electron.process().pid;
+  if (typeof mainPid !== "number" || !Number.isSafeInteger(mainPid))
+    throw new Error("The Electron main process could not be identified");
+  const appServerBefore = await appServerChildren(mainPid, executablePath);
+  assert.equal(appServerBefore.length, 1);
+  process.kill(appServerBefore[0]!, "SIGKILL");
+  await expect
+    .poll(
+      async () => {
+        const state = await page.evaluate(() => window.desktop.getCodex());
+        return state.ok ? state.value.connection : "unavailable";
+      },
+      { timeout: 60000, intervals: [100, 250, 500] },
+    )
+    .toBe("unavailable");
+  await expect
+    .poll(
+      async () => (await appServerChildren(mainPid, executablePath)).length,
+      { timeout: 30000, intervals: [100, 250, 500] },
+    )
+    .toBe(0);
+  assert.deepEqual(await records(), journalBeforeServerRestart);
+  mark("settings-reconnect-after-app-server-exit");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.locator("#settings-codex").click();
+  await expect(page.locator("#codex-reconnect")).toBeVisible();
+  await page.locator("#codex-reconnect").click();
+  await expect
+    .poll(
+      async () => {
+        const state = await page.evaluate(() => window.desktop.getCodex());
+        return (
+          state.ok &&
+          !state.value.busy &&
+          state.value.connection === "connected" &&
+          state.value.account === "signed_in" &&
+          state.value.selection?.modelId === selection.modelId &&
+          state.value.selection?.reasoning === selection.reasoning
+        );
+      },
+      { timeout: 60000, intervals: [250, 500, 1000] },
+    )
+    .toBe(true);
+  await page.keyboard.press("Escape");
+  mark("resume-project-thread-after-app-server-restart");
+  const reopenedAfterServerRestart = await page.evaluate(
+    (value) => window.desktop.openCodexThread(value),
+    request,
+  );
+  assert.ok(reopenedAfterServerRestart.ok);
+  await expect
+    .poll(async () => (await thread()).status, {
+      timeout: 90000,
+      intervals: [250, 500, 1000],
+    })
+    .toBe("ready");
+  assert.equal(await threadIdentity(), originalThreadId);
+  assert.deepEqual(
+    (await thread()).messages.map(({ role, text, complete }) => ({
+      role,
+      text,
+      complete,
+    })),
+    historyBeforeServerRestart,
+  );
+  assert.deepEqual(await records(), journalBeforeServerRestart);
+  assert.deepEqual(await readFile(baselinePath), baselineBytes);
+  assert.equal(
+    sha256(await readFile(baseline.source.managed_path)),
+    sourceHash,
+  );
+  assert.equal(sha256(await readFile(source)), sourceHash);
+  const appServerAfter = await appServerChildren(mainPid, executablePath);
+  assert.equal(appServerAfter.length, 1);
+  assert.notEqual(appServerAfter[0], appServerBefore[0]);
+  await expect(page.locator("#seek")).toHaveAttribute("max", "1000000");
+  await assertCanvasFrame(page, 0);
   mark("guest-inspection");
   if (process.argv.includes("--inspect")) {
     console.log(JSON.stringify({ inspectionReady: true, evidence }));
@@ -721,6 +847,10 @@ try {
         realReadOnlyTurnInterrupted: true,
         interruptionPreservedJournal: true,
         interruptedThreadReopened: true,
+        appServerProcessRestartedInPlace: true,
+        settingsReconnectActionUsed: true,
+        projectThreadHistoryRestoredAfterAppServerRestart: true,
+        committedJournalUnchangedDuringRecovery: true,
         computerUse: false,
         audioListening: false,
         windowsAcceptance: false,

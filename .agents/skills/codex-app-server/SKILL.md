@@ -21,6 +21,7 @@ Changing AI login, model selection, skills, threads, streaming, interruption, ap
 - Durable project thread and turn streaming.
 - Safe restart, resume, interrupt, and rate-limit handling.
 - Close must settle startup and process shutdown before reconnecting against the same account directory. Never replay requests whose outcome became uncertain after timeout or disconnection.
+- Exercise controller recovery in packaged Electron: identify the exact pinned App Server executable whose parent is the test Electron main, stop only that child, reconnect through Settings, and reopen the same main-owned project thread. Compare thread identity/history and the committed journal, source, and baseline. An idle process-loss pass does not prove safe recovery when process loss intersects a mutating tool; never generalize beyond the observed state.
 - Explicit skill input items when a known skill is used.
 - Guarded codex-video-edit MCP tools with validated transactions.
 
