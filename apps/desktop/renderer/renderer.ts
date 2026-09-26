@@ -1096,7 +1096,13 @@ async function submitManualRestoreRange(): Promise<void> {
     )
       return;
     if (!reply.ok) {
-      restoreRangeIssue = reply.message;
+      if (currentHeadKey(activeProject) !== requestedHead) {
+        restoreRangeOpen = false;
+        restoreHead = undefined;
+        showError(
+          "Draft changed during restore. Check the source range again.",
+        );
+      } else restoreRangeIssue = reply.message;
       return;
     }
     const returnedHead = `${reply.value.projectId}:${reply.value.draft.id}:${reply.value.draft.sequence}:${reply.value.draft.timelineSha256}`,
@@ -1126,9 +1132,17 @@ async function submitManualRestoreRange(): Promise<void> {
       requestFrame(restorePosition);
     } else applyProjectDraft(reply, restorePosition);
   } catch {
-    if (generation === routeGeneration && activeProject?.id === project.id)
-      restoreRangeIssue =
-        "The source range could not be restored. Check the missing interval and try again.";
+    if (generation === routeGeneration && activeProject?.id === project.id) {
+      if (currentHeadKey(activeProject) !== requestedHead) {
+        restoreRangeOpen = false;
+        restoreHead = undefined;
+        showError(
+          "Draft changed during restore. Check the source range again.",
+        );
+      } else
+        restoreRangeIssue =
+          "The source range could not be restored. Check the missing interval and try again.";
+    }
   } finally {
     manualEditPending = false;
     back.disabled = false;

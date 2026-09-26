@@ -118,6 +118,26 @@ try {
     (project) => project.sources?.length === 2,
   );
   assert.ok(combined);
+  const restoreBeforeEdit = await page.evaluate(
+    (request) => window.desktop.applyManualRestoreRange(request),
+    {
+      schema_version: "1.0",
+      projectId: combined.id,
+      draftId: combined.draft.id,
+      baseRevisionId: combined.draft.baseRevisionId,
+      expectedSequence: combined.draft.sequence,
+      expectedTimelineSha256: combined.draft.timelineSha256,
+      sourceId: combined.sources![1]!.id,
+      sourceStartUs: 0,
+      sourceEndUs: 100_000,
+    },
+  );
+  assert.equal(restoreBeforeEdit.ok, false);
+  if (!restoreBeforeEdit.ok)
+    assert.equal(
+      restoreBeforeEdit.message,
+      "Switch to Edit to restore a source range.",
+    );
   const baselinePath = join(
     userData,
     "project-store",
