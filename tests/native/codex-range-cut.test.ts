@@ -79,7 +79,32 @@ interface ReadBeforeEditEvidence {
   timelineSummaryCalls: number;
   rangeEditCalls: 1;
   summaryBeforeEdit: true;
+  editHeadMatchedBothSummaries: true;
   callOutputCorrelated: true;
+}
+
+interface DraftHeadEvidence {
+  project_id: string;
+  draft_id: string;
+  base_revision_id: string;
+  draft_sequence: number;
+  timeline_sha256: string;
+}
+
+function readDraftHead(value: Record<string, unknown>): DraftHeadEvidence {
+  assert.equal(typeof value.project_id, "string");
+  assert.equal(typeof value.draft_id, "string");
+  assert.equal(typeof value.base_revision_id, "string");
+  assert.ok(Number.isSafeInteger(value.draft_sequence));
+  assert.equal(typeof value.timeline_sha256, "string");
+  assert.match(value.timeline_sha256 as string, /^[a-f0-9]{64}$/u);
+  return {
+    project_id: value.project_id as string,
+    draft_id: value.draft_id as string,
+    base_revision_id: value.base_revision_id as string,
+    draft_sequence: value.draft_sequence as number,
+    timeline_sha256: value.timeline_sha256 as string,
+  };
 }
 
 async function verifyAuthenticatedReadBeforeEdit(options: {
@@ -179,9 +204,12 @@ async function verifyAuthenticatedReadBeforeEdit(options: {
       (item) => record(item) && item.type === "dynamicToolCall",
     );
     assert.ok(toolCalls.length > 0 && toolCalls.length <= 16);
-    const projectPositions: number[] = [];
-    const timelinePositions: number[] = [];
+    const projectReads: Array<{ position: number; head: DraftHeadEvidence }> =
+      [];
+    const timelineReads: Array<{ position: number; head: DraftHeadEvidence }> =
+      [];
     const editPositions: number[] = [];
+    let editHead: DraftHeadEvidence | undefined;
     for (const [index, rawCall] of toolCalls.entries()) {
       assert.ok(record(rawCall));
       const call = rawCall;
@@ -200,36 +228,69 @@ async function verifyAuthenticatedReadBeforeEdit(options: {
       assert.ok(
         typeof output.text === "string" && output.text.length <= 64_000,
       );
-      if (call.tool === "project_get_summary") projectPositions.push(index);
-      else if (call.tool === "timeline_get_summary")
-        timelinePositions.push(index);
-      else if (call.tool === "cut_delete_ranges") {
+      if (call.tool === "project_get_summary") {
+        const summary: unknown = JSON.parse(output.text as string);
+        assert.ok(record(summary));
+        assert.equal(summary.schema_version, "1.0");
+        assert.equal(summary.project_id, options.projectId);
+        assert.ok(record(summary.active_draft));
+        const head = readDraftHead({
+          ...summary.active_draft,
+          project_id: summary.project_id,
+        });
+        assert.equal(summary.current_revision_id, head.base_revision_id);
+        projectReads.push({ position: index, head });
+      } else if (call.tool === "timeline_get_summary") {
+        const summary: unknown = JSON.parse(output.text as string);
+        assert.ok(record(summary));
+        assert.equal(summary.schema_version, "1.0");
+        const head = readDraftHead(summary);
+        assert.equal(head.project_id, options.projectId);
+        timelineReads.push({ position: index, head });
+      } else if (call.tool === "cut_delete_ranges") {
         editPositions.push(index);
         assert.ok(Number.isSafeInteger(call.arguments.expected_sequence));
         assert.ok(
           typeof call.arguments.expected_timeline_sha256 === "string" &&
             /^[a-f0-9]{64}$/u.test(call.arguments.expected_timeline_sha256),
         );
+        editHead = {
+          project_id: call.arguments.project_id as string,
+          draft_id: call.arguments.draft_id as string,
+          base_revision_id: call.arguments.base_revision_id as string,
+          draft_sequence: call.arguments.expected_sequence as number,
+          timeline_sha256: call.arguments.expected_timeline_sha256 as string,
+        };
       } else {
         assert.fail("Unexpected guarded tool in range-cut turn");
       }
     }
-    assert.ok(projectPositions.length > 0);
-    assert.ok(timelinePositions.length > 0);
+    assert.ok(projectReads.length > 0);
+    assert.ok(timelineReads.length > 0);
     assert.equal(editPositions.length, 1);
     const firstEdit = editPositions[0]!;
+    const projectRead = projectReads
+      .filter((read) => read.position < firstEdit)
+      .at(-1);
+    const timelineRead = timelineReads
+      .filter((read) => read.position < firstEdit)
+      .at(-1);
+    assert.ok(projectRead, "Project summary must precede the range mutation");
+    assert.ok(timelineRead, "Timeline summary must precede the range mutation");
     assert.ok(
-      projectPositions.some((position) => position < firstEdit) &&
-        timelinePositions.some((position) => position < firstEdit),
-      "Both active-project summaries must precede the range mutation",
+      editHead,
+      "One guarded mutation must provide its exact draft head",
     );
+    assert.deepEqual(projectRead.head, timelineRead.head);
+    assert.deepEqual(editHead, projectRead.head);
     return {
       route: "dynamic",
       completedTurn: true,
-      projectSummaryCalls: projectPositions.length,
-      timelineSummaryCalls: timelinePositions.length,
+      projectSummaryCalls: projectReads.length,
+      timelineSummaryCalls: timelineReads.length,
       rangeEditCalls: 1,
       summaryBeforeEdit: true,
+      editHeadMatchedBothSummaries: true,
       callOutputCorrelated: true,
     };
   } finally {
@@ -621,12 +682,13 @@ try {
   const prompt = restore
     ? `The active project_id is ${combined.id}. Use the guarded editor tools with that exact project_id to read the active two-source draft. A prior transaction removed source_id ${restoreSourceId} from source time [${restoreStartUs}, ${restoreEndUs}) microseconds. Restore exactly that confirmed missing source interval once using codex_video_edit__cut_restore_range, with source_id ${restoreSourceId} and those exact half-open source times. The committed draft must be ${editedDurationUs} microseconds long and place the restored clip between its original neighboring source intervals. Do not cut, trim, split, undo, or make another edit. Read the draft again to verify, then reply briefly.`
     : batch
-      ? `The active project_id is ${combined.id}. Use the guarded editor tools with that exact project_id to read the active two-source draft. Call codex_video_edit__cut_delete_ranges exactly once with these two confirmed disjoint half-open output-time ranges in descending order: [${cutStartUs}, ${cutEndUs}) across the source join, then [${earlyStartUs}, ${earlyEndUs}) in the first source. The batch must be one transaction with two ripple_delete operations and final duration ${cutDurationUs} microseconds. Do not use cut_delete_range, split, trim, undo, or make another edit. Read the draft again to verify, then reply briefly.`
+      ? `The active project_id is ${combined.id}. Use the guarded editor tools with that exact project_id to read the active two-source draft. Call codex_video_edit__cut_delete_ranges exactly once with these two confirmed disjoint half-open output-time ranges in descending order: [${cutStartUs}, ${cutEndUs}) across the source join, then [${earlyStartUs}, ${earlyEndUs}) in the first source. The batch must be one transaction with two ripple_delete operations and final duration ${cutDurationUs} microseconds. Do not use cut_delete_range, split, trim, undo, or make another edit. After the batch, call codex_video_edit__timeline_get_summary eight times sequentially and confirm every result has duration_us ${cutDurationUs}. Then reply briefly.`
       : `The active project_id is ${combined.id}. Use the guarded editor tools with that exact project_id to read the active two-source draft. Delete exactly the half-open output range [${cutStartUs}, ${cutEndUs}) microseconds using cut.delete_range, spanning the join between its two source clips. Apply exactly one range-cut transaction. The committed draft must be ${cutDurationUs} microseconds long. Do not trim, undo, or make another edit. Read the draft again to verify, then reply briefly.`;
   await seek(page, editedJoinUs);
   const activePage = page;
   assert.ok(activePage);
   await page.locator("#codex-thread-input").fill(prompt);
+  mark("range-turn-send");
   await page.locator("#send-codex-thread").click();
   let committedDuringTurn = false;
   let committedPreviewVisibleDuringTurn = false;
@@ -669,18 +731,21 @@ try {
       { timeout: 240_000, intervals: [100, 250, 500, 1000] },
     )
     .toBe(true);
+  mark("range-turn-completed");
   assert.equal(
     committedDuringTurn,
     true,
     "Committed edit must exist during the real turn",
   );
+  mark("range-commit-observed-during-turn");
   assert.equal(
     committedPreviewVisibleDuringTurn,
     true,
     "Committed duration and preview must update during the real turn",
   );
+  mark("committed-preview-verified");
   const journal = await records();
-  assert.equal(journal.length, restore ? 2 : batch ? 2 : 1);
+  assert.equal(journal.length, restore ? 2 : 1);
   if (restore) {
     assert.equal(journal[0]!.origin, "manual");
     assert.equal(journal[0]!.operations[0]!.operation_type, "ripple_delete");
@@ -713,6 +778,7 @@ try {
     assert.equal(second.start_us, earlyStartUs);
     assert.equal(second.end_us, earlyEndUs);
   }
+  mark("range-journal-verified");
   assert.equal(cut.after.timeline.duration_us, editedDurationUs);
   assert.equal(cut.after.draft_sequence, restore ? 2 : 1);
   await expect(page.locator("#duration")).toHaveText(
@@ -740,6 +806,7 @@ try {
     assert.equal(clips?.[batch ? 2 : 1]?.timelineStartUs, editedJoinUs);
     assert.equal(clips?.[batch ? 2 : 1]?.sourceStartUs, secondSourceStartUs);
   }
+  mark("committed-map-verified");
   await page.screenshot({
     path: join(evidence, "committed-native-window.png"),
   });
