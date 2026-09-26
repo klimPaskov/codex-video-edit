@@ -35,6 +35,11 @@ The P2 structural-checkpoint helper is limited to the current manual-origin grou
 stored timeline/journal/managed-source state only; never use an AI-selected pass label or mark
 spoken, layout, zoom, or A/V review as complete with it.
 
+The Review integrity action may call the main-owned helper only after a user explicitly chooses
+the check. Return a checkpoint indication only when the persisted record still matches the
+returned committed head. If no current manual group exists, report structural integrity without
+manufacturing an empty transaction or claiming a checkpoint.
+
 Keep transaction and navigation writes on the same project-root serialization boundary.
 Pending same-directory files may be ignored during recovery, while a corrupt committed
 journal entry fails closed. Do not expose filesystem paths or let renderer or model input

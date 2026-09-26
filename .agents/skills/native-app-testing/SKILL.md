@@ -38,7 +38,7 @@ For live skill refresh, open packaged Codex Settings in a signed-in guest profil
 
 For Retry request, require strict Codex view validation and controller coverage that accepts it only after a server-confirmed failed terminal turn and clears it for interrupted, rejected, or uncertain outcomes. Launch packaged Electron and verify the button stays hidden in the ordinary/signed-out drawer. Do not fabricate a production conversation or claim the enabled state was visually inspected without a real failed-turn event and guest screenshot.
 
-For Review's Check draft integrity action, use a packaged synthetic project with a reversible edit, navigate to Review, and exercise the native control. Require a head-matched result, unchanged project/source/baseline/journal bytes, and an actionable failure when main cannot revalidate the project. Guest-only visual inspection must show the scoped result. Do not count it as speech-meaning, playback, audio/video join, whole-video QA, or export verification.
+For Review's Check draft integrity action, use a packaged synthetic project with a reversible manual edit, navigate to Review, and exercise the native control. Require a head-matched result, the evidence-backed structural checkpoint for the current manual group, unchanged project/source/baseline bytes, and an actionable failure when main cannot revalidate the project. Confirm the checkpoint stays structural-only, and that an AI-origin group cannot claim it. Guest-only visual inspection must show the scoped result. Do not count it as speech-meaning, playback, audio/video join, whole-video QA, or export verification.
 
 ## Prohibitions
 

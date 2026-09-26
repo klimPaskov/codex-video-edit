@@ -1299,6 +1299,12 @@ test("manual structural checkpoint derives evidence from the validated current d
     dependencies(),
   );
   const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  assert.equal(
+    await store.recordLatestManualStructureCheckpoint(
+      baseline.project.project_id,
+    ),
+    null,
+  );
   const applied = await store.applyManual(trim(initial));
   assert.ok(applied.transaction.pass_group);
 
@@ -1343,6 +1349,11 @@ test("manual structural checkpoint derives evidence from the validated current d
   );
   assert.equal(replay.replayed, true);
   assert.deepEqual(replay.checkpoint, checkpoint.checkpoint);
+  const latestGroupReplay = await store.recordLatestManualStructureCheckpoint(
+    baseline.project.project_id,
+  );
+  assert.equal(latestGroupReplay?.replayed, true);
+  assert.deepEqual(latestGroupReplay?.checkpoint, checkpoint.checkpoint);
   assert.deepEqual(
     (
       await new DraftTransactionStore(projects, projectStore).snapshot(
@@ -1396,6 +1407,12 @@ test("structural checkpoint cannot attest a semantic editing pass", async () => 
       "pass-codex-claims-manual-001",
     ),
     code("conflict"),
+  );
+  assert.equal(
+    await store.recordLatestManualStructureCheckpoint(
+      baseline.project.project_id,
+    ),
+    null,
   );
 });
 

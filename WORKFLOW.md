@@ -58,7 +58,7 @@ Show a large preview, a simple timeline, transcript, and one context panel at a 
 
 Watch the complete draft, compare revisions, and run decode, timing, audio, caption, framing, missing-media, black-frame, freeze-frame, zoom, speed, and licence checks. Return to Edit for corrections without losing draft history. Show a plain summary. Open technical details only when requested.
 
-The current Review shell also offers Check draft integrity, which re-reads the committed timeline/journal and managed-source measurements. Its result covers structure and source integrity only; it is not the required watch-through, semantic speech review, playback, A/V join check, or full QA. Hide the action while another inspector or Codex drawer is open, and clear its result when the committed head changes.
+The current Review shell also offers Check draft integrity, which re-reads the committed timeline/journal and managed-source measurements. If the current head ends in an eligible main-owned manual group, the explicit action records a structural-only checkpoint with concrete evidence IDs. Its result is not the required watch-through, semantic speech review, playback, A/V join check, or full QA. Hide the action while another inspector or Codex drawer is open, and clear its result when the committed head changes.
 
 ## 6. Export
 

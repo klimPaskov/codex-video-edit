@@ -243,6 +243,22 @@ try {
   } finally {
     await chmod(projectFolder, 0o700);
   }
+  const editStageButton = window
+    .getByRole("navigation", { name: "Project stages" })
+    .getByRole("button", { name: "Edit", exact: true });
+  await editStageButton.click();
+  await expect(editStageButton).toHaveAttribute("aria-current", "step");
+  await expect(window.locator("#stage-select")).toHaveValue("edit");
+  await expect(window.locator("#edit-actions")).toBeVisible();
+  await window
+    .getByRole("button", {
+      name: "Split clip at playhead",
+      exact: true,
+    })
+    .click();
+  await expect(window.locator("#duration")).toHaveText(" / 0:01.500");
+  await expect(window.locator("#undo-edit")).toBeEnabled();
+  await expect(window.locator("#edit-clip")).toHaveText("Part 2");
   const reviewStageButton = window
     .getByRole("navigation", { name: "Project stages" })
     .getByRole("button", { name: "Review", exact: true });
@@ -281,7 +297,7 @@ try {
   }
   await integrityButton.click();
   await expect(window.locator("#draft-integrity-result")).toHaveText(
-    "Structure and managed sources verified; meaning, playback and A/V joins not reviewed.",
+    "Structure and managed sources verified. Manual checkpoint recorded; meaning and A/V not reviewed.",
   );
   await expect(window.locator("#draft-integrity-error")).toBeHidden();
   assert.deepEqual(
@@ -304,7 +320,7 @@ try {
   }
   await integrityButton.click();
   await expect(window.locator("#draft-integrity-result")).toHaveText(
-    "Structure and managed sources verified; meaning, playback and A/V joins not reviewed.",
+    "Structure and managed sources verified. Manual checkpoint recorded; meaning and A/V not reviewed.",
   );
   await expect(window.locator("#draft-integrity-error")).toBeHidden();
   assert.deepEqual(await readFile(managedSourcePath), managedSourceBytes);
@@ -530,9 +546,9 @@ try {
       offlineProjects,
     ),
     initialDraft = await offlineDrafts.snapshot(project.id),
-    committedTrim = await offlineDrafts.applyManual({
+    committedManualEdit = await offlineDrafts.applyManual({
       schema_version: "1.0",
-      request_id: "native-project-trim-001",
+      request_id: "native-project-range-delete-001",
       project_id: project.id,
       draft_id: initialDraft.draft.draft_id,
       base_revision_id: initialDraft.draft.base_revision_id,
@@ -543,16 +559,9 @@ try {
         kind: "manual",
       },
       reason: "Verify the packaged committed draft preview.",
-      operations: [
-        {
-          type: "trim",
-          clip_id: initialDraft.draft.timeline.clips[0]!.clip_id,
-          edge: "start",
-          timeline_position_us: 500_000,
-        },
-      ],
+      operations: [{ type: "ripple_delete", start_us: 0, end_us: 500_000 }],
     });
-  assert.equal(committedTrim.draft.timeline.duration_us, 1_000_000);
+  assert.equal(committedManualEdit.draft.timeline.duration_us, 1_000_000);
   electron = await _electron.launch({
     executablePath,
     chromiumSandbox: true,
@@ -626,8 +635,9 @@ try {
         pixelScope:
           "All pixels of opaque nonuniform BGRA frames through native canvas readback; not display or arbitrary alpha equality",
         reopen: true,
-        committedDraftSequence: committedTrim.draft.draft_sequence,
-        committedDraftDurationUs: committedTrim.draft.timeline.duration_us,
+        committedDraftSequence: committedManualEdit.draft.draft_sequence,
+        committedDraftDurationUs:
+          committedManualEdit.draft.timeline.duration_us,
         timelineSourceMapping: true,
         headBoundProjectFrames: true,
         sourceUnchanged: true,

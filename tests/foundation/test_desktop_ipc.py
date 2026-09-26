@@ -324,11 +324,14 @@ class DesktopIpcContractTests(unittest.TestCase):
         )
         self.valid(integrity)
         leaked = deepcopy(integrity)
-        leaked['response']['value']['sourcePath'] = 'C:/private/source.mkv'
+        leaked['response']['value']['draft']['sourcePath'] = 'C:/private/source.mkv'
         self.invalid(leaked)
         bad_payload = deepcopy(integrity)
         bad_payload['payload']['path'] = 'C:/private/source.mkv'
         self.invalid(bad_payload)
+        bad_checkpoint = deepcopy(integrity)
+        bad_checkpoint['response']['value']['structuralCheckpointRecorded'] = 'yes'
+        self.invalid(bad_checkpoint)
 
 
 if __name__ == '__main__':

@@ -1402,89 +1402,121 @@ export class DraftTransactionStore {
    * comes from this store's validated reads, never from renderer or model text.
    * This does not certify editorial meaning or rendered A/V joins.
    */
+  private manualStructureCheckpointRequest(
+    projectId: string,
+    loaded: LoadedDraft,
+    passGroupId: string,
+  ): PassCheckpointRequest {
+    if (!validId(passGroupId)) fail("invalid");
+    const passGroup = { pass_group_id: passGroupId, kind: "manual" as const },
+      transactionIds = loaded.applied
+        .filter(
+          (transaction) =>
+            transaction.origin === "manual" &&
+            transaction.pass_group?.pass_group_id === passGroupId &&
+            transaction.pass_group.kind === "manual",
+        )
+        .map((transaction) => transaction.transaction_id),
+      newestApplied = loaded.applied.at(-1);
+    if (
+      transactionIds.length < 1 ||
+      transactionIds.length > 64 ||
+      newestApplied?.origin !== "manual" ||
+      newestApplied?.pass_group?.pass_group_id !== passGroupId ||
+      newestApplied.pass_group.kind !== "manual" ||
+      !loaded.state.head_transaction_sha256
+    )
+      fail("conflict");
+    const sourceHashes = [
+      ...new Set(
+        loaded.baseline.schema_version === "1.1"
+          ? loaded.baseline.sources.map((source) => source.sha256)
+          : [loaded.baseline.source.sha256],
+      ),
+    ];
+    const checkpointRequest: PassCheckpointRequest = {
+      schema_version: "1.0",
+      request_id: `structure-${canonicalSha256({
+        project_id: projectId,
+        draft_id: loaded.state.draft_id,
+        draft_sequence: loaded.state.draft_sequence,
+        timeline_sha256: loaded.state.timeline_sha256,
+        head_transaction_sha256: loaded.state.head_transaction_sha256,
+        pass_group: passGroup,
+      })}`,
+      project_id: projectId,
+      draft_id: loaded.state.draft_id,
+      base_revision_id: loaded.state.base_revision_id,
+      expected_sequence: loaded.state.draft_sequence,
+      expected_timeline_sha256: loaded.state.timeline_sha256,
+      pass_group: passGroup,
+      verified_transaction_ids: transactionIds,
+      summary:
+        "Manual draft structure integrity verified; editorial meaning and audio/video review were not performed.",
+      checks: [
+        {
+          check_id: "draft-timeline-structure",
+          status: "pass",
+          method:
+            "Re-read the committed draft and validated source intervals against the immutable baseline.",
+          evidence_ids: [loaded.state.timeline_sha256],
+        },
+        {
+          check_id: "draft-journal-integrity",
+          status: "pass",
+          method:
+            "Replayed complete committed transactions and matched the current journal head.",
+          evidence_ids: [loaded.state.head_transaction_sha256],
+        },
+        {
+          check_id: "draft-managed-source-integrity",
+          status: "pass",
+          method:
+            "Re-read managed sources and validated hashes, sizes, probes, and timing metadata against the project manifest.",
+          evidence_ids: sourceHashes,
+        },
+      ],
+    };
+    try {
+      assertPassCheckpointRequest(checkpointRequest);
+    } catch {
+      fail("invalid");
+    }
+    return checkpointRequest;
+  }
+
   recordManualStructureCheckpoint(
     projectId: string,
     passGroupId: string,
   ): Promise<PassCheckpointCommitResult> {
     return this.serialize(projectId, async () => {
-      if (!validId(passGroupId)) fail("invalid");
-      const loaded = await this.load(projectId),
-        passGroup = { pass_group_id: passGroupId, kind: "manual" as const },
-        transactionIds = loaded.applied
-          .filter(
-            (transaction) =>
-              transaction.origin === "manual" &&
-              transaction.pass_group?.pass_group_id === passGroupId &&
-              transaction.pass_group.kind === "manual",
-          )
-          .map((transaction) => transaction.transaction_id),
-        newestApplied = loaded.applied.at(-1);
-      if (
-        transactionIds.length < 1 ||
-        transactionIds.length > 64 ||
-        newestApplied?.origin !== "manual" ||
-        newestApplied?.pass_group?.pass_group_id !== passGroupId ||
-        newestApplied.pass_group.kind !== "manual" ||
-        !loaded.state.head_transaction_sha256
-      )
-        fail("conflict");
-      const sourceHashes = [
-        ...new Set(
-          loaded.baseline.schema_version === "1.1"
-            ? loaded.baseline.sources.map((source) => source.sha256)
-            : [loaded.baseline.source.sha256],
-        ),
-      ];
-      const checkpointRequest: PassCheckpointRequest = {
-        schema_version: "1.0",
-        request_id: `structure-${canonicalSha256({
-          project_id: projectId,
-          draft_id: loaded.state.draft_id,
-          draft_sequence: loaded.state.draft_sequence,
-          timeline_sha256: loaded.state.timeline_sha256,
-          head_transaction_sha256: loaded.state.head_transaction_sha256,
-          pass_group: passGroup,
-        })}`,
-        project_id: projectId,
-        draft_id: loaded.state.draft_id,
-        base_revision_id: loaded.state.base_revision_id,
-        expected_sequence: loaded.state.draft_sequence,
-        expected_timeline_sha256: loaded.state.timeline_sha256,
-        pass_group: passGroup,
-        verified_transaction_ids: transactionIds,
-        summary:
-          "Manual draft structure integrity verified; editorial meaning and audio/video review were not performed.",
-        checks: [
-          {
-            check_id: "draft-timeline-structure",
-            status: "pass",
-            method:
-              "Re-read the committed draft and validated source intervals against the immutable baseline.",
-            evidence_ids: [loaded.state.timeline_sha256],
-          },
-          {
-            check_id: "draft-journal-integrity",
-            status: "pass",
-            method:
-              "Replayed complete committed transactions and matched the current journal head.",
-            evidence_ids: [loaded.state.head_transaction_sha256],
-          },
-          {
-            check_id: "draft-managed-source-integrity",
-            status: "pass",
-            method:
-              "Re-read managed sources and validated hashes, sizes, probes, and timing metadata against the project manifest.",
-            evidence_ids: sourceHashes,
-          },
-        ],
-      };
-      try {
-        assertPassCheckpointRequest(checkpointRequest);
-      } catch {
-        fail("invalid");
-      }
-      return checkpointRequest;
+      return this.manualStructureCheckpointRequest(
+        projectId,
+        await this.load(projectId),
+        passGroupId,
+      );
     }).then((request) => this.recordPassCheckpoint(request));
+  }
+
+  /**
+   * Record a structure-only checkpoint when the current head belongs to a
+   * main-owned manual group. AI-origin groups are never checkpointed here.
+   */
+  recordLatestManualStructureCheckpoint(
+    projectId: string,
+  ): Promise<PassCheckpointCommitResult | null> {
+    return this.serialize(projectId, async () => {
+      const loaded = await this.load(projectId),
+        newestApplied = loaded.applied.at(-1),
+        passGroup = newestApplied?.pass_group;
+      if (newestApplied?.origin !== "manual" || passGroup?.kind !== "manual")
+        return null;
+      return this.manualStructureCheckpointRequest(
+        projectId,
+        loaded,
+        passGroup.pass_group_id,
+      );
+    }).then((request) => (request ? this.recordPassCheckpoint(request) : null));
   }
 
   undoManual(value: unknown): Promise<DraftCommitResult> {

@@ -21,7 +21,7 @@ Changing screen flow, visual hierarchy, design system, editor panels, or empty a
 - Hide empty tracks and unavailable controls.
 - Use plain user language.
 
-If only a structural draft-integrity check is implemented in Review, show one Check draft integrity action there and report only what main actually revalidated. Clear the result when the committed draft head changes. Do not label the result a full review, semantic speech check, playback, A/V join review, or export readiness.
+If only a structural draft-integrity check is implemented in Review, show one Check draft integrity action there and report only what main actually revalidated. If the current manual group has a structural checkpoint, say so explicitly; otherwise state that no manual checkpoint was recorded. Clear the result when the committed draft head changes. Do not label the result a full review, semantic speech check, playback, A/V join review, or export readiness.
 
 Hide the Review integrity action while the Source inspector or Codex drawer is open, and clear its transient result on panel changes. Keep the check in the Review stage beside the preview; do not turn it into a persistent status dashboard.
 

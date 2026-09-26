@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assertProjectDraftIntegrityView,
   assertProjectList,
   assertProjectDraftView,
   assertProjectFrameRequest,
@@ -59,6 +60,31 @@ test("project IPC runtime accepts path-free views and exact requests for all fiv
     assertProjectView(value);
     assertProjectList([value]);
   }
+});
+
+test("draft integrity IPC accepts only a path-free committed head and checkpoint flag", () => {
+  const project = view(),
+    draft = {
+      projectId: project.id,
+      draft: project.draft,
+      timeline: project.timeline,
+    };
+  assertProjectDraftIntegrityView({
+    draft,
+    structuralCheckpointRecorded: true,
+  });
+  assert.throws(() =>
+    assertProjectDraftIntegrityView({
+      draft,
+      structuralCheckpointRecorded: "recorded",
+    }),
+  );
+  assert.throws(() =>
+    assertProjectDraftIntegrityView({
+      draft: { ...draft, sourcePath: "C:/private/source.mkv" },
+      structuralCheckpointRecorded: false,
+    }),
+  );
 });
 test("project requests reject paths, malformed IDs, unknown stages and excess fields", () => {
   for (const value of [

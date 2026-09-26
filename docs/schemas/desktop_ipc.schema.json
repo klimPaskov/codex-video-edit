@@ -448,7 +448,7 @@
               "required": ["ok", "value"],
               "properties": {
                 "ok": { "const": true },
-                "value": { "$ref": "#/$defs/projectDraftView" }
+                "value": { "$ref": "#/$defs/projectDraftIntegrityView" }
               }
             }
           ]
@@ -2068,6 +2068,15 @@
             }
           }
         }
+      }
+    },
+    "projectDraftIntegrityView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["draft", "structuralCheckpointRecorded"],
+      "properties": {
+        "draft": { "$ref": "#/$defs/projectDraftView" },
+        "structuralCheckpointRecorded": { "type": "boolean" }
       }
     },
     "projectDraftView": {

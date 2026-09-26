@@ -62,6 +62,11 @@ export interface ProjectDraftView {
   /** Current committed, half-open fragment map. Older exchange fixtures may omit it. */
   clips?: ProjectClipView[];
 }
+export interface ProjectDraftIntegrityView {
+  draft: ProjectDraftView;
+  /** True only when main recorded an evidence-backed checkpoint for the current manual group. */
+  structuralCheckpointRecorded: boolean;
+}
 export interface ProjectClipView {
   id: string;
   sourceId: string;
@@ -426,6 +431,13 @@ export function assertProjectDraftView(
       invalid();
     if (position !== value.timeline.durationUs) invalid();
   }
+}
+export function assertProjectDraftIntegrityView(
+  value: unknown,
+): asserts value is ProjectDraftIntegrityView {
+  exact(value, ["draft", "structuralCheckpointRecorded"]);
+  assertProjectDraftView(value.draft);
+  if (typeof value.structuralCheckpointRecorded !== "boolean") invalid();
 }
 export function assertProjectView(
   value: unknown,

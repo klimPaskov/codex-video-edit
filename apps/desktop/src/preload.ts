@@ -17,6 +17,7 @@ import {
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
   assertProjectDraftView,
+  assertProjectDraftIntegrityView,
   assertProjectFrameRequest,
   assertProjectFrameResult,
   assertManualTrimRequest,
@@ -184,7 +185,7 @@ const bridge: DesktopBridge = {
     return invoke(
       channels.projectIntegrityCheck,
       request,
-      assertProjectDraftView,
+      assertProjectDraftIntegrityView,
     );
   },
   readProjectFrame: (request) => {

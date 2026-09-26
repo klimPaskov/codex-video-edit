@@ -751,7 +751,7 @@ checkDraftIntegrityButton.addEventListener("click", async () => {
       draftIntegrityIssue = reply.message;
       return;
     }
-    const checkedHead = `${reply.value.projectId}:${reply.value.draft.id}:${reply.value.draft.sequence}:${reply.value.draft.timelineSha256}`;
+    const checkedHead = `${reply.value.draft.projectId}:${reply.value.draft.draft.id}:${reply.value.draft.draft.sequence}:${reply.value.draft.draft.timelineSha256}`;
     const freshness = draftIntegrityFreshness(
       requestedHead,
       currentHeadKey(activeProject),
@@ -763,7 +763,7 @@ checkDraftIntegrityButton.addEventListener("click", async () => {
         "Draft changed while the check was running. Run it again.";
       return;
     }
-    applyProjectDraft(reply);
+    applyProjectDraft({ ok: true, value: reply.value.draft });
     if (
       generation !== routeGeneration ||
       activeProject?.id !== project.id ||
@@ -775,8 +775,9 @@ checkDraftIntegrityButton.addEventListener("click", async () => {
       draftIntegrityIssue = "Draft changed during the check. Run it again.";
       return;
     }
-    draftIntegrityMessage =
-      "Structure and managed sources verified; meaning, playback and A/V joins not reviewed.";
+    draftIntegrityMessage = reply.value.structuralCheckpointRecorded
+      ? "Structure and managed sources verified. Manual checkpoint recorded; meaning and A/V not reviewed."
+      : "Structure and managed sources verified. No manual checkpoint; meaning and A/V not reviewed.";
   } catch {
     if (generation === routeGeneration && activeProject?.id === project.id)
       draftIntegrityIssue =

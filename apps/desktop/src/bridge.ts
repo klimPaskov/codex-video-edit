@@ -12,6 +12,7 @@ import type {
 import type { Preferences } from "../../../packages/domain/src/preferences.ts";
 import type {
   ProjectDraftView,
+  ProjectDraftIntegrityView,
   ProjectFrameRequest,
   ProjectFrameResult,
   ProjectView,
@@ -90,7 +91,7 @@ export interface DesktopBridge {
   navigateProject(request: ProjectNavigation): Promise<Reply<ProjectView>>;
   verifyDraftIntegrity(
     request: ProjectRequest,
-  ): Promise<Reply<ProjectDraftView>>;
+  ): Promise<Reply<ProjectDraftIntegrityView>>;
   readProjectFrame(
     request: ProjectFrameRequest,
   ): Promise<Reply<ProjectFrameResult>>;
