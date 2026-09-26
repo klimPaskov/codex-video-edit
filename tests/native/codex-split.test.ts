@@ -110,6 +110,8 @@ interface ToolSurfaceEvidence {
   route: "mcp" | "dynamic";
   ownedToolCount: 8;
   nativeAgentToolCount: number;
+  nestedV2ToolCount: number;
+  clockToolCount: number;
   applicationToolCount: 0;
   otherToolCount: number;
   multiAgentVersion: "disabled" | "v1" | "v2" | null;
@@ -245,12 +247,34 @@ async function verifyToolSurfaceRollout(options: {
         item.input.includes("agentCount") &&
         item.input.includes("appCount"),
     );
+    const inventoryCalls = codeCalls.filter((candidate) => {
+      if (typeof candidate.call_id !== "string") return false;
+      const outputs = responseItems.filter(
+        (item) =>
+          item.type === "custom_tool_call_output" &&
+          item.call_id === candidate.call_id,
+      );
+      return (
+        outputs.length === 1 &&
+        collectStrings(outputs[0]).some(
+          (output) =>
+            output.includes('"ownedCount"') && output.includes('"otherCount"'),
+        )
+      );
+    });
     assert.equal(
-      codeCalls.length,
-      1,
-      "Require one actual code-mode inventory call",
+      responseItems.filter(
+        (item) => item.type === "custom_tool_call" && item.name !== "exec",
+      ).length,
+      0,
+      "The tool-surface probe must not invoke an unrelated tool",
     );
-    const call = codeCalls[0]!;
+    assert.equal(
+      inventoryCalls.length,
+      1,
+      "Require one correlated code-mode inventory result",
+    );
+    const call = inventoryCalls[0]!;
     assert.ok(typeof call.call_id === "string");
     const codeOutputs = responseItems.filter(
       (item) =>
@@ -264,15 +288,30 @@ async function verifyToolSurfaceRollout(options: {
       options.toolRoute === "dynamic" && options.multiAgentVersion === "v1"
         ? 5
         : 0;
-    const utilityNames =
+    const v2ToolNames =
       options.toolRoute === "dynamic" && options.multiAgentVersion === "v2"
-        ? ["clock__curr_time"]
+        ? [
+            "codex_video_edit_agents__spawn_agent",
+            "codex_video_edit_agents__send_message",
+            "codex_video_edit_agents__followup_task",
+            "codex_video_edit_agents__interrupt_agent",
+            "codex_video_edit_agents__list_agents",
+            "codex_video_edit_agents__wait_agent",
+          ]
         : [];
-    const expectedUnownedCount = expectedAgentCount + utilityNames.length;
-    const expectedOtherCount = utilityNames.length;
+    const expectedV2Count = 0;
+    const expectedClockCount =
+      options.toolRoute === "dynamic" && options.multiAgentVersion === "v2"
+        ? 1
+        : 0;
+    const expectedUnownedCount =
+      expectedAgentCount + expectedV2Count + expectedClockCount;
+    const expectedOtherCount = 0;
     for (const [key, value] of [
       ["ownedCount", 8],
       ["agentCount", expectedAgentCount],
+      ["v2AgentCount", expectedV2Count],
+      ["clockCount", expectedClockCount],
       ["appCount", 0],
       ["unownedCount", expectedUnownedCount],
       ["otherCount", expectedOtherCount],
@@ -303,19 +342,24 @@ async function verifyToolSurfaceRollout(options: {
         ? /"spawn"\s*:\s*"function"/u
         : /"spawn"\s*:\s*"undefined"/u,
     );
-    if (utilityNames.length)
-      assert.match(
-        outputText,
-        /"unownedNames"\s*:\s*\[\s*"clock__curr_time"\s*\]/u,
-      );
+    if (options.toolRoute === "dynamic" && options.multiAgentVersion === "v2") {
+      for (const name of v2ToolNames)
+        assert.ok(
+          !outputText.includes(name),
+          `Direct-only V2 tool ${name} leaked into the nested code-mode surface`,
+        );
+      assert.ok(outputText.includes("clock__curr_time"));
+    }
     return {
       route: options.toolRoute,
       ownedToolCount: 8,
       nativeAgentToolCount: expectedAgentCount,
+      nestedV2ToolCount: expectedV2Count,
+      clockToolCount: expectedClockCount,
       applicationToolCount: 0,
       otherToolCount: expectedOtherCount,
       multiAgentVersion: options.multiAgentVersion,
-      readOnlyUtilityNames: utilityNames,
+      readOnlyUtilityNames: expectedClockCount > 0 ? ["clock__curr_time"] : [],
       completedCodeModeCall: true,
       callOutputCorrelated: true,
     };
@@ -353,6 +397,8 @@ let surfaceCounts:
   | {
       ownedCount: number;
       agentCount: number;
+      v2AgentCount: number;
+      clockCount: number;
       appCount: number;
       unownedCount: number;
       otherCount: number;
@@ -670,7 +716,7 @@ try {
       toolRoute === "dynamic"
         ? "codex_video_edit__"
         : "mcp__codex_video_edit__";
-    const diagnostic = `In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.${ownedPrefix}project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, plan: typeof tools.update_plan, input: typeof tools.request_user_input_async, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, ownedCount: ALL_TOOLS.filter(x => x.name.startsWith('${ownedPrefix}')).length, agentCount: ALL_TOOLS.filter(x => x.name.startsWith('multi_agent_v1__')).length, appCount: ALL_TOOLS.filter(x => x.name.startsWith('mcp__codex_apps__')).length, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).length, otherCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}') && !x.name.startsWith('multi_agent_v1__')).length, unownedNames: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).map(x => x.name)}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.`;
+    const diagnostic = `In a code-mode JavaScript cell, evaluate only JSON.stringify({owned: typeof tools.${ownedPrefix}project_get_summary, apps: typeof tools.mcp__codex_apps__adobe_adobe_mandatory_init, goals: typeof tools.update_goal, plan: typeof tools.update_plan, input: typeof tools.request_user_input_async, skills: typeof tools.skills__list, spawn: typeof tools.multi_agent_v1__spawn_agent, images: typeof tools.image_gen__imagegen, web: typeof tools.web__run, shell: typeof tools.exec_command, spawnV2: typeof tools.codex_video_edit_agents__spawn_agent, waitV2: typeof tools.codex_video_edit_agents__wait_agent, ownedCount: ALL_TOOLS.filter(x => x.name.startsWith('${ownedPrefix}')).length, agentCount: ALL_TOOLS.filter(x => x.name.startsWith('multi_agent_v1__')).length, v2AgentCount: ALL_TOOLS.filter(x => x.name.startsWith('codex_video_edit_agents__')).length, clockCount: ALL_TOOLS.filter(x => x.name === 'clock__curr_time').length, appCount: ALL_TOOLS.filter(x => x.name.startsWith('mcp__codex_apps__')).length, unownedCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).length, otherCount: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}') && !x.name.startsWith('multi_agent_v1__') && !x.name.startsWith('codex_video_edit_agents__') && x.name !== 'clock__curr_time').length, unownedNames: ALL_TOOLS.filter(x => !x.name.startsWith('${ownedPrefix}')).map(x => x.name)}). Print that exact JSON with text(). Do not invoke any nested tool, access any file or contact any service. Report the observed JSON only.`;
     surfaceDiagnostic = diagnostic;
     await page.locator("#codex-thread-input").fill(diagnostic);
     await page.locator("#send-codex-thread").click();
@@ -690,6 +736,8 @@ try {
         const values = [
           observed.ownedCount,
           observed.agentCount,
+          observed.v2AgentCount,
+          observed.clockCount,
           observed.appCount,
           observed.unownedCount,
           observed.otherCount,
@@ -707,6 +755,8 @@ try {
             surfaceCounts = {
               ownedCount: observed.ownedCount as number,
               agentCount: observed.agentCount as number,
+              v2AgentCount: observed.v2AgentCount as number,
+              clockCount: observed.clockCount as number,
               appCount: observed.appCount as number,
               unownedCount: observed.unownedCount as number,
               otherCount: observed.otherCount as number,
@@ -725,16 +775,39 @@ try {
     );
     const expectedAgentCount =
       toolRoute === "dynamic" && multiAgentVersion === "v1" ? 5 : 0;
+    const v2ToolNames =
+      toolRoute === "dynamic" && multiAgentVersion === "v2"
+        ? [
+            "codex_video_edit_agents__spawn_agent",
+            "codex_video_edit_agents__send_message",
+            "codex_video_edit_agents__followup_task",
+            "codex_video_edit_agents__interrupt_agent",
+            "codex_video_edit_agents__list_agents",
+            "codex_video_edit_agents__wait_agent",
+          ]
+        : [];
+    const expectedV2Count = 0;
     const utilityNames =
       toolRoute === "dynamic" && multiAgentVersion === "v2"
         ? ["clock__curr_time"]
         : [];
-    const expectedUnownedCount = expectedAgentCount + utilityNames.length;
-    const expectedOtherCount = utilityNames.length;
+    const expectedUnownedCount =
+      expectedAgentCount + expectedV2Count + utilityNames.length;
+    const expectedOtherCount = 0;
     step = "surface-agent-count";
     assert.match(
       answer,
       new RegExp(`"agentCount"\\s*:\\s*${expectedAgentCount}\\b`, "u"),
+    );
+    step = "surface-v2-agent-count";
+    assert.match(
+      answer,
+      new RegExp(`"v2AgentCount"\\s*:\\s*${expectedV2Count}\\b`, "u"),
+    );
+    step = "surface-clock-count";
+    assert.match(
+      answer,
+      new RegExp(`"clockCount"\\s*:\\s*${utilityNames.length}\\b`, "u"),
     );
     step = "surface-app-count";
     assert.match(answer, /"appCount"\s*:\s*0\b/u);
@@ -749,27 +822,10 @@ try {
       new RegExp(`"otherCount"\\s*:\\s*${expectedOtherCount}\\b`, "u"),
     );
     step = "surface-clock-helper";
-    if (utilityNames.length)
+    if (utilityNames.length > 0) {
       assert.deepEqual(surfaceCounts?.unownedNames, utilityNames);
-    step = "surface-spawn-function";
-    assert.match(
-      answer,
-      expectedAgentCount > 0
-        ? /"spawn"\s*:\s*"function"/u
-        : /"spawn"\s*:\s*"undefined"/u,
-    );
-    for (const key of [
-      "apps",
-      "goals",
-      "plan",
-      "input",
-      "skills",
-      "images",
-      "web",
-      "shell",
-    ]) {
-      step = `surface-disabled-${key}`;
-      assert.match(answer, new RegExp(`"${key}"\\s*:\\s*"undefined"`, "u"));
+      for (const name of v2ToolNames)
+        assert.ok(!surfaceCounts?.unownedNames.includes(name));
     }
   }
   async function records(): Promise<DraftTransactionRecord[]> {

@@ -174,6 +174,7 @@ test("dynamic thread start and resume retain the route-specific code-mode policy
     allowedMcpServer: "codex-video-edit",
     allowedMcpTools: new Set<string>(),
     newThreadToolRoute: "dynamic" as const,
+    nativeSubagentProtocol: "v1" as const,
     allowedDynamicNamespace: "codex_video_edit",
     allowedDynamicTools: ownedDynamicToolWireNames(),
   };

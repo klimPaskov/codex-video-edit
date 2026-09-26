@@ -483,7 +483,7 @@ try {
         "thread/resume",
         buildThreadResumeRequest(threadId, auditPolicy, {
           route: "dynamic",
-          nativeSubagents: true,
+          nativeSubagentProtocol: "v1",
         }),
       );
       return turns(
@@ -579,7 +579,7 @@ try {
     "thread/resume",
     buildThreadResumeRequest(parentThreadId, auditPolicy, {
       route: "dynamic",
-      nativeSubagents: true,
+      nativeSubagentProtocol: "v1",
     }),
   );
   mark("parent-policy-thread");

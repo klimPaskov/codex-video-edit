@@ -23,7 +23,10 @@ import {
 } from "./metadata.ts";
 import { CodexStdioTransport, CodexTransportError } from "./transport.ts";
 import { buildExperimentalInitialize } from "./thread-protocol.ts";
-import type { TurnStartInput } from "./thread-protocol.ts";
+import type {
+  NativeSubagentProtocol,
+  TurnStartInput,
+} from "./thread-protocol.ts";
 import { ProjectThreadRegistry } from "./thread-registry.ts";
 import { CodexProjectThreadClient } from "./thread-client.ts";
 import type { DynamicToolAccess } from "./dynamic-tools.ts";
@@ -164,6 +167,9 @@ export function buildCodexAppServerArguments(
     if (multiAgentIndex < 0 || agentsIndex < 0 || excludedNamespacesIndex < 0)
       throw new CodexTransportError("configuration");
     args[multiAgentIndex] = "features.multi_agent=true";
+    const multiAgentV2Index = args.indexOf("features.multi_agent_v2=false");
+    if (multiAgentV2Index < 0) throw new CodexTransportError("configuration");
+    args[multiAgentV2Index] = "features.multi_agent_v2=true";
     args[agentsIndex] = "agents.enabled=true";
     args[excludedNamespacesIndex] =
       'features.code_mode.excluded_tool_namespaces=["mcp__codex_apps","skills","functions","image_gen"]';
@@ -458,6 +464,9 @@ export interface OpenProjectThreadInput {
   projectId: string;
   model: string;
   effort: string;
+  nativeSubagentProtocol?: NativeSubagentProtocol;
+  nativeSubagentModel?: string;
+  nativeSubagentReasoning?: string;
   baseInstructions?: string;
   developerInstructions?: string;
 }
@@ -763,6 +772,17 @@ export class CodexClient {
       allowedMcpTools: new Set(codexVideoEditToolNames),
       ...(this.options.dynamicToolInvoker
         ? { dynamicToolInvoker: this.options.dynamicToolInvoker }
+        : {}),
+      ...(this.options.dynamicToolInvoker
+        ? {
+            nativeSubagentProtocol: input.nativeSubagentProtocol ?? "disabled",
+            ...(input.nativeSubagentProtocol === "v2"
+              ? {
+                  nativeSubagentModel: input.nativeSubagentModel!,
+                  nativeSubagentReasoning: input.nativeSubagentReasoning!,
+                }
+              : {}),
+          }
         : {}),
       onEvent: (event) => {
         if (this.conversation === conversation)

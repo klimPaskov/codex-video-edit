@@ -158,7 +158,7 @@ try {
   const threadResponse = (await transport.request("thread/start", {
     ...buildThreadStartRequest(policy, {
       route: "dynamic",
-      nativeSubagents: false,
+      nativeSubagentProtocol: "disabled",
     }),
     dynamicTools: [
       {

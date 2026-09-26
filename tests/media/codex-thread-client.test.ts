@@ -338,6 +338,77 @@ test("native child dynamic calls require correlated lineage and are read-only", 
   }
 });
 
+test("V2 native child reads require parent-owned subagent activity", async () => {
+  const accessModes: DynamicToolAccess[] = [];
+  const value = await fixture(undefined, async (_name, _input, access) => {
+    accessModes.push(access);
+    return { status: "read" };
+  });
+  try {
+    await value.client.open();
+    value.setHandler(async (method) => {
+      assert.equal(method, "turn/start");
+      return turnResponse("parent-turn");
+    });
+    await value.client.startTurn({ text: "Inspect the active project" });
+    value.client.notification("item/started", {
+      threadId: "thread-1",
+      turnId: "parent-turn",
+      startedAtMs: 1,
+      item: {
+        type: "subAgentActivity",
+        id: "v2-spawn-call",
+        kind: "started",
+        agentThreadId: "child-1",
+        agentPath: "/private/child",
+      },
+    });
+    value.client.notification("turn/started", {
+      threadId: "child-1",
+      turn: { id: "child-turn", status: "inProgress", items: [] },
+    });
+    const request = (threadId: string, turnId: string) =>
+      value.client.serverRequest({
+        id: `v2-child-read-${threadId}`,
+        method: "item/tool/call",
+        params: {
+          threadId,
+          turnId,
+          callId: `v2-call-${threadId}`,
+          namespace: "codex_video_edit",
+          tool: "project_get_summary",
+          arguments: { schema_version: "1.0", project_id: "project-1" },
+        },
+        signal: new AbortController().signal,
+      });
+    const read = (await request("child-1", "child-turn")) as {
+      success: boolean;
+    };
+    assert.equal(read.success, true);
+    assert.deepEqual(accessModes, ["native_child_read_only"]);
+
+    value.client.notification("item/started", {
+      threadId: "child-1",
+      turnId: "child-turn",
+      startedAtMs: 2,
+      item: {
+        type: "subAgentActivity",
+        id: "nested-spawn-call",
+        kind: "started",
+        agentThreadId: "grandchild-1",
+        agentPath: "/private/grandchild",
+      },
+    });
+    assert.throws(
+      () => request("grandchild-1", "grandchild-turn"),
+      CodexThreadProtocolError,
+    );
+    assert.deepEqual(accessModes, ["native_child_read_only"]);
+  } finally {
+    await rm(value.root, { recursive: true, force: true });
+  }
+});
+
 test("completed native spawn results correlate the returned child thread", async () => {
   const accessModes: DynamicToolAccess[] = [];
   const value = await fixture(undefined, async (_name, _input, access) => {
@@ -471,16 +542,11 @@ test("native child reads remain correlated before the parent turn/start response
       turnId: "parent-turn",
       startedAtMs: 1,
       item: {
-        type: "collabAgentToolCall",
+        type: "subAgentActivity",
         id: "spawn-call",
-        tool: "spawnAgent",
-        status: "inProgress",
-        senderThreadId: "thread-1",
-        receiverThreadIds: ["child-1"],
-        prompt: null,
-        model: null,
-        reasoningEffort: null,
-        agentsStates: {},
+        kind: "started",
+        agentThreadId: "child-1",
+        agentPath: "/private/child",
       },
     });
     value.client.notification("thread/started", {

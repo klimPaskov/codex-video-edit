@@ -16,6 +16,7 @@ import {
   type ThreadFeaturePolicy,
   type ThreadResumeRequest,
   type ThreadRuntimePolicy,
+  type NativeSubagentProtocol,
   type ThreadStartRequest,
   type ThreadTurnsListRequest,
   type ThreadUnsubscribeRequest,
@@ -50,8 +51,11 @@ export interface ProjectThreadRuntimeOptions {
   allowedMcpTools: ReadonlySet<string>;
   allowedDynamicNamespace?: string;
   allowedDynamicTools?: ReadonlySet<string>;
-  /** Only used for new threads; a persisted binding decides resume mode. */
+  /** Main-owned live model capability used for both start and resume policy. */
   newThreadToolRoute?: ProjectThreadToolRoute;
+  nativeSubagentProtocol?: NativeSubagentProtocol;
+  nativeSubagentModel?: string;
+  nativeSubagentReasoning?: string;
   /** Main-owned id source; overridden only by deterministic tests. */
   clientMessageId?: () => string;
 }
@@ -102,6 +106,22 @@ export class ProjectThreadRuntime {
     ) {
       throw new CodexThreadProtocolError("configuration");
     }
+    if (
+      options.nativeSubagentProtocol !== undefined &&
+      !["disabled", "v1", "v2"].includes(options.nativeSubagentProtocol)
+    )
+      throw new CodexThreadProtocolError("configuration");
+    if (
+      options.newThreadToolRoute === "mcp" &&
+      options.nativeSubagentProtocol !== undefined &&
+      options.nativeSubagentProtocol !== "disabled"
+    )
+      throw new CodexThreadProtocolError("configuration");
+    if (
+      options.nativeSubagentProtocol === "v2" &&
+      (!options.nativeSubagentModel || !options.nativeSubagentReasoning)
+    )
+      throw new CodexThreadProtocolError("configuration");
     const reviewedDynamicNames = ownedDynamicToolWireNames();
     if (
       options.allowedDynamicTools &&
@@ -122,7 +142,7 @@ export class ProjectThreadRuntime {
     // Validate the complete no-environment thread policy at construction.
     buildThreadStartRequest(this.options.policy, {
       route: this.options.newThreadToolRoute ?? "mcp",
-      nativeSubagents: false,
+      nativeSubagentProtocol: "disabled",
     });
   }
 
@@ -144,14 +164,27 @@ export class ProjectThreadRuntime {
       throw new CodexThreadProtocolError("configuration");
     }
     this.openingToolRoute = toolRoute;
+    const nativeSubagentProtocol =
+      toolRoute === "dynamic"
+        ? (this.options.nativeSubagentProtocol ?? "disabled")
+        : "disabled";
+    if (toolRoute === "mcp" && nativeSubagentProtocol !== "disabled")
+      throw new CodexThreadProtocolError("configuration");
+    const featurePolicy: ThreadFeaturePolicy = {
+      route: toolRoute,
+      nativeSubagentProtocol,
+      ...(nativeSubagentProtocol === "v2"
+        ? {
+            nativeSubagentModel: this.options.nativeSubagentModel!,
+            nativeSubagentReasoning: this.options.nativeSubagentReasoning!,
+          }
+        : {}),
+    };
     if (!existing) {
       return {
         method: "thread/start",
         params: {
-          ...buildThreadStartRequest(this.options.policy, {
-            route: toolRoute,
-            nativeSubagents: toolRoute === "dynamic",
-          }),
+          ...buildThreadStartRequest(this.options.policy, featurePolicy),
           ...(toolRoute === "dynamic"
             ? {
                 dynamicTools: buildCodexVideoEditDynamicTools(
@@ -167,10 +200,7 @@ export class ProjectThreadRuntime {
       params: await this.options.registry.resumeRequestForProject(
         this.options.projectId,
         this.options.policy,
-        {
-          route: toolRoute,
-          nativeSubagents: toolRoute === "dynamic",
-        } satisfies ThreadFeaturePolicy,
+        featurePolicy,
       ),
     };
   }
@@ -448,16 +478,20 @@ export class ProjectThreadRuntime {
       throw new CodexThreadProtocolError("forbidden");
     if (!threadProtocolInternals.record(params.item)) return;
     const item = params.item;
-    if (
-      item.type !== "collabAgentToolCall" ||
-      item.tool !== "spawnAgent" ||
-      item.status !== "inProgress" ||
-      item.senderThreadId !== this.threadId ||
-      !Array.isArray(item.receiverThreadIds) ||
-      item.receiverThreadIds.length === 0 ||
-      item.receiverThreadIds.length > 8
-    )
-      return;
+    const v1SpawnStarted =
+      item.type === "collabAgentToolCall" &&
+      item.tool === "spawnAgent" &&
+      item.status === "inProgress" &&
+      item.senderThreadId === this.threadId &&
+      Array.isArray(item.receiverThreadIds) &&
+      item.receiverThreadIds.length > 0 &&
+      item.receiverThreadIds.length <= 8;
+    const v2SpawnStarted =
+      item.type === "subAgentActivity" &&
+      item.kind === "started" &&
+      typeof item.agentThreadId === "string" &&
+      /^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/u.test(item.agentThreadId);
+    if (!v1SpawnStarted && !v2SpawnStarted) return;
     if (
       (this.notifiedStartingTurnId && this.notifiedStartingTurnId !== turnId) ||
       this.notifiedStartingTurnEnded ||

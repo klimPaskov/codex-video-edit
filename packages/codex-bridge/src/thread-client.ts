@@ -1,7 +1,11 @@
 import { CodexTransportError } from "./transport.ts";
 import type { ServerRequest } from "./transport.ts";
 import { CodexThreadProtocolError } from "./thread-protocol.ts";
-import type { ThreadRuntimePolicy, TurnStartInput } from "./thread-protocol.ts";
+import type {
+  NativeSubagentProtocol,
+  ThreadRuntimePolicy,
+  TurnStartInput,
+} from "./thread-protocol.ts";
 import type { ProjectThreadRegistry } from "./thread-registry.ts";
 import { ProjectThreadRuntime } from "./thread-runtime.ts";
 import type {
@@ -37,6 +41,9 @@ export interface CodexProjectThreadClientOptions {
   registry: ProjectThreadRegistry;
   allowedMcpServer: string;
   allowedMcpTools: ReadonlySet<string>;
+  nativeSubagentProtocol?: NativeSubagentProtocol;
+  nativeSubagentModel?: string;
+  nativeSubagentReasoning?: string;
   dynamicToolInvoker?: (
     name: CodexVideoEditToolName,
     input: unknown,
@@ -118,6 +125,14 @@ export class CodexProjectThreadClient {
       ...(options.dynamicToolInvoker
         ? {
             newThreadToolRoute: "dynamic",
+            nativeSubagentProtocol:
+              options.nativeSubagentProtocol ?? "disabled",
+            ...(options.nativeSubagentProtocol === "v2"
+              ? {
+                  nativeSubagentModel: options.nativeSubagentModel!,
+                  nativeSubagentReasoning: options.nativeSubagentReasoning!,
+                }
+              : {}),
             allowedDynamicNamespace: CODEX_EDITOR_NAMESPACE,
             allowedDynamicTools: ownedDynamicToolWireNames(),
           }
@@ -451,6 +466,8 @@ export class CodexProjectThreadClient {
     const parentThreadId = this.runtime.activeThreadId();
     const parentTurnId = this.runtime.notificationTurnId();
     const item = params.item;
+    const isParentItem = params.threadId === parentThreadId;
+    const itemTurnId = params.turnId;
     const spawnStarted =
       method === "item/started" && item.status === "inProgress";
     const spawnCompleted =
@@ -458,25 +475,36 @@ export class CodexProjectThreadClient {
     if (
       !parentThreadId ||
       !parentTurnId ||
-      item.type !== "collabAgentToolCall" ||
-      item.tool !== "spawnAgent" ||
-      item.senderThreadId !== parentThreadId ||
-      (!spawnStarted && !spawnCompleted) ||
-      !Array.isArray(item.receiverThreadIds) ||
-      item.receiverThreadIds.length === 0 ||
-      item.receiverThreadIds.length > 8
+      !isParentItem ||
+      itemTurnId !== parentTurnId
     ) {
       return;
     }
-    for (const childId of item.receiverThreadIds) {
+    const v1Spawn =
+      item.type === "collabAgentToolCall" &&
+      item.tool === "spawnAgent" &&
+      item.senderThreadId === parentThreadId &&
+      (spawnStarted || spawnCompleted) &&
+      Array.isArray(item.receiverThreadIds) &&
+      item.receiverThreadIds.length > 0 &&
+      item.receiverThreadIds.length <= 8;
+    const v2SpawnStarted =
+      method === "item/started" &&
+      item.type === "subAgentActivity" &&
+      item.kind === "started";
+    if (!v1Spawn && !v2SpawnStarted) return;
+    const childIds = v1Spawn
+      ? (item.receiverThreadIds as unknown[])
+      : [item.agentThreadId];
+    for (const childId of childIds) {
       if (
         typeof childId === "string" &&
         /^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/u.test(childId)
       ) {
         const existing = this.nativeChildren.get(childId);
         if (existing && existing.parentTurnId !== parentTurnId) continue;
-        if (!existing && this.nativeChildren.size >= MAX_NATIVE_CHILDREN)
-          continue;
+        const childLimit = v2SpawnStarted ? 1 : MAX_NATIVE_CHILDREN;
+        if (!existing && this.nativeChildren.size >= childLimit) continue;
         const child: NativeChildState = existing ?? {
           parentTurnId,
           spawnSeen: false,

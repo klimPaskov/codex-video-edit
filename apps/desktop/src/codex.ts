@@ -10,6 +10,7 @@ import type {
   ThreadHistorySnapshot,
   ThreadStreamEvent,
 } from "../../../packages/codex-bridge/src/thread-stream.ts";
+import type { NativeSubagentProtocol } from "../../../packages/codex-bridge/src/thread-protocol.ts";
 import { CodexTransportError } from "../../../packages/codex-bridge/src/transport.ts";
 import {
   ProjectThreadRegistry,
@@ -95,11 +96,27 @@ const DYNAMIC_PROJECT_THREAD_INSTRUCTIONS = PROJECT_THREAD_INSTRUCTIONS.replace(
   .replace("cut.split", "codex_video_edit__cut_split")
   .replace("cut.delete_ranges", "codex_video_edit__cut_delete_ranges")
   .replace("cut.delete_range", "codex_video_edit__cut_delete_range")
-  .replace("cut.restore_range", "codex_video_edit__cut_restore_range")
-  .replace(
+  .replace("cut.restore_range", "codex_video_edit__cut_restore_range");
+const DYNAMIC_V1_CHILD_INSTRUCTIONS =
+  "Dynamic-bound Codex threads may use a native child only when the selected model advertises the supported V1 protocol. Spawn with fork_context=true, give the child only this active project and ask it to use codex_video_edit__project_get_summary and codex_video_edit__timeline_get_summary. Main validates the completed parent spawn, child turn and each read, allows no child edits, and hides child transcripts and identities. MCP-bound threads do not expose children. Do not request an Astra model or claim a child ran without completed server-owned spawn and child-owned summary reads.";
+const DYNAMIC_V2_CHILD_INSTRUCTIONS =
+  "This GPT-6-Luna thread may use the guarded V2 native child route for one read-only project task. First read the active project's path-free project and timeline summaries with codex_video_edit__project_get_summary and codex_video_edit__timeline_get_summary. Invoke the direct top-level native codex_video_edit_agents__spawn_agent tool at most once with fork_turns=none and no model or reasoning override; give the child only the active project_id and those two summary JSON values. The child uses only that snapshot and must not ask for more access. These V2 functions are direct model tools, not nested code-mode helpers. The app locks the child model to the selected Luna model, disables model overrides, limits concurrent children to one, and rejects all child edits except the summary reads if any are attempted. Wait with the direct native codex_video_edit_agents__wait_agent tool; do not use send_message or followup_task, attempt another child, or request a model change. Never claim a child ran without completed server-owned spawn correlation and a completed child turn.";
+const DYNAMIC_NO_CHILD_INSTRUCTIONS =
+  "The selected Codex model has no native child protocol enabled for this conversation. Do not claim a child ran or request native-agent tools.";
+function dynamicInstructionsForProtocol(
+  protocol: NativeSubagentProtocol,
+): string {
+  const childInstructions =
+    protocol === "v1"
+      ? DYNAMIC_V1_CHILD_INSTRUCTIONS
+      : protocol === "v2"
+        ? DYNAMIC_V2_CHILD_INSTRUCTIONS
+        : DYNAMIC_NO_CHILD_INSTRUCTIONS;
+  return DYNAMIC_PROJECT_THREAD_INSTRUCTIONS.replace(
     "MCP-bound project threads do not support native children. Do not claim a child ran unless a completed server-owned spawn and child-owned summary reads are verified.",
-    "Dynamic-bound Codex threads may use a native child only when the selected model advertises the supported V1 protocol; GPT-6-Luna V2 children stay unavailable until their tools and events are guarded. Spawn with fork_context=true, give the child only this active project and ask it to use codex_video_edit__project_get_summary and codex_video_edit__timeline_get_summary. Main validates the completed parent spawn, child turn and each read, allows no child edits, and hides child transcripts and identities. MCP-bound threads do not expose children. Do not request an Astra model or claim a child ran without completed server-owned spawn and child-owned summary reads.",
+    childInstructions,
   );
+}
 const preferredSubscriptionModel: CodexSelection = {
   modelId: "gpt-6-luna",
   reasoning: "high",
@@ -132,6 +149,10 @@ export class DesktopCodex {
   private readonly threadItems = new Map<string, string>();
   private nextThreadViewId = 0;
   private readonly requestModels = new Map<string, string>();
+  private readonly nativeSubagentVersions = new Map<
+    string,
+    NativeSubagentProtocol
+  >();
   private readonly settings: Pick<CodexSettingsStore, "read" | "write">;
   private readonly dependencies: DesktopCodexDependencies;
   private readonly resources: string;
@@ -528,6 +549,7 @@ export class DesktopCodex {
       this.state.models = [];
       this.state.limits = [];
       this.requestModels.clear();
+      this.nativeSubagentVersions.clear();
       const skills = work[0];
       if (skills?.status === "fulfilled" && Array.isArray(skills.value))
         this.state.skills = (
@@ -542,6 +564,10 @@ export class DesktopCodex {
           models.value as Awaited<ReturnType<CodexClient["models"]>>
         ).map((entry) => {
           this.requestModels.set(entry.id, entry.model);
+          this.nativeSubagentVersions.set(
+            entry.id,
+            entry.multiAgentVersion ?? "disabled",
+          );
           return {
             id: entry.id,
             name: label(entry.displayName, 1024) || entry.id,
@@ -730,11 +756,23 @@ export class DesktopCodex {
       this.state.busy
     )
       throw new Error("Codex could not connect for this project conversation.");
-    const requestModel = this.requestModels.get(this.state.selection.modelId);
+    const selection = this.state.selection;
+    if (!selection) throw new Error("Choose an available Codex model.");
+    const requestModel = this.requestModels.get(selection.modelId);
+    const nativeSubagentProtocol: NativeSubagentProtocol =
+      route === "dynamic"
+        ? (this.nativeSubagentVersions.get(selection.modelId) ?? "disabled")
+        : "disabled";
+    let nativeSubagentModel: string | undefined;
+    let nativeSubagentReasoning: string | undefined;
     if (!requestModel)
       throw new Error(
         "Choose an available Codex model before opening the conversation.",
       );
+    if (nativeSubagentProtocol === "v2") {
+      nativeSubagentModel = requestModel;
+      nativeSubagentReasoning = selection.reasoning;
+    }
     this.thread = {
       status: "opening",
       projectId,
@@ -746,8 +784,15 @@ export class DesktopCodex {
       await this.client.openProjectThread({
         projectId,
         model: requestModel,
-        effort: this.state.selection.reasoning,
-        developerInstructions: `${route === "mcp" ? PROJECT_THREAD_INSTRUCTIONS : DYNAMIC_PROJECT_THREAD_INSTRUCTIONS}\nRead-tool input for this main-owned active project: ${JSON.stringify({ schema_version: "1.0", project_id: projectId })}. Use this exact project_id; do not guess identifiers or ask the user to provide it. Obtain draft identifiers, sequence and hash from the read tools before editing.`,
+        effort: selection.reasoning,
+        ...(route === "dynamic" ? { nativeSubagentProtocol } : {}),
+        ...(route === "dynamic" && nativeSubagentProtocol === "v2"
+          ? {
+              nativeSubagentModel: nativeSubagentModel!,
+              nativeSubagentReasoning: nativeSubagentReasoning!,
+            }
+          : {}),
+        developerInstructions: `${route === "mcp" ? PROJECT_THREAD_INSTRUCTIONS : dynamicInstructionsForProtocol(nativeSubagentProtocol)}\nRead-tool input for this main-owned active project: ${JSON.stringify({ schema_version: "1.0", project_id: projectId })}. Use this exact project_id; do not guess identifiers or ask the user to provide it. Obtain draft identifiers, sequence and hash from the read tools before editing.`,
       });
       if (this.thread.status === "opening") this.thread.status = "ready";
     } catch {

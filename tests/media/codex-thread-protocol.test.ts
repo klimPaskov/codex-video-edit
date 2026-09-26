@@ -36,6 +36,7 @@ const restrictedFeatures = {
     excluded_tool_namespaces: [
       "mcp__codex_apps",
       "multi_agent_v1",
+      "codex_video_edit_agents",
       "skills",
       "functions",
       "image_gen",
@@ -82,26 +83,49 @@ const restrictedFeatures = {
   web_search_cached: false,
   web_search_request: false,
 };
-const dynamicFeatures = (nativeSubagents: boolean) => ({
+const dynamicFeatures = (nativeSubagentProtocol: "disabled" | "v1" | "v2") => ({
   ...restrictedFeatures,
   code_mode_only: true,
   code_mode: {
     enabled: true,
-    excluded_tool_namespaces: nativeSubagents
-      ? ["mcp__codex_apps", "skills", "functions", "image_gen"]
-      : [
-          "mcp__codex_apps",
-          "multi_agent_v1",
-          "skills",
-          "functions",
-          "image_gen",
-        ],
+    excluded_tool_namespaces:
+      nativeSubagentProtocol === "v1"
+        ? ["mcp__codex_apps", "skills", "functions", "image_gen"]
+        : [
+            "mcp__codex_apps",
+            "multi_agent_v1",
+            ...(nativeSubagentProtocol === "disabled"
+              ? ["codex_video_edit_agents"]
+              : []),
+            "skills",
+            "functions",
+            "image_gen",
+          ],
+    ...(nativeSubagentProtocol === "v2"
+      ? { direct_only_tool_namespaces: ["codex_video_edit_agents"] }
+      : {}),
   },
   code_mode_host: {
     enabled: true,
     disable_in_process_fallback: true,
   },
-  multi_agent: nativeSubagents,
+  multi_agent: nativeSubagentProtocol === "v1",
+  multi_agent_v2:
+    nativeSubagentProtocol === "v2"
+      ? {
+          enabled: true,
+          max_concurrent_threads_per_session: 2,
+          min_wait_timeout_ms: 1_000,
+          default_wait_timeout_ms: 10_000,
+          max_wait_timeout_ms: 30_000,
+          subagent_developer_instructions:
+            "Read-only project helper. Use only the path-free project and timeline summary JSON supplied in your task message. Do not infer missing state or ask for other access. Never edit the draft, access files, use services, or spawn another child.",
+          tool_namespace: "codex_video_edit_agents",
+          expose_spawn_agent_model_overrides: false,
+          wait_agent_enabled: true,
+          non_code_mode_only: false,
+        }
+      : false,
 });
 const restrictedApps = {
   _default: {
@@ -195,24 +219,38 @@ test("experimental initialization and no-environment requests are exact", () => 
 
   const dynamicStart = buildThreadStartRequest(policy, {
     route: "dynamic",
-    nativeSubagents: false,
+    nativeSubagentProtocol: "disabled",
   });
   const dynamicResume = buildThreadResumeRequest("thread-1", policy, {
     route: "dynamic",
-    nativeSubagents: false,
+    nativeSubagentProtocol: "disabled",
   });
   const collaborativeStart = buildThreadStartRequest(policy, {
     route: "dynamic",
-    nativeSubagents: true,
+    nativeSubagentProtocol: "v1",
   });
   const collaborativeResume = buildThreadResumeRequest("thread-1", policy, {
     route: "dynamic",
-    nativeSubagents: true,
+    nativeSubagentProtocol: "v1",
   });
-  assert.deepEqual(dynamicStart.config.features, dynamicFeatures(false));
-  assert.deepEqual(dynamicResume.config.features, dynamicFeatures(false));
-  assert.deepEqual(collaborativeStart.config.features, dynamicFeatures(true));
-  assert.deepEqual(collaborativeResume.config.features, dynamicFeatures(true));
+  const v2Start = buildThreadStartRequest(policy, {
+    route: "dynamic",
+    nativeSubagentProtocol: "v2",
+    nativeSubagentModel: "gpt-6-luna",
+    nativeSubagentReasoning: "high",
+  });
+  const v2Resume = buildThreadResumeRequest("thread-1", policy, {
+    route: "dynamic",
+    nativeSubagentProtocol: "v2",
+    nativeSubagentModel: "gpt-6-luna",
+    nativeSubagentReasoning: "high",
+  });
+  assert.deepEqual(dynamicStart.config.features, dynamicFeatures("disabled"));
+  assert.deepEqual(dynamicResume.config.features, dynamicFeatures("disabled"));
+  assert.deepEqual(collaborativeStart.config.features, dynamicFeatures("v1"));
+  assert.deepEqual(collaborativeResume.config.features, dynamicFeatures("v1"));
+  assert.deepEqual(v2Start.config.features, dynamicFeatures("v2"));
+  assert.deepEqual(v2Resume.config.features, dynamicFeatures("v2"));
   for (const request of [dynamicStart, dynamicResume]) {
     assert.equal(request.config.features.code_mode_only, true);
     assert.equal(request.config.features.code_mode.enabled, true);
@@ -224,7 +262,14 @@ test("experimental initialization and no-environment requests are exact", () => 
     assert.equal(request.config.features.multi_agent, false);
     assert.deepEqual(
       request.config.features.code_mode.excluded_tool_namespaces,
-      ["mcp__codex_apps", "multi_agent_v1", "skills", "functions", "image_gen"],
+      [
+        "mcp__codex_apps",
+        "multi_agent_v1",
+        "codex_video_edit_agents",
+        "skills",
+        "functions",
+        "image_gen",
+      ],
     );
   }
   for (const request of [collaborativeStart, collaborativeResume]) {
@@ -245,9 +290,32 @@ test("experimental initialization and no-environment requests are exact", () => 
     );
     assert.deepEqual(request.config.tools, restrictedTools);
     assert.deepEqual(request.config.apps, restrictedApps);
-    assert.deepEqual(request.config.agents, { enabled: true, max_depth: 1 });
+    assert.deepEqual(request.config.agents, {
+      enabled: true,
+      max_depth: 1,
+    });
     assert.equal(request.approvalPolicy, "never");
     assert.equal(request.sandbox, "read-only");
+  }
+  for (const request of [v2Start, v2Resume]) {
+    assert.equal(request.config.features.multi_agent, false);
+    assert.equal(
+      (request.config.features.multi_agent_v2 as { enabled: boolean }).enabled,
+      true,
+    );
+    assert.equal(request.config.features.code_mode_only, true);
+    assert.deepEqual(
+      request.config.features.code_mode.direct_only_tool_namespaces,
+      ["codex_video_edit_agents"],
+    );
+    assert.deepEqual(request.config.agents, {
+      enabled: true,
+      max_depth: 1,
+      default_subagent_model: "gpt-6-luna",
+      default_subagent_reasoning_effort: "high",
+    });
+    assert.equal(request.sandbox, "read-only");
+    assert.equal(request.approvalPolicy, "never");
   }
 
   assert.deepEqual(
@@ -414,7 +482,7 @@ test("builders reject renderer-style policy and identifier overrides", () => {
     () =>
       buildThreadStartRequest(policy, {
         route: "mcp",
-        nativeSubagents: true,
+        nativeSubagentProtocol: "v1",
       }),
     CodexThreadProtocolError,
   );

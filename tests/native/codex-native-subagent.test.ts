@@ -34,6 +34,15 @@ const executablePath = process.argv[2];
 const configArgument = process.argv[3];
 assert.ok(executablePath && isAbsolute(executablePath));
 assert.ok(configArgument && isAbsolute(configArgument));
+const selectedModelId =
+  process.argv.find((argument) => argument.startsWith("--model="))?.slice(8) ??
+  "gpt-6-luna";
+assert.ok(
+  selectedModelId === "gpt-5.6-luna" || selectedModelId === "gpt-6-luna",
+  "Select a supported Luna model for native child verification",
+);
+const expectedMultiAgentVersion =
+  selectedModelId === "gpt-6-luna" ? "v2" : "v1";
 const configRoot = await realpath(configArgument);
 assert.equal(
   configRoot,
@@ -143,6 +152,22 @@ function items(turn: Record<string, unknown>): Record<string, unknown>[] {
     assert.ok(record(item));
     return item;
   });
+}
+
+function dynamicToolResult(
+  item: Record<string, unknown>,
+): Record<string, unknown> {
+  assert.ok(Array.isArray(item.contentItems));
+  const content = item.contentItems.find(
+    (entry: unknown) =>
+      record(entry) &&
+      entry.type === "inputText" &&
+      typeof entry.text === "string",
+  );
+  assert.ok(record(content));
+  const result: unknown = JSON.parse(content.text as string);
+  assert.ok(record(result));
+  return result;
 }
 
 async function rolloutRecords(
@@ -298,15 +323,15 @@ try {
     .toBe(true);
   const catalog = await page.evaluate(() => window.desktop.getCodex());
   assert.ok(catalog.ok);
-  // This fixture covers V1 child support; GPT-6-Luna currently selects the V2
-  // protocol, which remains disabled until the app validates that route.
-  const model = catalog.value.models.find((item) => item.id === "gpt-5.6-luna");
+  const model = catalog.value.models.find(
+    (item) => item.id === selectedModelId,
+  );
   assert.ok(
     model,
     "The authenticated catalog must provide the selected Luna model",
   );
   assert.ok(model.reasoning.includes("high"), "Luna/high is not available");
-  mark("select-luna-high-through-settings");
+  mark("select-selected-luna-high-through-settings");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Codex", exact: true }).click();
   await expect(page.locator("#codex-model")).toBeEnabled();
@@ -446,7 +471,9 @@ try {
 
   mark("real-native-child-turn");
   const prompt =
-    "First use the supported tool search to discover the native spawn_agent collaboration tool. Do not use MCP resource listing for discovery. If tool search does not make spawn_agent available, say it is unavailable without claiming a child started. If available, invoke it exactly once with fork_context=true for a small read-only child task: give the child the active project_id from your fixed developer instructions and ask it to use only the codex_video_edit project and timeline summary tools to verify this fixture has one clip and is 1.5 seconds long. Wait for that child to finish, then summarize its finding. Neither you nor the child may mutate the draft. Do not claim a child was used unless the native tool actually succeeds.";
+    expectedMultiAgentVersion === "v2"
+      ? "First use codex_video_edit__project_get_summary and codex_video_edit__timeline_get_summary in the parent thread to read the active project. Then call the direct top-level native codex_video_edit_agents__spawn_agent tool exactly once with fork_turns=none and no model or reasoning override. Give the child only the active project_id and the exact path-free JSON results from those two summary calls; ask it to confirm the fixture has one clip and is 1.5 seconds long using only that snapshot. Do not call spawn through a code-mode JavaScript cell. Then wait with the direct top-level codex_video_edit_agents__wait_agent tool and summarize the child's answer. Do not use send_message or followup_task, spawn another child, or mutate the draft. If the functions are unavailable or the child does not complete, say so without claiming it ran."
+      : "First use the supported tool search to discover the native spawn_agent collaboration tool. Do not use MCP resource listing for discovery. If tool search does not make spawn_agent available, say it is unavailable without claiming a child started. If available, invoke it exactly once with fork_context=true for a small read-only child task: give the child the active project_id from your fixed developer instructions and ask it to use only the codex_video_edit project and timeline summary tools to verify this fixture has one clip and is 1.5 seconds long. Wait for that child to finish, then summarize its finding. Neither you nor the child may mutate the draft. Do not claim a child was used unless the native tool actually succeeds.";
   await page.locator("#codex-thread-input").fill(prompt);
   await page.locator("#send-codex-thread").click();
   await expect
@@ -547,33 +574,6 @@ try {
     1,
     "Expected one fresh user turn in the native child test",
   );
-  const parentCollaborationCalls = items(parentTurn!).filter(
-    (item) =>
-      item.type === "collabAgentToolCall" &&
-      item.senderThreadId === parentThreadId,
-  );
-  const spawnCalls = parentCollaborationCalls.filter(
-    (item) => item.tool === "spawnAgent",
-  );
-  assert.equal(
-    spawnCalls.length,
-    1,
-    "Require one server-owned native spawn event",
-  );
-  const spawnCall = spawnCalls[0]!;
-  assert.equal(spawnCall.status, "completed");
-  assert.ok(
-    Array.isArray(spawnCall.receiverThreadIds) &&
-      spawnCall.receiverThreadIds.length === 1 &&
-      spawnCall.receiverThreadIds.every((id) => typeof id === "string"),
-  );
-  const childThreadId = spawnCall.receiverThreadIds[0] as string;
-  const waitCalls = parentCollaborationCalls.filter(
-    (item) => item.tool === "wait",
-  );
-  assert.equal(waitCalls.length, 1, "Require one server-owned child wait");
-  assert.equal(waitCalls[0]!.status, "completed");
-  assert.deepEqual(waitCalls[0]!.receiverThreadIds, [childThreadId]);
   const parentRead: unknown = await transport.request("thread/read", {
     threadId: parentThreadId,
     includeTurns: false,
@@ -581,6 +581,105 @@ try {
   assert.ok(record(parentRead) && record(parentRead.thread));
   assert.equal(parentRead.thread.id, parentThreadId);
   const parentRollout = await rolloutRecords(parentRead.thread, codexHome);
+  const parentItems = items(parentTurn!);
+  let childThreadId: string;
+  let parentSummarySnapshotVerified = false;
+  if (expectedMultiAgentVersion === "v1") {
+    const parentCollaborationCalls = parentItems.filter(
+      (item) =>
+        item.type === "collabAgentToolCall" &&
+        item.senderThreadId === parentThreadId,
+    );
+    const spawnCalls = parentCollaborationCalls.filter(
+      (item) => item.tool === "spawnAgent",
+    );
+    assert.equal(
+      spawnCalls.length,
+      1,
+      "Require one server-owned V1 native spawn event",
+    );
+    const spawnCall = spawnCalls[0]!;
+    assert.equal(spawnCall.status, "completed");
+    assert.ok(
+      Array.isArray(spawnCall.receiverThreadIds) &&
+        spawnCall.receiverThreadIds.length === 1 &&
+        spawnCall.receiverThreadIds.every((id) => typeof id === "string"),
+    );
+    childThreadId = spawnCall.receiverThreadIds[0] as string;
+    const waitCalls = parentCollaborationCalls.filter(
+      (item) => item.tool === "wait",
+    );
+    assert.equal(waitCalls.length, 1, "Require one server-owned child wait");
+    assert.equal(waitCalls[0]!.status, "completed");
+    assert.deepEqual(waitCalls[0]!.receiverThreadIds, [childThreadId]);
+  } else {
+    const responseItems = parentRollout
+      .filter(
+        (entry) => entry.type === "response_item" && record(entry.payload),
+      )
+      .map((entry) => entry.payload as Record<string, unknown>);
+    const functionCalls = responseItems.filter(
+      (item) => item.type === "function_call",
+    );
+    const spawnCalls = functionCalls.filter(
+      (item) => item.name === "spawn_agent",
+    );
+    const waitCalls = functionCalls.filter(
+      (item) => item.name === "wait_agent",
+    );
+    assert.equal(spawnCalls.length, 1, "Require one V2 spawn function call");
+    assert.ok(
+      waitCalls.length > 0 && waitCalls.length <= 4,
+      "Require a bounded server-owned V2 wait",
+    );
+    const spawnCall = spawnCalls[0]!;
+    assert.ok(typeof spawnCall.call_id === "string");
+    for (const call of [spawnCall, ...waitCalls]) {
+      assert.ok(typeof call.call_id === "string");
+      assert.equal(
+        responseItems.filter(
+          (item) =>
+            item.type === "function_call_output" &&
+            item.call_id === call.call_id,
+        ).length,
+        1,
+        "Require a correlated native V2 call result",
+      );
+    }
+    assert.ok(typeof spawnCall.arguments === "string");
+    const spawnArguments: unknown = JSON.parse(spawnCall.arguments);
+    assert.ok(record(spawnArguments));
+    assert.deepEqual(Object.keys(spawnArguments).sort(), [
+      "fork_turns",
+      "message",
+      "task_name",
+    ]);
+    assert.equal(spawnArguments.fork_turns, "none");
+    assert.ok(typeof spawnArguments.message === "string");
+    assert.ok(spawnArguments.message.length > 0);
+    const startActivities = parentItems.filter(
+      (item) => item.type === "subAgentActivity" && item.kind === "started",
+    );
+    assert.equal(startActivities.length, 1);
+    assert.equal(startActivities[0]!.id, spawnCall.call_id);
+    assert.ok(
+      typeof startActivities[0]!.agentThreadId === "string" &&
+        /^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/u.test(
+          startActivities[0]!.agentThreadId,
+        ),
+    );
+    childThreadId = startActivities[0]!.agentThreadId as string;
+    assert.equal(
+      parentItems.filter(
+        (item) =>
+          item.type === "subAgentActivity" &&
+          item.kind === "completed" &&
+          item.agentThreadId === childThreadId,
+      ).length,
+      1,
+      "Require the same server-owned child to complete",
+    );
+  }
   assert.notEqual(childThreadId, parentThreadId);
   const childRead: unknown = await transport.request("thread/read", {
     threadId: childThreadId,
@@ -610,8 +709,62 @@ try {
         Array.isArray(item.contentItems),
     ),
   );
-  assert.ok(childReadTurns.length > 0, "Child must own a completed read tool");
-  assert.ok(childReadTurns.some((turn) => turn.status === "completed"));
+  if (expectedMultiAgentVersion === "v1") {
+    assert.ok(
+      childReadTurns.length > 0,
+      "V1 child must own a completed read tool",
+    );
+    assert.ok(childReadTurns.some((turn) => turn.status === "completed"));
+  } else {
+    const parentSummaryCalls = parentItems.filter(
+      (item) =>
+        item.type === "dynamicToolCall" &&
+        item.namespace === "codex_video_edit" &&
+        (item.tool === "project_get_summary" ||
+          item.tool === "timeline_get_summary") &&
+        item.status === "completed" &&
+        item.success === true,
+    );
+    const parentSummaryTools = new Set(
+      parentSummaryCalls.map((item) => item.tool),
+    );
+    assert.deepEqual([...parentSummaryTools].sort(), [
+      "project_get_summary",
+      "timeline_get_summary",
+    ]);
+    const spawnActivityIndex = parentItems.findIndex(
+      (item) => item.type === "subAgentActivity" && item.kind === "started",
+    );
+    assert.ok(spawnActivityIndex > 0);
+    assert.ok(
+      parentSummaryCalls.every(
+        (item) => parentItems.indexOf(item) < spawnActivityIndex,
+      ),
+      "The parent must read both summaries before the V2 spawn",
+    );
+    const projectSummary = dynamicToolResult(
+      parentSummaryCalls.find((item) => item.tool === "project_get_summary")!,
+    );
+    const timelineSummary = dynamicToolResult(
+      parentSummaryCalls.find((item) => item.tool === "timeline_get_summary")!,
+    );
+    assert.equal(projectSummary.project_id, project.id);
+    assert.equal(timelineSummary.project_id, project.id);
+    assert.equal(timelineSummary.duration_us, 1_500_000);
+    assert.ok(Array.isArray(timelineSummary.clips));
+    assert.equal(timelineSummary.clips.length, 1);
+    assert.equal(childReadTurns.length, 0);
+    const childAnswer = childTurns
+      .flatMap(items)
+      .filter(
+        (item) => item.type === "agentMessage" && typeof item.text === "string",
+      )
+      .at(-1)?.text;
+    assert.ok(typeof childAnswer === "string" && childAnswer.length > 0);
+    assert.match(childAnswer, /clip/i);
+    assert.match(childAnswer, /1\.5\s*(?:seconds|s)/iu);
+    parentSummarySnapshotVerified = true;
+  }
   const childItems = childTurns.flatMap(items);
   const childSummaryTools = new Set(
     childItems
@@ -624,10 +777,12 @@ try {
       )
       .map((item) => item.tool),
   );
-  assert.deepEqual([...childSummaryTools].sort(), [
-    "project_get_summary",
-    "timeline_get_summary",
-  ]);
+  assert.deepEqual(
+    [...childSummaryTools].sort(),
+    expectedMultiAgentVersion === "v1"
+      ? ["project_get_summary", "timeline_get_summary"]
+      : [],
+  );
   assert.ok(
     childItems.every(
       (item) =>
@@ -645,6 +800,7 @@ try {
     "plan",
     "contextCompaction",
     "sleep",
+    ...(expectedMultiAgentVersion === "v2" ? ["subAgentActivity"] : []),
   ]);
   assert.ok(
     childItems.every(
@@ -657,14 +813,19 @@ try {
   mark("child-policy-metadata");
   const childRollout = await rolloutRecords(childRead.thread, codexHome);
   const parentContext = rolloutContext(parentRollout, parentTurn.id);
-  const childContext = rolloutContext(childRollout, childReadTurns[0]!.id);
+  const childPolicyTurn =
+    expectedMultiAgentVersion === "v1"
+      ? childReadTurns[0]
+      : childTurns.find((turn) => turn.status === "completed");
+  assert.ok(childPolicyTurn);
+  const childContext = rolloutContext(childRollout, childPolicyTurn.id);
   assert.equal(parentContext.cwd, cwd);
   assert.equal(parentContext.approval_policy, "never");
   assert.deepEqual(parentContext.sandbox_policy, { type: "read-only" });
   assert.ok(record(parentContext.permission_profile));
   assert.equal(parentContext.model, model.id);
   assert.equal(parentContext.effort, "high");
-  assert.equal(parentContext.multi_agent_version, "v1");
+  assert.equal(parentContext.multi_agent_version, expectedMultiAgentVersion);
   for (const field of [
     "cwd",
     "workspace_roots",
@@ -707,7 +868,10 @@ try {
     JSON.stringify(
       {
         status: "pass",
-        scope: "P2-real-native-child-read-only",
+        scope:
+          expectedMultiAgentVersion === "v1"
+            ? "P2-real-native-child-read-only-v1"
+            : "P2-real-native-child-summary-snapshot-v2",
         authenticated: true,
         selectedModelId: model.id,
         selectedReasoning: "high",
@@ -715,7 +879,9 @@ try {
         projectedChildActivity: projectedChild,
         serverOwnedSpawnCompleted: true,
         receiverThreadCorrelated: true,
-        childOwnedReadToolCompleted: true,
+        childOwnedReadToolCompleted:
+          expectedMultiAgentVersion === "v1" && childReadTurns.length > 0,
+        parentSummarySnapshotPassed: parentSummarySnapshotVerified,
         childParentVerified,
         childPolicyVerified,
         childEnvironmentListExposed: false,

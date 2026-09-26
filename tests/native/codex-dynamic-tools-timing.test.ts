@@ -159,7 +159,7 @@ try {
   const response = (await transport.request("thread/start", {
     ...buildThreadStartRequest(policy, {
       route: "dynamic",
-      nativeSubagents: false,
+      nativeSubagentProtocol: "disabled",
     }),
     dynamicTools: buildCodexVideoEditDynamicTools("fixture-project"),
   })) as { thread?: { id?: string } };

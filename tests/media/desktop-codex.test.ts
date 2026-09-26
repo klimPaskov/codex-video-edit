@@ -51,6 +51,7 @@ const model: ModelSummary = {
   displayName: "Runtime model",
   description: "Runtime description",
   isDefault: true,
+  multiAgentVersion: "v1",
   reasoning: ["medium"],
   defaultReasoning: "medium",
 };
@@ -285,13 +286,26 @@ test("a new ChatGPT account defaults to runtime-listed Luna with high reasoning"
     {
       ...model,
       id: "gpt-6-luna",
+      multiAgentVersion: "v2",
       model: "runtime-luna-request-name",
       displayName: "Luna",
       reasoning: ["medium", "high"],
     },
   ];
   let writes = 0;
+  const clients: FakeClient[] = [];
   const { controller } = harness(fake, {
+    toolRouteForProject: async () => "dynamic",
+    createClient: (options) => {
+      const client = clients.length === 0 ? fake : new FakeClient();
+      if (client !== fake) {
+        client.auth = signedIn();
+        client.modelValues = structuredClone(fake.modelValues);
+      }
+      client.options = options;
+      clients.push(client);
+      return client;
+    },
     settings: {
       read: async () => null,
       write: async (value) => {
@@ -308,8 +322,12 @@ test("a new ChatGPT account defaults to runtime-listed Luna with high reasoning"
     });
     assert.equal(writes, 0);
     await controller.openThread("project-1");
-    assert.equal(fake.openThreadCalls[0]?.model, "runtime-luna-request-name");
-    assert.equal(fake.openThreadCalls[0]?.effort, "high");
+    const opened = clients.at(-1)?.openThreadCalls[0];
+    assert.equal(opened?.model, "runtime-luna-request-name");
+    assert.equal(opened?.effort, "high");
+    assert.equal(opened?.nativeSubagentProtocol, "v2");
+    assert.equal(opened?.nativeSubagentModel, "runtime-luna-request-name");
+    assert.equal(opened?.nativeSubagentReasoning, "high");
   } finally {
     await controller.close();
   }
@@ -345,6 +363,7 @@ test("a saved explicit Codex choice takes precedence over the Luna default", asy
     {
       ...model,
       id: "gpt-6-luna",
+      multiAgentVersion: "v2",
       model: "runtime-luna-request-name",
       reasoning: ["medium", "high"],
     },

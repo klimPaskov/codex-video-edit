@@ -368,6 +368,7 @@ test("App Server receives the owned MCP allowlist without command-line secrets",
     !dynamicArgs.some((arg) => arg.startsWith("mcp_servers.codex-video-edit.")),
   );
   assert.ok(dynamicArgs.includes("features.multi_agent=true"));
+  assert.ok(dynamicArgs.includes("features.multi_agent_v2=true"));
   for (const feature of [
     "api_key_model_discovery",
     "auth_elicitation",

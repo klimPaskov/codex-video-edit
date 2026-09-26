@@ -154,34 +154,73 @@ function validatePolicy(policy: ThreadRuntimePolicy): ThreadRuntimePolicy {
   };
 }
 
+export const CODEX_VIDEO_EDIT_V2_AGENT_NAMESPACE = "codex_video_edit_agents";
+
 type CodeModeNamespace =
-  "mcp__codex_apps" | "multi_agent_v1" | "skills" | "functions" | "image_gen";
+  | "mcp__codex_apps"
+  | "multi_agent_v1"
+  | typeof CODEX_VIDEO_EDIT_V2_AGENT_NAMESPACE
+  | "skills"
+  | "functions"
+  | "image_gen";
 
 export type ThreadToolRoute = "mcp" | "dynamic";
+export type NativeSubagentProtocol = "disabled" | "v1" | "v2";
 
 export interface ThreadFeaturePolicy {
   route: ThreadToolRoute;
-  nativeSubagents: boolean;
+  nativeSubagentProtocol: NativeSubagentProtocol;
+  nativeSubagentModel?: string;
+  nativeSubagentReasoning?: string;
 }
 
-function codeModeExclusions(nativeSubagents: boolean): CodeModeNamespace[] {
-  return nativeSubagents
-    ? ["mcp__codex_apps", "skills", "functions", "image_gen"]
-    : ["mcp__codex_apps", "multi_agent_v1", "skills", "functions", "image_gen"];
+function codeModeExclusions(
+  nativeSubagentProtocol: NativeSubagentProtocol,
+): CodeModeNamespace[] {
+  if (nativeSubagentProtocol === "v1")
+    return ["mcp__codex_apps", "skills", "functions", "image_gen"];
+  if (nativeSubagentProtocol === "v2")
+    return [
+      "mcp__codex_apps",
+      "multi_agent_v1",
+      "skills",
+      "functions",
+      "image_gen",
+    ];
+  return [
+    "mcp__codex_apps",
+    "multi_agent_v1",
+    CODEX_VIDEO_EDIT_V2_AGENT_NAMESPACE,
+    "skills",
+    "functions",
+    "image_gen",
+  ];
 }
 
 const defaultThreadFeaturePolicy: ThreadFeaturePolicy = {
   route: "mcp",
-  nativeSubagents: false,
+  nativeSubagentProtocol: "disabled",
 };
 
 function validatedFeaturePolicy(
   supplied: ThreadFeaturePolicy = defaultThreadFeaturePolicy,
 ): ThreadFeaturePolicy {
+  const hasChildModel = supplied.nativeSubagentModel !== undefined;
+  const hasChildReasoning = supplied.nativeSubagentReasoning !== undefined;
   if (
     (supplied.route !== "mcp" && supplied.route !== "dynamic") ||
-    typeof supplied.nativeSubagents !== "boolean" ||
-    (supplied.nativeSubagents && supplied.route !== "dynamic")
+    !["disabled", "v1", "v2"].includes(supplied.nativeSubagentProtocol) ||
+    (supplied.nativeSubagentProtocol !== "disabled" &&
+      supplied.route !== "dynamic") ||
+    (supplied.nativeSubagentProtocol === "v2" &&
+      (!hasChildModel ||
+        !hasChildReasoning ||
+        !/^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/u.test(
+          supplied.nativeSubagentModel ?? "",
+        ) ||
+        !reasoningPattern.test(supplied.nativeSubagentReasoning ?? ""))) ||
+    (supplied.nativeSubagentProtocol !== "v2" &&
+      (hasChildModel || hasChildReasoning))
   ) {
     throw new CodexThreadProtocolError("configuration");
   }
@@ -190,6 +229,7 @@ function validatedFeaturePolicy(
 
 function threadFeatures(policy: ThreadFeaturePolicy) {
   const codeModeOnly = policy.route === "dynamic";
+  const nativeV2 = policy.nativeSubagentProtocol === "v2";
   return {
     api_key_model_discovery: false,
     apps: false,
@@ -201,7 +241,14 @@ function threadFeatures(policy: ThreadFeaturePolicy) {
     code_mode_only: codeModeOnly,
     code_mode: {
       ...(codeModeOnly ? { enabled: true } : {}),
-      excluded_tool_namespaces: codeModeExclusions(policy.nativeSubagents),
+      excluded_tool_namespaces: codeModeExclusions(
+        policy.nativeSubagentProtocol,
+      ),
+      ...(policy.nativeSubagentProtocol === "v2"
+        ? {
+            direct_only_tool_namespaces: [CODEX_VIDEO_EDIT_V2_AGENT_NAMESPACE],
+          }
+        : {}),
     },
     code_mode_host: {
       ...(codeModeOnly ? { enabled: true } : {}),
@@ -224,8 +271,23 @@ function threadFeatures(policy: ThreadFeaturePolicy) {
     mcp_oauth_refresh_coordination: false,
     memories: false,
     memory_tool: false,
-    multi_agent: policy.nativeSubagents,
-    multi_agent_v2: false,
+    multi_agent: policy.nativeSubagentProtocol === "v1",
+    multi_agent_v2: nativeV2
+      ? {
+          enabled: true,
+          // The root thread occupies one slot, so two permits exactly one child.
+          max_concurrent_threads_per_session: 2,
+          min_wait_timeout_ms: 1_000,
+          default_wait_timeout_ms: 10_000,
+          max_wait_timeout_ms: 30_000,
+          subagent_developer_instructions:
+            "Read-only project helper. Use only the path-free project and timeline summary JSON supplied in your task message. Do not infer missing state or ask for other access. Never edit the draft, access files, use services, or spawn another child.",
+          tool_namespace: "codex_video_edit_agents",
+          expose_spawn_agent_model_overrides: false,
+          wait_agent_enabled: true,
+          non_code_mode_only: false,
+        }
+      : false,
     plugins: false,
     plugin_sharing: false,
     recommended_plugins: false,
@@ -269,7 +331,12 @@ export interface ThreadStartRequest {
       update_plan: { enabled: false };
       experimental_request_user_input: { enabled: false };
     };
-    agents: { enabled: boolean; max_depth?: 1 };
+    agents: {
+      enabled: boolean;
+      max_depth?: 1;
+      default_subagent_model?: string;
+      default_subagent_reasoning_effort?: string;
+    };
     project_root_markers: [];
     features: ReturnType<typeof threadFeatures>;
     web_search: "disabled";
@@ -310,9 +377,18 @@ export function buildThreadStartRequest(
         update_plan: { enabled: false },
         experimental_request_user_input: { enabled: false },
       },
-      agents: featurePolicy.nativeSubagents
-        ? { enabled: true, max_depth: 1 }
-        : { enabled: false },
+      agents:
+        featurePolicy.nativeSubagentProtocol === "v1"
+          ? { enabled: true, max_depth: 1 }
+          : featurePolicy.nativeSubagentProtocol === "v2"
+            ? {
+                enabled: true,
+                max_depth: 1,
+                default_subagent_model: featurePolicy.nativeSubagentModel!,
+                default_subagent_reasoning_effort:
+                  featurePolicy.nativeSubagentReasoning!,
+              }
+            : { enabled: false },
       project_root_markers: [],
       features: threadFeatures(featurePolicy),
       web_search: "disabled",
@@ -389,9 +465,18 @@ export function buildThreadResumeRequest(
         update_plan: { enabled: false },
         experimental_request_user_input: { enabled: false },
       },
-      agents: featurePolicy.nativeSubagents
-        ? { enabled: true, max_depth: 1 }
-        : { enabled: false },
+      agents:
+        featurePolicy.nativeSubagentProtocol === "v1"
+          ? { enabled: true, max_depth: 1 }
+          : featurePolicy.nativeSubagentProtocol === "v2"
+            ? {
+                enabled: true,
+                max_depth: 1,
+                default_subagent_model: featurePolicy.nativeSubagentModel!,
+                default_subagent_reasoning_effort:
+                  featurePolicy.nativeSubagentReasoning!,
+              }
+            : { enabled: false },
       project_root_markers: [],
       features: threadFeatures(featurePolicy),
       web_search: "disabled",

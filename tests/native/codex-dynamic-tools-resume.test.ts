@@ -114,7 +114,7 @@ try {
   const started = (await transport.request("thread/start", {
     ...buildThreadStartRequest(policy, {
       route: "dynamic",
-      nativeSubagents: false,
+      nativeSubagentProtocol: "disabled",
     }),
     dynamicTools: [
       {
@@ -168,7 +168,7 @@ try {
     "thread/resume",
     buildThreadResumeRequest(expectedThread, policy, {
       route: "dynamic",
-      nativeSubagents: false,
+      nativeSubagentProtocol: "disabled",
     }),
   )) as { thread?: { id?: string } };
   assert.equal(resumed.thread?.id, expectedThread);
