@@ -1291,6 +1291,114 @@ test("checkpoints bind passed verification to the exact current pass and reject 
   );
 });
 
+test("manual structural checkpoint derives evidence from the validated current draft", async () => {
+  const { projects, projectStore, baseline } = await fixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const applied = await store.applyManual(trim(initial));
+  assert.ok(applied.transaction.pass_group);
+
+  const checkpoint = await store.recordManualStructureCheckpoint(
+    baseline.project.project_id,
+    applied.transaction.pass_group.pass_group_id,
+  );
+  assert.equal(checkpoint.replayed, false);
+  assert.equal(checkpoint.checkpoint.status, "verified");
+  assert.deepEqual(checkpoint.checkpoint.verified_transaction_ids, [
+    applied.transaction.transaction_id,
+  ]);
+  assert.deepEqual(
+    checkpoint.checkpoint.checks.map((check) => check.check_id),
+    [
+      "draft-timeline-structure",
+      "draft-journal-integrity",
+      "draft-managed-source-integrity",
+    ],
+  );
+  assert.deepEqual(
+    checkpoint.checkpoint.checks.map((check) => check.evidence_ids.length),
+    [1, 1, 1],
+  );
+  assert.deepEqual(checkpoint.checkpoint.checks[0]?.evidence_ids, [
+    checkpoint.draft.timeline_sha256,
+  ]);
+  assert.deepEqual(checkpoint.checkpoint.checks[1]?.evidence_ids, [
+    checkpoint.draft.head_transaction_sha256,
+  ]);
+  assert.deepEqual(checkpoint.checkpoint.checks[2]?.evidence_ids, [
+    baseline.source.sha256,
+  ]);
+  assert.match(
+    checkpoint.checkpoint.summary,
+    /audio\/video review were not performed/u,
+  );
+
+  const replay = await store.recordManualStructureCheckpoint(
+    baseline.project.project_id,
+    applied.transaction.pass_group.pass_group_id,
+  );
+  assert.equal(replay.replayed, true);
+  assert.deepEqual(replay.checkpoint, checkpoint.checkpoint);
+  assert.deepEqual(
+    (
+      await new DraftTransactionStore(projects, projectStore).snapshot(
+        baseline.project.project_id,
+      )
+    ).current_pass_checkpoint,
+    checkpoint.checkpoint,
+  );
+});
+
+test("structural checkpoint cannot attest a semantic editing pass", async () => {
+  const { projects, projectStore, baseline } = await fixture();
+  const store = new DraftTransactionStore(
+    projects,
+    projectStore,
+    dependencies(),
+  );
+  const initial = (await store.snapshot(baseline.project.project_id)).draft;
+  const applied = await store.applyMagicWand({
+    ...trim(initial),
+    pass_group: {
+      pass_group_id: "pass-spoken-structural-001",
+      kind: "spoken_cut",
+    },
+  });
+  await assert.rejects(
+    store.recordManualStructureCheckpoint(
+      baseline.project.project_id,
+      "pass-spoken-structural-001",
+    ),
+    code("conflict"),
+  );
+  assert.equal(
+    (await store.snapshot(baseline.project.project_id)).current_pass_checkpoint,
+    null,
+  );
+  assert.equal(applied.transaction.pass_group?.kind, "spoken_cut");
+
+  const codexClaimedManual = await store.applyCodex({
+    ...trim((await store.snapshot(baseline.project.project_id)).draft),
+    request_id: "request-codex-claims-manual-pass",
+    pass_group: {
+      pass_group_id: "pass-codex-claims-manual-001",
+      kind: "manual",
+    },
+  });
+  assert.equal(codexClaimedManual.transaction.origin, "codex");
+  await assert.rejects(
+    store.recordManualStructureCheckpoint(
+      baseline.project.project_id,
+      "pass-codex-claims-manual-001",
+    ),
+    code("conflict"),
+  );
+});
+
 test("a checkpoint committed before an uncertain response is recovered and deduplicated", async () => {
   const setup = await fixture();
   let crash = true;

@@ -31,6 +31,9 @@ idempotent only when their canonical requests match exactly; a reused ID with di
 content is a conflict. A verification checkpoint is a separate hash-bound record for the
 current pass and does not commit a revision or clear undo history. Every passing check must
 cite at least one concrete evidence ID; never record verified status with an empty evidence list.
+The P2 structural-checkpoint helper is limited to the current manual-origin group and validates
+stored timeline/journal/managed-source state only; never use an AI-selected pass label or mark
+spoken, layout, zoom, or A/V review as complete with it.
 
 Keep transaction and navigation writes on the same project-root serialization boundary.
 Pending same-directory files may be ignored during recovery, while a corrupt committed
