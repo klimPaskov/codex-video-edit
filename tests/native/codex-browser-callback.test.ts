@@ -1,7 +1,14 @@
-/** Exercise the packaged App Server browser-login callback without completing sign-in. */
+/** Exercise packaged App Server browser-login denial and opt-in real success. */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { _electron, expect } from "playwright/test";
@@ -24,6 +31,7 @@ await chmod(configRoot, 0o700);
 const sha256 = (value: Buffer) =>
   createHash("sha256").update(value).digest("hex");
 const resources = join(dirname(executablePath), "resources");
+const awaitBrowserSuccess = process.argv.includes("--await-browser-success");
 await writeFile(
   join(evidence, "provenance.json"),
   JSON.stringify({
@@ -44,7 +52,7 @@ try {
     env: { ...process.env, DISPLAY: ":99", XDG_CONFIG_HOME: configRoot },
     timeout: 30000,
   });
-  const page = await electron.firstWindow();
+  let page = await electron.firstWindow();
   assert.equal(await electron.evaluate(({ app }) => app.isPackaged), true);
   assert.equal(page.url(), "codex-video-edit://app/index.html");
   await electron.evaluate(({ shell }) => {
@@ -107,98 +115,201 @@ try {
   assert.ok(["1455", "1457"].includes(callback.port));
   assert.equal(callback.pathname, "/auth/callback");
 
-  step = "reject-mismatched-state";
-  const wrongState = new URL(callback);
-  wrongState.hostname = "127.0.0.1";
-  wrongState.searchParams.set("state", `${state}-wrong`);
-  wrongState.searchParams.set("error", "access_denied");
-  const rejected = await fetch(wrongState, {
-    signal: AbortSignal.timeout(5000),
-  });
-  await rejected.arrayBuffer();
-  assert.equal(rejected.status, 400);
-  await expect(page.locator("#codex-cancel-login")).toBeVisible();
-  await expect(page.locator("#codex-error")).toBeHidden();
-  const pending = await page.evaluate(() => window.desktop.getCodex());
-  assert.ok(pending.ok);
-  assert.equal(pending.value.account, "signing_in");
-  assert.ok(!JSON.stringify(pending.value).includes(state));
+  if (awaitBrowserSuccess) {
+    step = "wait-for-browser-success";
+    await writeFile(join(evidence, "authorization-url.txt"), authUrlText, {
+      mode: 0o600,
+    });
+    console.log(`AUTHORIZATION_URL ${authUrlText}`);
+    await expect
+      .poll(
+        async () => {
+          const state = await page.evaluate(() => window.desktop.getCodex());
+          return (
+            state.ok &&
+            !state.value.busy &&
+            state.value.connection === "connected" &&
+            state.value.account === "signed_in" &&
+            state.value.models.length > 0
+          );
+        },
+        { timeout: 450_000, intervals: [250, 500, 1000, 2000] },
+      )
+      .toBe(true);
+    const signedIn = await page.evaluate(() => window.desktop.getCodex());
+    assert.ok(signedIn.ok);
+    assert.equal(signedIn.value.account, "signed_in");
+    assert.equal(signedIn.value.connection, "connected");
+    assert.ok(signedIn.value.models.length > 0);
+    assert.ok(!JSON.stringify(signedIn.value).includes(authUrlText));
+    assert.doesNotMatch(
+      JSON.stringify(signedIn.value),
+      /access[_-]?token|refresh[_-]?token/iu,
+    );
+    const userData = await electron.evaluate(({ app }) =>
+      app.getPath("userData"),
+    );
+    assert.equal(resolve(userData), join(configRoot, "codex-video-edit"));
+    const authFile = join(userData, "codex/account/auth.json");
+    const authMetadata = await stat(authFile);
+    assert.ok(authMetadata.isFile());
+    assert.equal(authMetadata.mode & 0o077, 0);
 
-  step = "complete-denied-callback";
-  const privateDescription = "private-test-oauth-error-detail";
-  const denied = new URL(callback);
-  denied.hostname = "127.0.0.1";
-  denied.searchParams.set("state", state);
-  denied.searchParams.set("error", "access_denied");
-  denied.searchParams.set("error_description", privateDescription);
-  const completion = await fetch(denied, {
-    signal: AbortSignal.timeout(10000),
-  });
-  await completion.arrayBuffer();
-  await expect(page.locator("#codex-login")).toBeVisible({ timeout: 30000 });
-  await expect(page.locator("#codex-error")).toHaveText(
-    "Sign-in did not finish. Try again.",
-  );
-  await expect(page.locator("#codex-account")).toHaveText(
-    "Sign in to use Codex",
-  );
-  const failed = await page.evaluate(() => window.desktop.getCodex());
-  assert.ok(failed.ok);
-  assert.equal(failed.value.account, "signed_out");
-  assert.equal(failed.value.busy, false);
-  assert.ok(!JSON.stringify(failed.value).includes(privateDescription));
-  assert.ok(!JSON.stringify(failed.value).includes(authUrlText));
-  assert.ok(
-    !(await page.locator("body").innerText()).includes(privateDescription),
-  );
-  assert.ok(!(await page.locator("body").innerText()).includes(state));
-  assert.ok(!(await page.locator("body").innerText()).includes(authUrlText));
+    step = "reopen-signed-in-account";
+    await electron.close();
+    electron = await _electron.launch({
+      executablePath,
+      chromiumSandbox: true,
+      env: { ...process.env, DISPLAY: ":99", XDG_CONFIG_HOME: configRoot },
+      timeout: 30000,
+    });
+    page = await electron.firstWindow();
+    assert.equal(await electron.evaluate(({ app }) => app.isPackaged), true);
+    assert.equal(page.url(), "codex-video-edit://app/index.html");
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "Codex", exact: true }).click();
+    await expect
+      .poll(
+        async () => {
+          const state = await page.evaluate(() => window.desktop.getCodex());
+          return (
+            state.ok &&
+            !state.value.busy &&
+            state.value.connection === "connected" &&
+            state.value.account === "signed_in" &&
+            state.value.models.length > 0
+          );
+        },
+        { timeout: 90_000, intervals: [250, 500, 1000] },
+      )
+      .toBe(true);
+    const reopened = await page.evaluate(() => window.desktop.getCodex());
+    assert.ok(reopened.ok);
+    assert.equal(reopened.value.account, "signed_in");
+    assert.ok(!JSON.stringify(reopened.value).includes(authUrlText));
+    assert.equal((await stat(authFile)).mode & 0o077, 0);
+    await writeFile(
+      join(evidence, "result.json"),
+      JSON.stringify({
+        status: "pass",
+        scope: "P2-packaged-real-browser-oauth-success",
+        packagedNativeWindow: true,
+        appServerAccountSignedIn: true,
+        liveModelsDiscovered: reopened.value.models.length,
+        signedInStateRestoredAfterReopen: true,
+        authorizationUrlExcludedFromRendererState: true,
+        credentialsAndResultRemainInGuest: true,
+      }),
+    );
+    console.log(JSON.stringify({ status: "pass" }));
+  } else {
+    step = "reject-mismatched-state";
+    const wrongState = new URL(callback);
+    wrongState.hostname = "127.0.0.1";
+    wrongState.searchParams.set("state", `${state}-wrong`);
+    wrongState.searchParams.set("error", "access_denied");
+    const rejected = await fetch(wrongState, {
+      signal: AbortSignal.timeout(5000),
+    });
+    await rejected.arrayBuffer();
+    assert.equal(rejected.status, 400);
+    await expect(page.locator("#codex-cancel-login")).toBeVisible();
+    await expect(page.locator("#codex-error")).toBeHidden();
+    const pending = await page.evaluate(() => window.desktop.getCodex());
+    assert.ok(pending.ok);
+    assert.equal(pending.value.account, "signing_in");
+    assert.ok(!JSON.stringify(pending.value).includes(state));
 
-  step = "retry-after-callback-failure";
-  await page.locator("#codex-login").click();
-  await expect(page.locator("#codex-cancel-login")).toBeVisible({
-    timeout: 30000,
-  });
-  await expect
-    .poll(
-      () =>
-        electron!.evaluate(
-          () =>
-            (
-              globalThis as typeof globalThis & {
-                __codexCallbackTest?: { urls: string[] };
-              }
-            ).__codexCallbackTest?.urls.length ?? 0,
-        ),
-      { timeout: 15000 },
-    )
-    .toBe(2);
-  await page.locator("#codex-cancel-login").click();
-  await expect(page.locator("#codex-login")).toBeVisible({ timeout: 30000 });
-  const retried = await page.evaluate(() => window.desktop.getCodex());
-  assert.ok(retried.ok);
-  assert.equal(retried.value.account, "signed_out");
-  assert.ok(!JSON.stringify(retried.value).includes(privateDescription));
+    step = "complete-denied-callback";
+    const privateDescription = "private-test-oauth-error-detail";
+    const denied = new URL(callback);
+    denied.hostname = "127.0.0.1";
+    denied.searchParams.set("state", state);
+    denied.searchParams.set("error", "access_denied");
+    denied.searchParams.set("error_description", privateDescription);
+    const completion = await fetch(denied, {
+      signal: AbortSignal.timeout(10000),
+    });
+    await completion.arrayBuffer();
+    await expect(page.locator("#codex-login")).toBeVisible({ timeout: 30000 });
+    await expect(page.locator("#codex-error")).toHaveText(
+      "Sign-in did not finish. Try again.",
+    );
+    await expect(page.locator("#codex-account")).toHaveText(
+      "Sign in to use Codex",
+    );
+    const failed = await page.evaluate(() => window.desktop.getCodex());
+    assert.ok(failed.ok);
+    assert.equal(failed.value.account, "signed_out");
+    assert.equal(failed.value.busy, false);
+    assert.ok(!JSON.stringify(failed.value).includes(privateDescription));
+    assert.ok(!JSON.stringify(failed.value).includes(authUrlText));
+    assert.ok(
+      !(await page.locator("body").innerText()).includes(privateDescription),
+    );
+    assert.ok(!(await page.locator("body").innerText()).includes(state));
+    assert.ok(!(await page.locator("body").innerText()).includes(authUrlText));
 
-  await writeFile(
-    join(evidence, "result.json"),
-    JSON.stringify({
-      status: "pass",
-      scope: "P2-packaged-real-appserver-oauth-callback-denial",
-      packagedNativeWindow: true,
-      callbackStateMismatchRejected: true,
-      correlatedDenialReturnedToSignedOut: true,
-      privateProviderDetailRedacted: true,
-      subsequentAttemptCanceled: true,
-      authenticationSucceeded: false,
-      externalBrowserOrHostInputUsed: false,
-    }),
-  );
-  console.log(JSON.stringify({ status: "pass", evidence }));
-} catch {
+    step = "retry-after-callback-failure";
+    await page.locator("#codex-login").click();
+    await expect(page.locator("#codex-cancel-login")).toBeVisible({
+      timeout: 30000,
+    });
+    await expect
+      .poll(
+        () =>
+          electron!.evaluate(
+            () =>
+              (
+                globalThis as typeof globalThis & {
+                  __codexCallbackTest?: { urls: string[] };
+                }
+              ).__codexCallbackTest?.urls.length ?? 0,
+          ),
+        { timeout: 15000 },
+      )
+      .toBe(2);
+    await page.locator("#codex-cancel-login").click();
+    await expect(page.locator("#codex-login")).toBeVisible({ timeout: 30000 });
+    const retried = await page.evaluate(() => window.desktop.getCodex());
+    assert.ok(retried.ok);
+    assert.equal(retried.value.account, "signed_out");
+    assert.ok(!JSON.stringify(retried.value).includes(privateDescription));
+
+    await writeFile(
+      join(evidence, "result.json"),
+      JSON.stringify({
+        status: "pass",
+        scope: "P2-packaged-real-appserver-oauth-callback-denial",
+        packagedNativeWindow: true,
+        callbackStateMismatchRejected: true,
+        correlatedDenialReturnedToSignedOut: true,
+        privateProviderDetailRedacted: true,
+        subsequentAttemptCanceled: true,
+        authenticationSucceeded: false,
+        externalBrowserOrHostInputUsed: false,
+      }),
+    );
+    console.log(JSON.stringify({ status: "pass", evidence }));
+  }
+} catch (error) {
+  try {
+    const failurePage = await electron?.firstWindow();
+    await failurePage?.screenshot({
+      path: join(evidence, "failure-window.png"),
+      timeout: 5000,
+    });
+  } catch {
+    /* Preserve the original failure without exposing page or provider text. */
+  }
   await writeFile(
     join(evidence, "failure.json"),
-    JSON.stringify({ status: "fail", step, detailsOmitted: true }),
+    JSON.stringify({
+      status: "fail",
+      step,
+      errorName: error instanceof Error ? error.name : "unknown",
+      detailsOmitted: true,
+    }),
   );
   console.error(`Packaged browser callback test failed at ${step}.`);
   process.exitCode = 1;
