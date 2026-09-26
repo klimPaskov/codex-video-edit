@@ -9,6 +9,7 @@ import {
   assertManualTrimRequest,
   assertManualSplitRequest,
   assertManualRangeCutRequest,
+  assertManualRestoreRangeRequest,
   assertManualUndoRequest,
   assertManualRedoRequest,
   assertProjectNavigation,
@@ -213,9 +214,16 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
     timelinePositionUs: 500_000,
   };
   const rangeCut = { ...head, startUs: 0, endUs: 500_000 };
+  const rangeRestore = {
+    ...head,
+    sourceId: project.source.id,
+    sourceStartUs: 500_000,
+    sourceEndUs: 1_000_000,
+  };
   assertManualTrimRequest(trim);
   assertManualSplitRequest(split);
   assertManualRangeCutRequest(rangeCut);
+  assertManualRestoreRangeRequest(rangeRestore);
   assertManualUndoRequest(undo);
   assertManualRedoRequest(redo);
   for (const bad of [
@@ -251,6 +259,15 @@ test("manual edit IPC accepts only exact intent and a valid draft head", () => {
     { ...rangeCut, request_id: "renderer-owned" },
   ])
     assert.throws(() => assertManualRangeCutRequest(bad));
+  for (const bad of [
+    { ...rangeRestore, path: "/private/source.mp4" },
+    { ...rangeRestore, sourceId: "../private" },
+    { ...rangeRestore, sourceStartUs: -1 },
+    { ...rangeRestore, sourceEndUs: rangeRestore.sourceStartUs },
+    { ...rangeRestore, sourceStartUs: 0.5 },
+    { ...rangeRestore, expectedTimelineSha256: "bad" },
+  ])
+    assert.throws(() => assertManualRestoreRangeRequest(bad));
   for (const bad of [
     { ...undo, targetTransactionId: "" },
     { ...undo, expectedSequence: -1 },

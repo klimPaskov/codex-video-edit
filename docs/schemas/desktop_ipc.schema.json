@@ -1089,6 +1089,22 @@
       "additionalProperties": false,
       "required": ["channel", "payload", "response"],
       "properties": {
+        "channel": { "const": "projects:manual-restore-range" },
+        "payload": { "$ref": "#/$defs/manualRestoreRangeRequest" },
+        "response": { "oneOf": [
+          { "$ref": "#/$defs/error" },
+          { "type": "object", "additionalProperties": false,
+            "required": ["ok", "value"],
+            "properties": { "ok": { "const": true }, "value": { "$ref": "#/$defs/projectDraftView" } }
+          }
+        ] }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channel", "payload", "response"],
+      "properties": {
         "channel": { "const": "projects:manual-undo" },
         "payload": { "$ref": "#/$defs/manualUndoRequest" },
         "response": { "oneOf": [
@@ -2150,6 +2166,22 @@
         "endUs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 }
       },
       "description": "Renderer sends an output-timeline half-open range and committed head. Main injects trusted manual authority."
+    },
+    "manualRestoreRangeRequest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "projectId", "draftId", "baseRevisionId", "expectedSequence", "expectedTimelineSha256", "sourceId", "sourceStartUs", "sourceEndUs"],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "projectId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+        "draftId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,127}$" },
+        "baseRevisionId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+        "expectedSequence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "expectedTimelineSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "sourceId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+        "sourceStartUs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "sourceEndUs": { "type": "integer", "minimum": 1, "maximum": 9007199254740991, "x-greaterThan": "sourceStartUs" }
+      },
+      "description": "Renderer sends one exact missing half-open source-time interval and committed head. Runtime additionally requires sourceStartUs < sourceEndUs; main resolves the immutable baseline and injects manual authority."
     },
     "manualUndoRequest": {
       "type": "object", "additionalProperties": false,

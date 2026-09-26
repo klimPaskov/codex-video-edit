@@ -29,6 +29,8 @@ For a partial Edit tool, put only actionable trim, Split and Undo controls by th
 
 For marked range cutting, keep Mark in, Mark out, Cut range and Clear adjacent to those Edit controls. Show only the marked times needed to understand the pending cut, disable Cut range for missing, reversed, empty or whole-draft marks and while saving, and clear stale marks when the committed head or project changes. Show the shortened preview from committed state and preserve newest Undo. A cut across parts does not remove either part from the Source inspector or justify an additional panel.
 
+For manual restoration, keep source choice and exact missing source-time bounds in a compact inline Edit form. Use full-precision microsecond timing from decimal seconds, disable invalid, overlapping or out-of-source intervals, and show a useful validation error. Resolve source identity against the immutable baseline in main; show the restored interval from committed preview state and preserve shared Undo/Redo. Do not infer missing speech or add an empty source-track panel.
+
 The compact AI drawer and Settings provider selector may offer Codex, OpenAI API, DeepSeek and Gemini API. Show one selected provider, its verified model choices, billing/context notice and recovery state; never combine several provider panels or imply a disconnected provider can generate. Gemini's function-call thought signatures and API keys are technical state, never UI content. A synthetic fixture label is test evidence, not a production assistant claim.
 
 ## Procedure

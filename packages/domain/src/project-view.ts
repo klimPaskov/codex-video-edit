@@ -117,6 +117,18 @@ export interface ManualRangeCutRequest {
   startUs: number;
   endUs: number;
 }
+/** Exact source-time interval confirmed missing from the active draft. */
+export interface ManualRestoreRangeRequest {
+  schema_version: "1.0";
+  projectId: string;
+  draftId: string;
+  baseRevisionId: string;
+  expectedSequence: number;
+  expectedTimelineSha256: string;
+  sourceId: string;
+  sourceStartUs: number;
+  sourceEndUs: number;
+}
 export interface ManualUndoRequest {
   schema_version: "1.0";
   projectId: string;
@@ -272,6 +284,26 @@ export function assertManualRangeCutRequest(
   integer(value.startUs);
   positive(value.endUs);
   if (value.startUs >= value.endUs) invalid();
+}
+export function assertManualRestoreRangeRequest(
+  value: unknown,
+): asserts value is ManualRestoreRangeRequest {
+  exact(value, [
+    "schema_version",
+    "projectId",
+    "draftId",
+    "baseRevisionId",
+    "expectedSequence",
+    "expectedTimelineSha256",
+    "sourceId",
+    "sourceStartUs",
+    "sourceEndUs",
+  ]);
+  assertManualHead(value);
+  id(value.sourceId);
+  integer(value.sourceStartUs);
+  positive(value.sourceEndUs);
+  if (value.sourceStartUs >= value.sourceEndUs) invalid();
 }
 export function assertManualUndoRequest(
   value: unknown,

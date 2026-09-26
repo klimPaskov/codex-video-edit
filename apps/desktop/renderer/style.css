@@ -259,6 +259,48 @@ canvas {
   gap: 8px;
   flex-basis: 100%;
 }
+.restore-actions {
+  display: flex;
+  flex-basis: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.restore-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: center;
+  gap: 8px;
+  width: min(100%, 920px);
+}
+#restore-form[hidden] {
+  display: none;
+}
+.restore-form label {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 150px;
+  gap: 4px;
+  color: #b6bac8;
+  font-size: 13px;
+  min-width: 130px;
+  max-width: 200px;
+}
+.restore-form select,
+.restore-form input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+#restore-error {
+  flex-basis: 100%;
+  max-width: 680px;
+  margin: 0;
+  color: #ed9b9b;
+  font-size: 13px;
+  text-align: center;
+}
 #review-actions {
   display: flex;
   grid-column: 1 / -1;

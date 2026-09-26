@@ -43,7 +43,7 @@ Running it creates or updates the active draft. If an API-backed option is selec
 
 Show a large preview, a simple timeline, transcript, and one context panel at a time. The user can:
 
-- split, trim, ripple-delete, restore, move, and reorder supported clips
+- split, trim, ripple-delete, exact missing source-range restore, move, and reorder supported clips
 - delete transcript words to cut matching media
 - adjust zoom target, duration, and strength
 - adjust speed range and multiplier

@@ -92,6 +92,12 @@ restore the adjacent maps without touching source files or the baseline. Test la
 trim before restore, restoring a fully removed earlier source ahead of a later source,
 overlap/ambiguity rejection, stale freshness, reopen, undo/redo and immutable inputs.
 
+The native manual Edit form sends the same strict source interval without source paths,
+transaction IDs, pass groups or origins. Main injects manual authority and the shared
+journal IDs, validates the active Edit stage and returns only the committed path-free
+draft. Parse displayed decimal seconds to exact integer microseconds; never pass a
+rounded floating-point time into the reducer.
+
 ## Validation
 
 Test zero and final boundaries, overlapping operations, ripple mapping, speed mapping, zoom blocks, transcript restore, batch undo, stacked undo/redo replay, clearing redo after new work, crash recovery, stale dependencies, and revision compare. The first bounded reducer must also test immutable source/baseline bytes, reopen replay, postcommit-unknown recovery, strict input rejection, stale-head concurrency, and checkpoint invalidation. For split, test exact interior/boundary behavior, fragment IDs/order/limits, seek equivalence on both sides, trim-after-split, undo and replay. Use Playwright Electron for pointer and keyboard flows once the transaction path changes native UI behavior.

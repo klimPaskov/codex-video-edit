@@ -40,6 +40,8 @@ For Retry request, require strict Codex view validation and controller coverage 
 
 For Review's Check draft integrity action, use a packaged synthetic project with a reversible manual edit, navigate to Review, and exercise the native control. Require a head-matched result, the evidence-backed structural checkpoint for the current manual group, unchanged project/source/baseline bytes, and an actionable failure when main cannot revalidate the project. Confirm the checkpoint stays structural-only, and that an AI-origin group cannot claim it. Guest-only visual inspection must show the scoped result. Do not count it as speech-meaning, playback, audio/video join, whole-video QA, or export verification.
 
+For manual restore, first import compatible synthetic sources, remove a known exact interval, then restore its source-time interval through the native Edit form. Verify committed duration/preview mapping, shared Undo/Redo, reopen and immutable source/baseline bytes. Use the isolated guest to inspect the form and committed restore state. This proves only exact structural restoration, not inferred transcript repair or synchronized A/V editing.
+
 ## Prohibitions
 
 - Do not build or launch the product on the user's host, control the host PC, or capture host windows. The latest user instruction supersedes the earlier viewer exception. Historical viewer evidence remains historical; future host-viewer use requires a new explicit user request.

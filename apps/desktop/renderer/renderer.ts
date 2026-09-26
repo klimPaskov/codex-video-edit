@@ -48,7 +48,14 @@ const editActions = element("edit-actions"),
   markOutButton = element<HTMLButtonElement>("mark-out"),
   cutSelection = element("cut-selection"),
   cutRangeButton = element<HTMLButtonElement>("cut-range"),
-  clearMarksButton = element<HTMLButtonElement>("clear-marks");
+  clearMarksButton = element<HTMLButtonElement>("clear-marks"),
+  restoreToggleButton = element<HTMLButtonElement>("restore-toggle"),
+  restoreForm = element("restore-form"),
+  restoreSource = element<HTMLSelectElement>("restore-source"),
+  restoreSourceStart = element<HTMLInputElement>("restore-source-start"),
+  restoreSourceEnd = element<HTMLInputElement>("restore-source-end"),
+  restoreSubmit = element<HTMLButtonElement>("restore-submit"),
+  restoreError = element("restore-error");
 const reviewActions = element("review-actions"),
   checkDraftIntegrityButton = element<HTMLButtonElement>(
     "check-draft-integrity",
@@ -74,6 +81,10 @@ let draftIntegrityIssue: string | null = null;
 let markHead: string | undefined;
 let markInUs: number | undefined;
 let markOutUs: number | undefined;
+let restoreSourceProjectId: string | undefined;
+let restoreHead: string | undefined;
+let restoreRangeOpen = false;
+let restoreRangeIssue: string | null = null;
 const stageLabels: Record<ProjectStage, string> = {
   record_import: "Record or Import",
   auto_edit: "Auto Edit",
@@ -130,6 +141,28 @@ function currentClip(): NonNullable<ProjectView["clips"]>[number] | undefined {
 function currentHeadKey(project: ProjectView): string {
   return `${project.id}:${project.draft.id}:${project.draft.sequence}:${project.draft.timelineSha256}`;
 }
+function secondsTextToMicroseconds(value: string): number | undefined {
+  const match = /^(?:(\d+)(?:\.(\d{1,6}))?|\.(\d{1,6}))$/u.exec(value.trim());
+  if (!match) return undefined;
+  const whole = BigInt(match[1] ?? "0"),
+    fraction = BigInt((match[2] ?? match[3] ?? "").padEnd(6, "0") || "0"),
+    total = whole * 1_000_000n + fraction;
+  return total <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(total) : undefined;
+}
+function restoreSources(project: ProjectView): MediaSummary[] {
+  return project.sources ?? [project.source];
+}
+function populateRestoreSources(project: ProjectView): void {
+  if (restoreSourceProjectId === project.id) return;
+  restoreSource.replaceChildren();
+  for (const source of restoreSources(project)) {
+    const option = document.createElement("option");
+    option.value = source.id;
+    option.textContent = source.name;
+    restoreSource.append(option);
+  }
+  restoreSourceProjectId = project.id;
+}
 function clearDraftIntegrityResult(): void {
   draftIntegrityHeadKey = undefined;
   draftIntegrityMessage = null;
@@ -162,10 +195,20 @@ function renderDraftIntegrityAction(): void {
 }
 function renderEditTools(): void {
   const project = activeProject;
+  if (project && restoreHead && restoreHead !== currentHeadKey(project)) {
+    restoreHead = undefined;
+    restoreRangeOpen = false;
+    restoreRangeIssue = null;
+    restoreSourceStart.value = "";
+    restoreSourceEnd.value = "";
+  }
   if (!project || project.stage !== "edit" || !project.clips) {
     editActions.hidden = true;
+    restoreRangeOpen = false;
+    restoreHead = undefined;
     return;
   }
+  populateRestoreSources(project);
   editActions.hidden = false;
   editActions.setAttribute("aria-busy", String(manualEditPending));
   const clip = currentClip(),
@@ -214,6 +257,66 @@ function renderEditTools(): void {
   ]
     .filter(Boolean)
     .join(" · ");
+  restoreToggleButton.disabled = manualEditPending || navigating;
+  restoreToggleButton.textContent = restoreRangeOpen
+    ? "Cancel restore"
+    : "Restore source range";
+  restoreToggleButton.setAttribute("aria-expanded", String(restoreRangeOpen));
+  restoreForm.hidden = !restoreRangeOpen;
+  restoreForm.setAttribute("aria-busy", String(manualEditPending));
+  restoreSource.disabled = manualEditPending || navigating;
+  restoreSourceStart.disabled = manualEditPending || navigating;
+  restoreSourceEnd.disabled = manualEditPending || navigating;
+  const source = restoreSources(project).find(
+      (candidate) => candidate.id === restoreSource.value,
+    ),
+    sourceStartUs = secondsTextToMicroseconds(restoreSourceStart.value),
+    sourceEndUs = secondsTextToMicroseconds(restoreSourceEnd.value),
+    overlapsVisible =
+      source !== undefined &&
+      sourceStartUs !== undefined &&
+      sourceEndUs !== undefined &&
+      project.clips.some(
+        (candidate) =>
+          candidate.sourceId === source.id &&
+          sourceStartUs < candidate.sourceEndUs &&
+          sourceEndUs > candidate.sourceStartUs,
+      );
+  let validationIssue: string | null = null;
+  if (
+    (restoreSourceStart.value.trim() && sourceStartUs === undefined) ||
+    (restoreSourceEnd.value.trim() && sourceEndUs === undefined)
+  )
+    validationIssue = "Use seconds with up to six decimal places.";
+  else if (
+    (restoreSourceStart.value.trim() || restoreSourceEnd.value.trim()) &&
+    (sourceStartUs === undefined || sourceEndUs === undefined)
+  )
+    validationIssue = "Enter both source times to restore the interval.";
+  else if (
+    sourceStartUs !== undefined &&
+    sourceEndUs !== undefined &&
+    sourceStartUs >= sourceEndUs
+  )
+    validationIssue = "Source end must be after source start.";
+  else if (
+    source &&
+    sourceEndUs !== undefined &&
+    sourceEndUs > source.durationUs
+  )
+    validationIssue = "Source end exceeds the selected source duration.";
+  else if (overlapsVisible)
+    validationIssue = "That source interval is already visible in the draft.";
+  restoreSubmit.disabled =
+    !restoreRangeOpen ||
+    !source ||
+    sourceStartUs === undefined ||
+    sourceEndUs === undefined ||
+    validationIssue !== null ||
+    manualEditPending ||
+    navigating;
+  restoreError.textContent = restoreRangeIssue ?? validationIssue ?? "";
+  restoreError.hidden = !restoreRangeOpen || !restoreError.textContent;
 }
 async function navigate(stage: ProjectStage): Promise<void> {
   if (
@@ -278,6 +381,10 @@ async function openProject(
 function selectProject(project: ProjectView, origin?: HTMLButtonElement): void {
   activeProject = project;
   clearDraftIntegrityResult();
+  restoreSourceProjectId = undefined;
+  restoreHead = undefined;
+  restoreRangeOpen = false;
+  restoreRangeIssue = null;
   codexThreadView = undefined;
   apiThreadView = undefined;
   codexThreadIssue = null;
@@ -699,7 +806,10 @@ function frameInterval(): number {
         activeProject.timeline.frameRate.numerator
     : 1_000_000 / (selected?.frameRate ?? 1);
 }
-function applyProjectDraft(reply: Reply<ProjectDraftView>): void {
+function applyProjectDraft(
+  reply: Reply<ProjectDraftView>,
+  preferredPositionUs = Number(seek.value),
+): void {
   if (!activeProject) return;
   if (!reply.ok) {
     showError(reply.message);
@@ -718,7 +828,7 @@ function applyProjectDraft(reply: Reply<ProjectDraftView>): void {
   selectionGeneration++;
   requestedTime = undefined;
   const position = Math.min(
-    Number(seek.value),
+    preferredPositionUs,
     Math.max(0, changed.timeline.durationUs - Math.ceil(frameInterval())),
   );
   seek.max = String(
@@ -928,6 +1038,103 @@ async function submitManualRangeCut(): Promise<void> {
     renderEditTools();
   }
 }
+async function submitManualRestoreRange(): Promise<void> {
+  const project = activeProject,
+    sourceId = restoreSource.value,
+    sourceStartUs = secondsTextToMicroseconds(restoreSourceStart.value),
+    sourceEndUs = secondsTextToMicroseconds(restoreSourceEnd.value),
+    source =
+      project &&
+      restoreSources(project).find((candidate) => candidate.id === sourceId),
+    generation = routeGeneration;
+  const overlapsVisible =
+    project !== undefined &&
+    sourceStartUs !== undefined &&
+    sourceEndUs !== undefined &&
+    project.clips?.some(
+      (clip) =>
+        clip.sourceId === sourceId &&
+        sourceStartUs < clip.sourceEndUs &&
+        sourceEndUs > clip.sourceStartUs,
+    );
+  if (
+    !project ||
+    project.stage !== "edit" ||
+    !source ||
+    sourceStartUs === undefined ||
+    sourceEndUs === undefined ||
+    sourceStartUs >= sourceEndUs ||
+    sourceEndUs > source.durationUs ||
+    overlapsVisible ||
+    !restoreRangeOpen ||
+    restoreHead !== currentHeadKey(project) ||
+    manualEditPending
+  )
+    return;
+  const requestedHead = currentHeadKey(project);
+  manualEditPending = true;
+  back.disabled = true;
+  restoreRangeIssue = null;
+  renderEditTools();
+  clearError();
+  try {
+    const reply = await window.desktop.applyManualRestoreRange({
+      schema_version: "1.0",
+      projectId: project.id,
+      draftId: project.draft.id,
+      baseRevisionId: project.draft.baseRevisionId,
+      expectedSequence: project.draft.sequence,
+      expectedTimelineSha256: project.draft.timelineSha256,
+      sourceId,
+      sourceStartUs,
+      sourceEndUs,
+    });
+    if (
+      generation !== routeGeneration ||
+      activeProject?.id !== project.id ||
+      activeProject.stage !== "edit"
+    )
+      return;
+    if (!reply.ok) {
+      restoreRangeIssue = reply.message;
+      return;
+    }
+    const returnedHead = `${reply.value.projectId}:${reply.value.draft.id}:${reply.value.draft.sequence}:${reply.value.draft.timelineSha256}`,
+      activeHead = currentHeadKey(activeProject);
+    if (activeHead !== requestedHead && activeHead !== returnedHead) {
+      restoreRangeOpen = false;
+      restoreHead = undefined;
+      showError("Draft changed during restore. Check the source range again.");
+      return;
+    }
+    const restoredClip = reply.value.clips?.find(
+      (clip) =>
+        clip.sourceId === sourceId &&
+        clip.sourceStartUs <= sourceStartUs &&
+        clip.sourceEndUs >= sourceEndUs,
+    );
+    restoreRangeOpen = false;
+    restoreHead = undefined;
+    restoreSourceStart.value = "";
+    restoreSourceEnd.value = "";
+    const restorePosition = restoredClip
+      ? restoredClip.timelineStartUs +
+        (sourceStartUs - restoredClip.sourceStartUs)
+      : Number(seek.value);
+    if (activeHead === returnedHead) {
+      applyProjectDraft(reply);
+      requestFrame(restorePosition);
+    } else applyProjectDraft(reply, restorePosition);
+  } catch {
+    if (generation === routeGeneration && activeProject?.id === project.id)
+      restoreRangeIssue =
+        "The source range could not be restored. Check the missing interval and try again.";
+  } finally {
+    manualEditPending = false;
+    back.disabled = false;
+    renderEditTools();
+  }
+}
 async function submitManualUndo(): Promise<void> {
   const project = activeProject,
     target = project?.draft.undoTransactionId,
@@ -996,6 +1203,34 @@ splitClip.addEventListener("click", () => void submitManualSplit());
 markInButton.addEventListener("click", () => markBoundary("in"));
 markOutButton.addEventListener("click", () => markBoundary("out"));
 cutRangeButton.addEventListener("click", () => void submitManualRangeCut());
+restoreToggleButton.addEventListener("click", () => {
+  const project = activeProject;
+  if (!project || project.stage !== "edit" || manualEditPending || navigating)
+    return;
+  restoreRangeOpen = !restoreRangeOpen;
+  restoreHead = restoreRangeOpen ? currentHeadKey(project) : undefined;
+  restoreRangeIssue = null;
+  if (restoreRangeOpen) {
+    restoreSourceStart.value = "";
+    restoreSourceEnd.value = "";
+  }
+  renderEditTools();
+  if (restoreRangeOpen)
+    requestAnimationFrame(() =>
+      restoreForm.scrollIntoView({ block: "nearest" }),
+    );
+});
+for (const input of [restoreSource, restoreSourceStart, restoreSourceEnd]) {
+  input.addEventListener("input", () => {
+    restoreRangeIssue = null;
+    renderEditTools();
+  });
+  input.addEventListener("change", () => {
+    restoreRangeIssue = null;
+    renderEditTools();
+  });
+}
+restoreSubmit.addEventListener("click", () => void submitManualRestoreRange());
 clearMarksButton.addEventListener("click", () => {
   markHead = undefined;
   markInUs = undefined;

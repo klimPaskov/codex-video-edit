@@ -48,8 +48,10 @@ import {
   assertManualTrimRequest,
   assertManualSplitRequest,
   assertManualRangeCutRequest,
+  assertManualRestoreRangeRequest,
   assertManualUndoRequest,
   assertManualRedoRequest,
+  type ProjectView,
 } from "../../../packages/domain/src/project-view.ts";
 import { assertPreferences } from "../../../packages/domain/src/preferences.ts";
 import {
@@ -681,6 +683,55 @@ async function start(): Promise<void> {
                 type: "ripple_delete",
                 start_us: request.startUs,
                 end_us: request.endUs,
+              },
+            ],
+          }),
+      });
+      return committedDraftView(committed);
+    } catch (error) {
+      if (error instanceof DraftTransactionError)
+        throw new UserFacingError(error.message);
+      throw error;
+    }
+  });
+  register(channels.projectManualRestoreRange, async (request) => {
+    assertManualRestoreRangeRequest(request);
+    if (activeProjectId !== request.projectId)
+      throw new UserFacingError("Open this project before editing it.");
+    let project: ProjectView;
+    try {
+      project = await projectRuntime.view(request.projectId);
+    } catch {
+      throw new UserFacingError("Reopen the project before restoring footage.");
+    }
+    if (project.stage !== "edit")
+      throw new UserFacingError("Switch to Edit to restore a source range.");
+    if (activeProjectId !== request.projectId)
+      throw new UserFacingError("The active project changed. Try again.");
+    try {
+      const committed = await invokeWithProjectDraftRefresh({
+        toolName: "cut.restore_range",
+        projectId: request.projectId,
+        activeProjectId: () => activeProjectId,
+        drafts,
+        notify: publishDraftNotice,
+        work: () =>
+          drafts.applyManual({
+            schema_version: "1.0",
+            request_id: randomUUID(),
+            project_id: request.projectId,
+            draft_id: request.draftId,
+            base_revision_id: request.baseRevisionId,
+            expected_sequence: request.expectedSequence,
+            expected_timeline_sha256: request.expectedTimelineSha256,
+            pass_group: { pass_group_id: randomUUID(), kind: "manual" },
+            reason: "Manual source-range restore.",
+            operations: [
+              {
+                type: "restore_range",
+                source_id: request.sourceId,
+                source_start_us: request.sourceStartUs,
+                source_end_us: request.sourceEndUs,
               },
             ],
           }),
