@@ -121,7 +121,7 @@ try {
   const restoreBeforeEdit = await page.evaluate(
     (request) => window.desktop.applyManualRestoreRange(request),
     {
-      schema_version: "1.0",
+      schema_version: "1.0" as const,
       projectId: combined.id,
       draftId: combined.draft.id,
       baseRevisionId: combined.draft.baseRevisionId,
