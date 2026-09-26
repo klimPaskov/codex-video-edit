@@ -46,6 +46,8 @@ Each codex-video-edit project owns a durable Codex thread. The thread receives:
 
 Do not send raw full-resolution media unless a supported tool and user disclosure require it.
 
+Only a server-confirmed `turn/completed` with failed status makes the latest submitted user request retryable in the Codex view. The drawer offers an explicit Retry request action, which sends that text through the ordinary new-turn path and receives a fresh App Server message identity. A completed, interrupted, rejected-before-acceptance, or uncertain turn does not expose that action. The failed-turn notice asks the user to review the committed draft before choosing Retry; no uncertain request is automatically replayed.
+
 ## Live editing
 
 Codex may call guarded tools that append operations to the active draft. The UI applies validated operations as they complete and displays them in the shared undo history. A partial turn may leave completed transactions in place. Stop and undo remain available.

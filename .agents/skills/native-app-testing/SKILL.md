@@ -36,6 +36,8 @@ For sign-out acceptance, run only with a copied mode-600 credential in the isola
 
 For live skill refresh, open packaged Codex Settings in a signed-in guest profile, add one synthetic local skill under that app's owned Codex context, and require the bounded main-process refresh to expose the skill in both the safe IPC projection and visible list without restarting Electron. App Server `skills/changed` refresh remains immediate when supported; periodic Settings polling covers runtimes that do not emit that notification for local file changes. Keep the synthetic file and screenshots in ignored guest evidence.
 
+For Retry request, require strict Codex view validation and controller coverage that accepts it only after a server-confirmed failed terminal turn and clears it for interrupted, rejected, or uncertain outcomes. Launch packaged Electron and verify the button stays hidden in the ordinary/signed-out drawer. Do not fabricate a production conversation or claim the enabled state was visually inspected without a real failed-turn event and guest screenshot.
+
 ## Prohibitions
 
 - Do not build or launch the product on the user's host, control the host PC, or capture host windows. The latest user instruction supersedes the earlier viewer exception. Historical viewer evidence remains historical; future host-viewer use requires a new explicit user request.

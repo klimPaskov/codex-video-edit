@@ -786,6 +786,54 @@ test("project conversation uses runtime model identity and exposes only compact 
   }
 });
 
+test("only a server-confirmed failed turn enables explicit request retry", async () => {
+  const fake = new FakeClient();
+  fake.auth = signedIn();
+  const { controller } = harness(fake);
+  const prompt = "Tighten the opening without changing its meaning.";
+  try {
+    await controller.get();
+    await controller.select({ modelId: model.id, reasoning: "medium" });
+    await controller.openThread("project-1");
+    const running = await controller.sendThread("project-1", prompt);
+    assert.equal(running.retryable, false);
+
+    fake.emitThread({
+      generation: 1,
+      threadId: "server-private-thread",
+      turnId: "server-private-turn",
+      type: "turn_terminal",
+      status: "failed",
+    });
+    const failed = controller.getThread("project-1");
+    assert.equal(failed.status, "ready");
+    assert.equal(failed.retryable, true);
+    assert.match(failed.message ?? "", /Review the committed draft/u);
+
+    const retry = await controller.sendThread(
+      "project-1",
+      [...failed.messages].reverse().find((message) => message.role === "user")!
+        .text,
+    );
+    assert.equal(fake.turnCalls.length, 2);
+    assert.equal(fake.turnCalls[1]?.text, prompt);
+    assert.equal(retry.status, "running");
+    assert.equal(retry.retryable, false);
+
+    fake.emitThread({
+      generation: 1,
+      threadId: "server-private-thread",
+      turnId: "server-private-retry",
+      type: "connection_uncertain",
+    });
+    const uncertain = controller.getThread("project-1");
+    assert.equal(uncertain.status, "uncertain");
+    assert.equal(uncertain.retryable, false);
+  } finally {
+    await controller.close();
+  }
+});
+
 test("resumed history replaces server identities before the drawer receives it", async () => {
   const fake = new FakeClient();
   fake.auth = signedIn();
@@ -822,6 +870,7 @@ test("resumed history replaces server identities before the drawer receives it",
     await controller.select({ modelId: model.id, reasoning: "medium" });
     const restored = await controller.openThread("project-1");
     assert.equal(restored.status, "running");
+    assert.equal(restored.retryable, false);
     assert.deepEqual(
       restored.messages.map(({ role, text, complete }) => ({
         role,
@@ -855,6 +904,7 @@ test("resumed history replaces server identities before the drawer receives it",
     });
     const completed = controller.getThread("project-1");
     assert.equal(completed.status, "ready");
+    assert.equal(completed.retryable, false);
     assert.equal(
       completed.messages.at(-1)?.text,
       "Applying the saved trim. Done.",
@@ -878,6 +928,7 @@ test("rejected turns are removable while interrupt completion remains stream-aut
     };
     const rejected = await controller.sendThread("project-1", "Bad request");
     assert.equal(rejected.status, "ready");
+    assert.equal(rejected.retryable, false);
     assert.deepEqual(rejected.messages, []);
     fake.onTurn = undefined;
     await controller.sendThread("project-1", "Run an edit");
@@ -893,6 +944,7 @@ test("rejected turns are removable while interrupt completion remains stream-aut
     });
     const interrupted = controller.getThread("project-1");
     assert.equal(interrupted.status, "ready");
+    assert.equal(interrupted.retryable, false);
     assert.match(interrupted.message ?? "", /interrupted/u);
   } finally {
     await controller.close();

@@ -1019,6 +1019,9 @@ function renderCodexThread(view: CodexThreadView): void {
   const stop = element<HTMLButtonElement>("interrupt-codex-thread");
   stop.hidden = !["running", "interrupting"].includes(view.status);
   stop.disabled = view.status !== "running";
+  const retry = element<HTMLButtonElement>("retry-codex-thread");
+  retry.hidden = !view.retryable || view.status !== "ready";
+  retry.disabled = retry.hidden;
   const issue = element("codex-thread-error");
   const nextIssue = view.message ?? codexThreadIssue ?? "";
   const revealIssue = issue.hidden || issue.textContent !== nextIssue;
@@ -1063,6 +1066,9 @@ function renderApiThread(view: ApiThreadView): void {
   const stop = element<HTMLButtonElement>("interrupt-codex-thread");
   stop.hidden = view.status !== "running" && view.status !== "interrupting";
   stop.disabled = view.status !== "running";
+  const retry = element<HTMLButtonElement>("retry-codex-thread");
+  retry.hidden = true;
+  retry.disabled = true;
   const issue = element("codex-thread-error");
   const nextIssue = view.message ?? codexThreadIssue ?? "";
   const revealIssue = issue.hidden || issue.textContent !== nextIssue;
@@ -1078,6 +1084,7 @@ function clearAssistantDisplay(): void {
   element("codex-thread-activity").hidden = true;
   element<HTMLFormElement>("codex-thread-form").hidden = true;
   element<HTMLButtonElement>("open-codex-thread").hidden = true;
+  element<HTMLButtonElement>("retry-codex-thread").hidden = true;
   element("codex-thread-error").hidden = true;
 }
 assistantProvider.addEventListener("change", () => {
@@ -1192,6 +1199,7 @@ element("open-codex-thread").addEventListener("click", async () => {
         messages: [],
         activities: [],
         message: null,
+        retryable: false,
       });
   }
 });
@@ -1244,6 +1252,51 @@ element<HTMLFormElement>("codex-thread-form").addEventListener(
       const issue = element("codex-thread-error");
       issue.textContent = reply.message;
       issue.hidden = false;
+    }
+  },
+);
+element<HTMLButtonElement>("retry-codex-thread").addEventListener(
+  "click",
+  async () => {
+    const project = activeProject;
+    const view = codexThreadView;
+    if (
+      !project ||
+      selectedApiProvider() !== null ||
+      view?.projectId !== project.id ||
+      view.status !== "ready" ||
+      !view.retryable
+    )
+      return;
+    const text = [...view.messages]
+      .reverse()
+      .find((item) => item.role === "user")?.text;
+    if (!text?.trim()) return;
+    const button = element<HTMLButtonElement>("retry-codex-thread");
+    button.disabled = true;
+    try {
+      const reply = await window.desktop.sendCodexThread({
+        schema_version: "1.0",
+        project_id: project.id,
+        text,
+      });
+      if (activeProject?.id !== project.id || selectedApiProvider() !== null)
+        return;
+      if (reply.ok) renderCodexThread(reply.value);
+      else {
+        codexThreadIssue = reply.message;
+        const issue = element("codex-thread-error");
+        issue.textContent = reply.message;
+        issue.hidden = false;
+        void pollCodex(++codexPollGeneration);
+      }
+    } catch {
+      codexThreadIssue =
+        "The request could not be retried. Check the conversation and try again.";
+      const issue = element("codex-thread-error");
+      issue.textContent = codexThreadIssue;
+      issue.hidden = false;
+      void pollCodex(++codexPollGeneration);
     }
   },
 );

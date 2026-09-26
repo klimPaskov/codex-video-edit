@@ -292,6 +292,7 @@ try {
     window.getByRole("complementary", { name: "Codex conversation" }),
   ).toBeVisible();
   await expect(window.locator("#codex-thread-status")).toBeHidden();
+  await expect(window.locator("#retry-codex-thread")).toBeHidden();
   await window
     .getByRole("button", { name: "Open conversation", exact: true })
     .click();
@@ -305,6 +306,20 @@ try {
   await window.screenshot({
     path: join(evidence, "codex-drawer-signed-out.png"),
   });
+  if (process.argv.includes("--inspect")) {
+    console.log(JSON.stringify({ inspectionReady: true, evidence }));
+    const marker = join(evidence, "inspection.done"),
+      deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+      try {
+        await access(marker);
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+    await access(marker);
+  }
   await window.locator("#assistant-provider").selectOption("deepseek");
   await expect(
     window.getByRole("complementary", { name: "DeepSeek conversation" }),
@@ -485,7 +500,7 @@ try {
     .toBe(1.25);
   await expect(
     window.locator(`#projects [data-project-id="${project.id}"] small`),
-  ).toHaveText("0:01.000 · Review");
+  ).toHaveText("0:01.000 · 1 source · Review");
   await window.locator(`#projects [data-project-id="${project.id}"]`).click();
   await expect(window.locator("#frame")).toBeVisible();
   await expect(window.locator("#time")).toHaveText("0:00.000");

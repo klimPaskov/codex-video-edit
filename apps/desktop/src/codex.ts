@@ -88,6 +88,7 @@ const initialThread = (): CodexThreadView => ({
   messages: [],
   activities: [],
   message: null,
+  retryable: false,
 });
 const PROJECT_THREAD_INSTRUCTIONS =
   "You are the in-app codex-video-edit editor. Read current state through project.get_summary and timeline.get_summary. Before every mutation, refresh the draft sequence and hash, then use only the codex-video-edit MCP tools to apply the user's requested reversible edit. For cut.split, use an exact interior output-time position from the current draft and do not infer a useful speech boundary without transcript or audio evidence. For cut.delete_range, use exact half-open output times from the current draft and preserve meaning; without transcript or audio evidence, do not infer that a range is filler or that its joined speech is sound. For cut.delete_ranges, provide 2–16 confirmed disjoint half-open ranges in descending start-time order. The app commits them as one undoable transaction, but does not verify speech meaning or the rendered joins. For cut.restore_range, restore only a confirmed missing source-time interval using its source_id and exact half-open source times; the main service rejects visible overlap and ambiguous source ordering. Never infer filler from timing alone. Describe an edit as applied only after its tool result confirms the commit. MCP-bound project threads do not support native children. Do not claim a child ran unless a completed server-owned spawn and child-owned summary reads are verified. Never invent timeline, preview, transcript, render, review, or export state. Do not request or use shell, file, network, browser, external app, export, deletion, cleanup, spending, or publication access.";
@@ -337,6 +338,9 @@ export class DesktopCodex {
         break;
       case "turn_terminal":
         this.thread.status = "ready";
+        this.thread.retryable =
+          event.status === "failed" &&
+          this.thread.messages.some((message) => message.role === "user");
         for (const message of this.thread.messages) message.complete = true;
         for (const activity of this.thread.activities) activity.complete = true;
         this.thread.message =
@@ -348,6 +352,7 @@ export class DesktopCodex {
         break;
       case "connection_uncertain":
         this.thread.status = "uncertain";
+        this.thread.retryable = false;
         this.thread.message =
           "The connection ended during this turn. Reopen the project to reconcile its thread and committed draft.";
         break;
@@ -378,6 +383,7 @@ export class DesktopCodex {
     });
     this.thread.status = history.activeTurnId ? "running" : "ready";
     this.thread.message = null;
+    this.thread.retryable = false;
   }
   async get(): Promise<CodexView> {
     if (!this.attempted && !this.stopped) return this.reconnect();
@@ -805,6 +811,7 @@ export class DesktopCodex {
       messages: [],
       activities: [],
       message: null,
+      retryable: false,
     };
     try {
       await this.client.openProjectThread({
@@ -836,6 +843,7 @@ export class DesktopCodex {
     )
       throw new Error("The project conversation is not ready.");
     const id = this.viewId("message");
+    this.thread.retryable = false;
     this.thread.messages.push({ id, role: "user", text, complete: true });
     this.thread.messages = this.thread.messages.slice(-200);
     this.thread.status = "starting";
@@ -852,6 +860,7 @@ export class DesktopCodex {
           (message) => message.id !== id,
         );
         this.thread.status = "ready";
+        this.thread.retryable = false;
         this.thread.message =
           "Codex rejected this turn. Adjust it and try again.";
       } else {

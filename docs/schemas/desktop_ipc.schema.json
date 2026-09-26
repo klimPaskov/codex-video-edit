@@ -1818,7 +1818,8 @@
         "projectId",
         "messages",
         "activities",
-        "message"
+        "message",
+        "retryable"
       ],
       "properties": {
         "status": {
@@ -1869,6 +1870,10 @@
               "type": "null"
             }
           ]
+        },
+        "retryable": {
+          "type": "boolean",
+          "description": "True only after the authoritative server marks the active Codex turn failed; it permits an explicit user retry of the last submitted request."
         }
       },
       "allOf": [
@@ -1893,6 +1898,9 @@
               },
               "message": {
                 "type": "null"
+              },
+              "retryable": {
+                "const": false
               }
             }
           },
@@ -1900,6 +1908,33 @@
             "properties": {
               "projectId": {
                 "$ref": "#/$defs/codexThreadId"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "retryable": {
+                "const": true
+              }
+            },
+            "required": ["retryable"]
+          },
+          "then": {
+            "properties": {
+              "status": {
+                "const": "ready"
+              },
+              "messages": {
+                "contains": {
+                  "properties": {
+                    "role": {
+                      "const": "user"
+                    }
+                  },
+                  "required": ["role"]
+                }
               }
             }
           }

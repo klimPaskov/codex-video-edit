@@ -277,6 +277,27 @@ class DesktopIpcContractTests(unittest.TestCase):
                 'payload': request,
                 'response': {'ok': True, 'value': thread},
             })
+        retryable_thread = deepcopy(thread)
+        retryable_thread['retryable'] = True
+        self.valid({
+            'channel': 'codex-thread:get',
+            'payload': request,
+            'response': {'ok': True, 'value': retryable_thread},
+        })
+        running_retry = deepcopy(retryable_thread)
+        running_retry['status'] = 'running'
+        self.invalid({
+            'channel': 'codex-thread:get',
+            'payload': request,
+            'response': {'ok': True, 'value': running_retry},
+        })
+        no_prompt_retry = deepcopy(retryable_thread)
+        no_prompt_retry['messages'] = []
+        self.invalid({
+            'channel': 'codex-thread:get',
+            'payload': request,
+            'response': {'ok': True, 'value': no_prompt_retry},
+        })
         self.valid({
             'channel': 'codex-thread:send',
             'payload': dict(request, text='Trim the false start.'),
